@@ -32,3 +32,28 @@ DEVICE ID 1fc9:000c on Bus 001 Address 002 =================
      bInterfaceSubClass :    0x1
      bInterfaceProtocol :    0x1
      iInterface         :    0x4 DFU
+
+['0x9', '0x21', '0x7', '0x0', '0xff', '0x0', '0x8', '0x0', '0x1']
+ext 33
+262
+    INTERFACE 0: Application Specific ======================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x0
+     bAlternateSetting  :    0x0
+     bNumEndpoints      :    0x0
+     bInterfaceClass    :   0xfe Application Specific
+     bInterfaceSubClass :    0x1
+     bInterfaceProtocol :    0x1
+     iInterface         :    0x4 DFU
+result array('B', [0, 0, 0, 0, 9, 0])
+bStatus 0
+bwPollTimeout 0
+bState 9
+iString 0
+	setalt None
+result array('B', [0, 0, 0, 0, 9, 0])
+bStatus 0
+bwPollTimeout 0
+bState 9
+iString 0

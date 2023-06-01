@@ -119,11 +119,12 @@ offset = 532480
 start = int((offset + 4096) / 2048)
 print(start)
 
-intf = usb.util.find_descriptor(
+intf: usb.core.Interface = usb.util.find_descriptor(
                 dev[0],
                 custom_match=lambda d: d.bDescriptorType == 0x4
             )
 print(intf)
+
 
 """
 struct usb_dfu_func_descriptor {
@@ -166,13 +167,28 @@ for intf in desc.interfaces():
 
 dfu_get_status(dev, intf.bInterfaceNumber)
 
+setalt = intf.set_altsetting()
+print('\tsetalt', setalt)
 
-# data = bytes(2048)
-#
-#
-# print(intf.bInterfaceNumber)
-#
-# # a = dfu_upload(dev, intf.iInterface, 2048, start, 2048 + offset)
-# # a = dfu_upload(dev, intf.bInterfaceNumber, 2048, start, data)
+# ret  = usb.util.release_interface(dev, intf)
+# print('release_interface', ret)
+
+dev.set_interface_altsetting(intf.bInterfaceNumber, 0)
+
+dev.reset()
+
+dfu_get_status(dev, intf.bInterfaceNumber)
+
+from time import sleep
+
+sleep(0.5)
+
+data = bytes(2048)
+
+
+print(intf.bInterfaceNumber)
+
+# a = dfu_upload(dev, intf.iInterface, 2048, start, 2048 + offset)
 # a = dfu_upload(dev, intf.bInterfaceNumber, 2048, start, data)
-# print(a.tobytes())
+a = dfu_upload(dev, intf.bInterfaceNumber, 2048, start, data)
+print(a.tobytes())
