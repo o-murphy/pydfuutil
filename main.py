@@ -1,12 +1,12 @@
-from pydfuutil.dfu import *
+from time import sleep
+
 import libusb_package
 import usb.backend.libusb1
 import usb.core
-from time import sleep
 
+from pydfuutil.dfu import *
 
 dfu_timeout = 5000
-
 
 USB_DT_DFU = 0x21
 
@@ -19,8 +19,32 @@ class DFUDevice:
     def status(self) -> (int, dict):
         _, status = dfu_get_status(self.dev, self.intf)
         sleep(status.bwPollTimeout)
-        print(status, dfu_state_to_string(status.bState), dfu_status_to_string(status.bStatus))
         return _, status
+
+    def probe(self):
+
+        cfg: usb.core.Configuration
+        cfg = self.dev.get_active_configuration()  # or: for cfg in self.dev.configurations()
+        if not cfg:
+            return
+
+        ret = tuple(usb.util.find_descriptor(
+            cfg.extra_descriptors, find_all=True,
+            custom_match=lambda d: d == USB_DT_DFU
+        ))
+        print('ret', not ret)
+        if ret:
+            pass
+        else:
+
+            intf: usb.core.Interface
+            for intf in cfg.interfaces():
+                if not intf:
+                    break
+
+                # usb.control.alt
+                print(intf)
+
 
     def connect(self):
         ...
@@ -57,9 +81,6 @@ class DFUDevice:
         return True
 
 
-
-
-
 def get_dev_h():
     libusb1_backend = usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)
     dev = usb.core.find(backend=libusb1_backend, idVendor=0x1FC9, idProduct=0x000C)
@@ -85,31 +106,32 @@ def get_intf_extra(intf: usb.core.Interface, match=USB_DT_DFU):
     return ext
 
 
-
 if __name__ == '__main__':
     # dev = get_dev_h()
     dfudev = DFUDevice(get_dev_h())
     print(dfudev.is_connect_valid())
 
-    dfu_detach(dfudev.dev, dfudev.intf, 1000)
+    print(dfudev.probe())
 
-    dfudev.dev = None
-
-    sleep(1)
-
-    # dev = get_dev_h()
-    # dfudev = DFUDevice(dev)
-    # print(dfudev.is_connect_valid())
-
-    dfudev.dev = get_dev_h()
-
-    # dfu_clear_status(dfudev.dev, dfudev.intf)
-
-    # s = dfudev.status()
-
-    offset = 532480
-    start = int((offset + 4096) / 2048)
-    data = bytes(2048)
+    # dfu_detach(dfudev.dev, dfudev.intf, 1000)
+    #
+    # dfudev.dev = None
+    #
+    # sleep(1)
+    #
+    # # dev = get_dev_h()
+    # # dfudev = DFUDevice(dev)
+    # # print(dfudev.is_connect_valid())
+    #
+    # dfudev.dev = get_dev_h()
+    #
+    # # dfu_clear_status(dfudev.dev, dfudev.intf)
+    #
+    # # s = dfudev.status()
+    #
+    # offset = 532480
+    # start = int((offset + 4096) / 2048)
+    # data = bytes(2048)
 
     # a = dfu_upload(dfudev.dev, dfudev.intf, start, data)
     # print(a)
@@ -150,7 +172,6 @@ if __name__ == '__main__':
     #
     # print(dfu_upload(dfudev.dev, dfudev.intf, start, data))
 
-
     #
     # # intf: usb.core.Interface = usb.util.find_descriptor(
     # #                 dev[0],
@@ -182,7 +203,6 @@ if __name__ == '__main__':
     # # intf = get_intf_descriptor(dev, desc, 0)
     # _, status = dfu_get_status(dev, intf.bInterfaceNumber)
     # print(status, dfu_state_to_string(status['bState']))
-
 
     # # dfu_clear_status(dev, intf.bInterfaceNumber)
     #
