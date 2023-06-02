@@ -6,71 +6,71 @@ from construct import *
 
 
 # dfu.h
-class DFUStates(IntEnum):
-    STATE_APP_IDLE = 0x00
-    STATE_APP_DETACH = 0x01
-    STATE_DFU_IDLE = 0x02
-    STATE_DFU_DOWNLOAD_SYNC = 0x03
-    STATE_DFU_DOWNLOAD_BUSY = 0x04
-    STATE_DFU_DOWNLOAD_IDLE = 0x05
-    STATE_DFU_MANIFEST_SYNC = 0x06
-    STATE_DFU_MANIFEST = 0x07
-    STATE_DFU_MANIFEST_WAIT_RESET = 0x08
-    STATE_DFU_UPLOAD_IDLE = 0x09
-    STATE_DFU_ERROR = 0x0a
+class DFUState(IntEnum):
+    APP_IDLE = 0x00
+    APP_DETACH = 0x01
+    DFU_IDLE = 0x02
+    DFU_DOWNLOAD_SYNC = 0x03
+    DFU_DOWNLOAD_BUSY = 0x04
+    DFU_DOWNLOAD_IDLE = 0x05
+    DFU_MANIFEST_SYNC = 0x06
+    DFU_MANIFEST = 0x07
+    DFU_MANIFEST_WAIT_RESET = 0x08
+    DFU_UPLOAD_IDLE = 0x09
+    DFU_ERROR = 0x0a
 
 
 dfu_states_names = {
-    DFUStates.STATE_APP_IDLE: 'appIDLE',
-    DFUStates.STATE_APP_DETACH: 'appDETACH',
-    DFUStates.STATE_DFU_IDLE: 'dfuIDLE',
-    DFUStates.STATE_DFU_DOWNLOAD_SYNC: 'dfuDNLOAD-SYNC',
-    DFUStates.STATE_DFU_DOWNLOAD_BUSY: 'dfuDNBUSY',
-    DFUStates.STATE_DFU_DOWNLOAD_IDLE: 'dfuDNLOAD-IDLE',
-    DFUStates.STATE_DFU_MANIFEST_SYNC: 'dfuMANIFEST-SYNC',
-    DFUStates.STATE_DFU_MANIFEST: 'dfuMANIFEST',
-    DFUStates.STATE_DFU_MANIFEST_WAIT_RESET: 'dfuMANIFEST-WAIT-RESET',
-    DFUStates.STATE_DFU_UPLOAD_IDLE: 'dfuUPLOAD-IDLE',
-    DFUStates.STATE_DFU_ERROR: 'dfuERROR',
+    DFUState.APP_IDLE: 'appIDLE',
+    DFUState.APP_DETACH: 'appDETACH',
+    DFUState.DFU_IDLE: 'dfuIDLE',
+    DFUState.DFU_DOWNLOAD_SYNC: 'dfuDNLOAD-SYNC',
+    DFUState.DFU_DOWNLOAD_BUSY: 'dfuDNBUSY',
+    DFUState.DFU_DOWNLOAD_IDLE: 'dfuDNLOAD-IDLE',
+    DFUState.DFU_MANIFEST_SYNC: 'dfuMANIFEST-SYNC',
+    DFUState.DFU_MANIFEST: 'dfuMANIFEST',
+    DFUState.DFU_MANIFEST_WAIT_RESET: 'dfuMANIFEST-WAIT-RESET',
+    DFUState.DFU_UPLOAD_IDLE: 'dfuUPLOAD-IDLE',
+    DFUState.DFU_ERROR: 'dfuERROR',
 }
 
 
 class DFUStatus(IntEnum):
-    DFU_STATUS_OK = 0x00
-    DFU_STATUS_ERROR_TARGET = 0x01
-    DFU_STATUS_ERROR_FILE = 0x02
-    DFU_STATUS_ERROR_WRITE = 0x03
-    DFU_STATUS_ERROR_ERASE = 0x04
-    DFU_STATUS_ERROR_CHECK_ERASED = 0x05
-    DFU_STATUS_ERROR_PROG = 0x06
-    DFU_STATUS_ERROR_VERIFY = 0x07
-    DFU_STATUS_ERROR_ADDRESS = 0x08
-    DFU_STATUS_ERROR_NOTDONE = 0x09
-    DFU_STATUS_ERROR_FIRMWARE = 0x0a
-    DFU_STATUS_ERROR_VENDOR = 0x0b
-    DFU_STATUS_ERROR_USBR = 0x0c
-    DFU_STATUS_ERROR_POR = 0x0d
-    DFU_STATUS_ERROR_UNKNOWN = 0x0e
-    DFU_STATUS_ERROR_STALLEDPKT = 0x0f
+    OK = 0x00
+    ERROR_TARGET = 0x01
+    ERROR_FILE = 0x02
+    ERROR_WRITE = 0x03
+    ERROR_ERASE = 0x04
+    ERROR_CHECK_ERASED = 0x05
+    ERROR_PROG = 0x06
+    ERROR_VERIFY = 0x07
+    ERROR_ADDRESS = 0x08
+    ERROR_NOTDONE = 0x09
+    ERROR_FIRMWARE = 0x0a
+    ERROR_VENDOR = 0x0b
+    ERROR_USBR = 0x0c
+    ERROR_POR = 0x0d
+    ERROR_UNKNOWN = 0x0e
+    ERROR_STALLEDPKT = 0x0f
 
 
 dfu_status_names = {
-    DFUStatus.DFU_STATUS_OK: "No error condition is present",
-    DFUStatus.DFU_STATUS_ERROR_TARGET: "File is not targeted for use by this device",
-    DFUStatus.DFU_STATUS_ERROR_FILE: "File is for this device but fails some vendor-specific test",
-    DFUStatus.DFU_STATUS_ERROR_WRITE: "Device is unable to write memory",
-    DFUStatus.DFU_STATUS_ERROR_ERASE: "Memory erase function failed",
-    DFUStatus.DFU_STATUS_ERROR_CHECK_ERASED: "Memory erase check failed",
-    DFUStatus.DFU_STATUS_ERROR_PROG: "Program memory function failed",
-    DFUStatus.DFU_STATUS_ERROR_VERIFY: "Programmed memory failed verification",
-    DFUStatus.DFU_STATUS_ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
-    DFUStatus.DFU_STATUS_ERROR_NOTDONE: "Received DFU_DNLOAD with wLength = 0, but device does not think that it has all data yet",
-    DFUStatus.DFU_STATUS_ERROR_FIRMWARE: "Device's firmware is corrupt. It cannot return to run-time (non-DFU) operations",
-    DFUStatus.DFU_STATUS_ERROR_VENDOR: "iString indicates a vendor specific error",
-    DFUStatus.DFU_STATUS_ERROR_USBR: "Device detected unexpected USB reset signalling",
-    DFUStatus.DFU_STATUS_ERROR_POR: "Device detected unexpected power on reset",
-    DFUStatus.DFU_STATUS_ERROR_UNKNOWN: "Something went wrong, but the device does not know what it was",
-    DFUStatus.DFU_STATUS_ERROR_STALLEDPKT: "Device stalled an unexpected request"
+    DFUStatus.OK: "No error condition is present",
+    DFUStatus.ERROR_TARGET: "File is not targeted for use by this device",
+    DFUStatus.ERROR_FILE: "File is for this device but fails some vendor-specific test",
+    DFUStatus.ERROR_WRITE: "Device is unable to write memory",
+    DFUStatus.ERROR_ERASE: "Memory erase function failed",
+    DFUStatus.ERROR_CHECK_ERASED: "Memory erase check failed",
+    DFUStatus.ERROR_PROG: "Program memory function failed",
+    DFUStatus.ERROR_VERIFY: "Programmed memory failed verification",
+    DFUStatus.ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
+    DFUStatus.ERROR_NOTDONE: "Received DFU_DNLOAD with wLength = 0, but device does not think that it has all data yet",
+    DFUStatus.ERROR_FIRMWARE: "Device's firmware is corrupt. It cannot return to run-time (non-DFU) operations",
+    DFUStatus.ERROR_VENDOR: "iString indicates a vendor specific error",
+    DFUStatus.ERROR_USBR: "Device detected unexpected USB reset signalling",
+    DFUStatus.ERROR_POR: "Device detected unexpected power on reset",
+    DFUStatus.ERROR_UNKNOWN: "Something went wrong, but the device does not know what it was",
+    DFUStatus.ERROR_STALLEDPKT: "Device stalled an unexpected request"
 
 }
 
@@ -102,7 +102,7 @@ class DFUMode(IntEnum):
 
 dfu_status = Struct(
     'bStatus' / Byte,
-    'bwPollTimeout' / Int16ul,
+    'bwPollTimeout' / BytesInteger(3),
     'bState' / Byte,
     'iString' / Byte
 )
@@ -171,11 +171,11 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: 
 
 
 # TODO: int out
-def dfu_get_status(device: usb.core.Device, interface: int) -> [bytes, dict]:
-    status = dict(
-        bStatus=DFUStatus.DFU_STATUS_ERROR_UNKNOWN,
+def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
+    status = Container(
+        bStatus=DFUStatus.ERROR_UNKNOWN,
         bwPollTimeout=0,
-        bState=DFUStates.STATE_DFU_ERROR,
+        bState=DFUState.DFU_ERROR,
         iString=0
     )
 
@@ -192,10 +192,10 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> [bytes, dict]:
         con = dfu_status.parse(result.tobytes())
         con.pop('_io')
         status.update(con)
-    return result.tobytes(), status
+    return int.from_bytes(result.tobytes(), byteorder='little'), status
 
 
-def dfu_clear_status(device: usb.core.Device, interface: int) -> bytes:
+def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_CLRSTATUS,
@@ -204,7 +204,7 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> bytes:
         data_or_wLength=None,
         timeout=dfu_timeout,
     )
-    return result.tobytes()
+    return int.from_bytes(result.tobytes(), byteorder='little')
 
 
 def dfu_get_state(device: usb.core.Device, interface: int) -> int:
@@ -224,19 +224,28 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
 
 
 def dfu_abort(device: usb.core.Device, interface: int) -> int:
-    pass
+    result = device.ctrl_transfer(
+        bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
+        bRequest=DFUCommands.DFU_ABORT,
+        wValue=0,
+        wIndex=interface,
+        data_or_wLength=None,
+        timeout=dfu_timeout,
+    )
+
+    return int.from_bytes(result.tobytes(), byteorder='little')
 
 
 def dfu_state_to_string(state: int) -> [str, None]:
     try:
-        return dfu_states_names[DFUStates(state).name]
+        return dfu_states_names[DFUState(state)]
     except (ValueError, KeyError):
         return None
 
 
 def dfu_status_to_string(status: int) -> [str, None]:
     try:
-        return dfu_status_names[DFUStatus(status).name]
+        return dfu_status_names[DFUStatus(status)]
     except (ValueError, KeyError):
         return None
 
