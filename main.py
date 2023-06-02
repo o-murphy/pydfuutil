@@ -54,13 +54,17 @@ if __name__ == '__main__':
     desc = get_dev_descriptor(devh)
     intf = get_intf_descriptor(devh, desc)
 
-    dfu_get_status(devh, intf.bInterfaceNumber)
+    _, status = dfu_get_status(devh, intf.bInterfaceNumber)
+    print(status)
+
 
     usb.util.claim_interface(devh, intf.bInterfaceNumber)
     dfu_detach(devh, intf.bInterfaceNumber, 1000)
     usb.util.release_interface(devh, intf.bInterfaceNumber)
 
-    dfu_get_status(devh, intf.bInterfaceNumber)
+    _, status = dfu_get_status(devh, intf.bInterfaceNumber)
+
+    print(status)
 
 
     # dfu_clear_status(devh, intf.bInterfaceNumber)
@@ -68,7 +72,9 @@ if __name__ == '__main__':
 
     dfu_get_status(devh, intf.bInterfaceNumber)
 
-    a = dfu_upload(devh, intf.bInterfaceNumber, start, data)
+    print(dfu_get_state(devh, intf.bInterfaceNumber))
+
+    # a = dfu_upload(devh, intf.bInterfaceNumber, start, data)
     # print(a.tobytes())
 
     # setalt = intf.set_altsetting()

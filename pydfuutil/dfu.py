@@ -71,6 +71,7 @@ dfu_status = Struct(
     'iString' / Byte
 )
 
+
 # Todo: dataclass typed dictor Struct
 dfu_if = Struct(
     'vendor' / Int16ul,
@@ -91,102 +92,108 @@ dfu_if = Struct(
 
 
 def dfu_init(timeout: int) -> None:
-    pass
+    raise NotImplementedError()
 
 
 def dfu_debug(level: int) -> None:
-    pass
+    raise NotImplementedError()
 
 
-def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> int:
-    return device.ctrl_transfer(
+def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
+    result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_DETACH,
         wValue=timeout,
         wIndex=interface,
         data_or_wLength=None,
-        # wLength=length,
         timeout=dfu_timeout,
     )
+    return result.tobytes()
 
 
-def dfu_download(device: 'Device', interface: int, length: int, data: bytes) -> int:
-    pass
+def dfu_download(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> bytes:
+    result = device.ctrl_transfer(
+        bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
+        bRequest=DFUCommands.DFU_DNLOAD,
+        wValue=transaction,
+        wIndex=interface,
+        data_or_wLength=data,
+        timeout=dfu_timeout,
+    )
+    return result.tobytes()
 
 
-def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> int:
-    """
-    Upload data from the device using PyUSB library.
-
-    Args:
-        device: PyUSB device handle.
-        interface: USB device interface.
-        length: Length of the data to upload.
-        transaction: Transaction counter.
-        data: Data buffer to store the uploaded data.
-
-    Returns:
-        The status of the control transfer.
-    """
-
-    return device.ctrl_transfer(
+def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> bytes:
+    result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_UPLOAD,
         wValue=transaction,
         wIndex=interface,
         data_or_wLength=data,
-        # wLength=length,
         timeout=dfu_timeout,
     )
+    return result.tobytes()
 
 
 # TODO: int out
-def dfu_get_status(device: usb.core.Device, interface: int) -> int:
-    buffer = bytes(6)
+def dfu_get_status(device: usb.core.Device, interface: int) -> [bytes, dict]:
+    status = dict(
+        bStatus=DFUStatus.DFU_STATUS_ERROR_UNKNOWN,
+        bwPollTimeout=0,
+        bState=DFUStates.STATE_DFU_ERROR,
+        iString=0
+    )
 
-    status = device.ctrl_transfer(
+    length = 6
+    result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_GETSTATUS,
         wValue=0,
         wIndex=interface,
-        data_or_wLength=buffer,
-        # wLength=length,
+        data_or_wLength=length,
         timeout=dfu_timeout,
     )
-    # print('result', status)
-    buffer = status.tobytes()
-    # print('bStatus', buffer[0], DFUStatus(buffer[0]).name)
-    # print('bwPollTimeout', ((0xff & buffer[3]) << 16) | ((0xff & buffer[2]) << 8) | (0xff & buffer[1]))
-    #
-    # print('bState', buffer[4], DFUStates(buffer[4]).name)
-    # print('iString', buffer[5])
-    print(dfu_status.parse(buffer), DFUStatus(buffer[0]).name, DFUStates(buffer[4]).name)
-    return dfu_status.parse(buffer)
+    if len(result) == 6:
+        con = dfu_status.parse(result.tobytes())
+        con.pop('_io')
+        status.update(con)
+    return result.tobytes(), status
 
 
-def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
-    status = device.ctrl_transfer(
+def dfu_clear_status(device: usb.core.Device, interface: int) -> bytes:
+    result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_CLRSTATUS,
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,
-        # wLength=length,
         timeout=dfu_timeout,
     )
-    return status.tobytes()
+    return result.tobytes()
 
 
-def dfu_get_state(device: 'Device', interface: int) -> int:
-    pass
+def dfu_get_state(device: usb.core.Device, interface: int) -> int:
+    length = 1
+    result = device.ctrl_transfer(
+        bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
+        bRequest=DFUCommands.DFU_GETSTATE,
+        wValue=0,
+        wIndex=interface,
+        data_or_wLength=length,
+        timeout=dfu_timeout,
+    )
+
+    if result.tobytes()[0] < 1:
+        return -1
+    return result.tobytes()[0]
 
 
-def dfu_abort(device: 'Device', interface: int) -> int:
+def dfu_abort(device: usb.core.Device, interface: int) -> int:
     pass
 
 
 def dfu_state_to_string(state: int) -> str:
-    pass
+    return DFUStates(state).name
 
 
 def dfu_status_to_string(status: int) -> str:
