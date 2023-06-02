@@ -1,7 +1,7 @@
 from enum import IntEnum
 
-import usb.util
 import usb.core
+import usb.util
 from construct import *
 
 
@@ -18,6 +18,21 @@ class DFUStates(IntEnum):
     STATE_DFU_MANIFEST_WAIT_RESET = 0x08
     STATE_DFU_UPLOAD_IDLE = 0x09
     STATE_DFU_ERROR = 0x0a
+
+
+dfu_states_names = {
+    DFUStates.STATE_APP_IDLE: 'appIDLE',
+    DFUStates.STATE_APP_DETACH: 'appDETACH',
+    DFUStates.STATE_DFU_IDLE: 'dfuIDLE',
+    DFUStates.STATE_DFU_DOWNLOAD_SYNC: 'dfuDNLOAD-SYNC',
+    DFUStates.STATE_DFU_DOWNLOAD_BUSY: 'dfuDNBUSY',
+    DFUStates.STATE_DFU_DOWNLOAD_IDLE: 'dfuDNLOAD-IDLE',
+    DFUStates.STATE_DFU_MANIFEST_SYNC: 'dfuMANIFEST-SYNC',
+    DFUStates.STATE_DFU_MANIFEST: 'dfuMANIFEST',
+    DFUStates.STATE_DFU_MANIFEST_WAIT_RESET: 'dfuMANIFEST-WAIT-RESET',
+    DFUStates.STATE_DFU_UPLOAD_IDLE: 'dfuUPLOAD-IDLE',
+    DFUStates.STATE_DFU_ERROR: 'dfuERROR',
+}
 
 
 class DFUStatus(IntEnum):
@@ -37,6 +52,27 @@ class DFUStatus(IntEnum):
     DFU_STATUS_ERROR_POR = 0x0d
     DFU_STATUS_ERROR_UNKNOWN = 0x0e
     DFU_STATUS_ERROR_STALLEDPKT = 0x0f
+
+
+dfu_status_names = {
+    DFUStatus.DFU_STATUS_OK: "No error condition is present",
+    DFUStatus.DFU_STATUS_ERROR_TARGET: "File is not targeted for use by this device",
+    DFUStatus.DFU_STATUS_ERROR_FILE: "File is for this device but fails some vendor-specific test",
+    DFUStatus.DFU_STATUS_ERROR_WRITE: "Device is unable to write memory",
+    DFUStatus.DFU_STATUS_ERROR_ERASE: "Memory erase function failed",
+    DFUStatus.DFU_STATUS_ERROR_CHECK_ERASED: "Memory erase check failed",
+    DFUStatus.DFU_STATUS_ERROR_PROG: "Program memory function failed",
+    DFUStatus.DFU_STATUS_ERROR_VERIFY: "Programmed memory failed verification",
+    DFUStatus.DFU_STATUS_ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
+    DFUStatus.DFU_STATUS_ERROR_NOTDONE: "Received DFU_DNLOAD with wLength = 0, but device does not think that it has all data yet",
+    DFUStatus.DFU_STATUS_ERROR_FIRMWARE: "Device's firmware is corrupt. It cannot return to run-time (non-DFU) operations",
+    DFUStatus.DFU_STATUS_ERROR_VENDOR: "iString indicates a vendor specific error",
+    DFUStatus.DFU_STATUS_ERROR_USBR: "Device detected unexpected USB reset signalling",
+    DFUStatus.DFU_STATUS_ERROR_POR: "Device detected unexpected power on reset",
+    DFUStatus.DFU_STATUS_ERROR_UNKNOWN: "Something went wrong, but the device does not know what it was",
+    DFUStatus.DFU_STATUS_ERROR_STALLEDPKT: "Device stalled an unexpected request"
+
+}
 
 
 class DFUCommands(IntEnum):
@@ -70,7 +106,6 @@ dfu_status = Struct(
     'bState' / Byte,
     'iString' / Byte
 )
-
 
 # Todo: dataclass typed dictor Struct
 dfu_if = Struct(
@@ -192,12 +227,18 @@ def dfu_abort(device: usb.core.Device, interface: int) -> int:
     pass
 
 
-def dfu_state_to_string(state: int) -> str:
-    return DFUStates(state).name
+def dfu_state_to_string(state: int) -> [str, None]:
+    try:
+        return dfu_states_names[DFUStates(state).name]
+    except (ValueError, KeyError):
+        return None
 
 
-def dfu_status_to_string(status: int) -> str:
-    pass
+def dfu_status_to_string(status: int) -> [str, None]:
+    try:
+        return dfu_status_names[DFUStatus(status).name]
+    except (ValueError, KeyError):
+        return None
 
 
 debug: int = 0

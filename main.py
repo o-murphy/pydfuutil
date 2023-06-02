@@ -22,59 +22,109 @@ def get_dev_descriptor(devh):
     return desc
 
 
-def get_intf_descriptor(devh: usb.core.Device, desc) -> usb.core.Interface:
-    print(f'Inrf found: {len(desc.interfaces())}')
-    return desc.interfaces()[0]
+def get_intf_descriptor(devh: usb.core.Device, desc, intf_idx: int) -> usb.core.Interface:
+    return desc.interfaces()[intf_idx]
 
 
-def get_intf_extra(intf):
+def get_intf_extra(intf: usb.core.Interface, match=USB_DT_DFU):
     print(f'Extra found: {len(intf.extra_descriptors)}')
 
     ext = usb.util.find_descriptor(
         intf.extra_descriptors,
-        custom_match=lambda d: d == USB_DT_DFU
+        custom_match=lambda d: d == match
     )
     return ext
 
 
 
 if __name__ == '__main__':
-    offset = 532480
-    start = int((offset + 4096) / 2048)
-    data = bytes(2048)
+    # offset = 532480
+    # start = int((offset + 4096) / 2048)
+    # data = bytes(2048)
+    #
+    # # intf: usb.core.Interface = usb.util.find_descriptor(
+    # #                 dev[0],
+    # #                 custom_match=lambda d: d.bDescriptorType == 0x4
+    # #             )
+    # # print(intf)
+    #
+    # devh = get_dev_h()
+    # print(devh)
+    #
+    # desc = get_dev_descriptor(devh)
+    # intf = get_intf_descriptor(devh, desc, 0)
+    #
+    # _, status = dfu_get_status(devh, intf.bInterfaceNumber)
+    # print(status)
+    #
+    #
+    # usb.util.claim_interface(devh, intf.bInterfaceNumber)
+    # dfu_detach(devh, intf.bInterfaceNumber, 1000)
+    # usb.util.release_interface(devh, intf.bInterfaceNumber)
+    #
+    # _, status = dfu_get_status(devh, intf.bInterfaceNumber)
+    #
+    # print(status)
+    #
+    #
+    # # dfu_clear_status(devh, intf.bInterfaceNumber)
+    #
+    #
+    # dfu_get_status(devh, intf.bInterfaceNumber)
+    #
+    # print(dfu_get_state(devh, intf.bInterfaceNumber))
+    #
+    # # a = dfu_upload(devh, intf.bInterfaceNumber, start, data)
+    # # print(a.tobytes())
+    #
+    # # setalt = intf.set_altsetting()
 
-    # intf: usb.core.Interface = usb.util.find_descriptor(
-    #                 dev[0],
-    #                 custom_match=lambda d: d.bDescriptorType == 0x4
-    #             )
-    # print(intf)
+    INTERFACE_NUMBER = 0
+    dev: usb.core.Device = get_dev_h()
+    print(dev)
 
-    devh = get_dev_h()
+    # if dev.is_kernel_driver_active(INTERFACE_NUMBER):
+    #     dev.detach_kernel_driver(INTERFACE_NUMBER)
 
-    desc = get_dev_descriptor(devh)
-    intf = get_intf_descriptor(devh, desc)
+    # Set the active configuration
+    dev.set_configuration()
 
-    _, status = dfu_get_status(devh, intf.bInterfaceNumber)
-    print(status)
+    # Claim the interface
+    usb.util.claim_interface(dev, INTERFACE_NUMBER)
 
+    # # Control transfer to read the iSerialNumber
+    # response = dev.ctrl_transfer(
+    #     bmRequestType=usb.util.CTRL_TYPE_STANDARD | usb.util.CTRL_IN,
+    #     bRequest=0x06,
+    #     wValue=(usb.util.DESC_TYPE_STRING << 8) | 0x00,
+    #     wIndex=INTERFACE_NUMBER,
+    #     data_or_wLength=255,
+    # )
 
-    usb.util.claim_interface(devh, intf.bInterfaceNumber)
-    dfu_detach(devh, intf.bInterfaceNumber, 1000)
-    usb.util.release_interface(devh, intf.bInterfaceNumber)
+    response = usb.control.get_descriptor(dev, desc_type=0x1, desc_size=0x12, desc_index=INTERFACE_NUMBER)
+    print(response)
+    # Convert the response to a string
+    serial_number = response[2:].tobytes().decode("utf-16le")
+    serial_number = response.tobytes().decode("utf-16le")
 
-    _, status = dfu_get_status(devh, intf.bInterfaceNumber)
+    # Release the interface and close the device
+    usb.util.release_interface(dev, INTERFACE_NUMBER)
+    usb.util.dispose_resources(dev)
 
-    print(status)
+    print("iSerialNumber:", serial_number)
 
+    # # Detach the kernel driver if active
+    # if dev.is_kernel_driver_active(INTERFACE_NUMBER):
+    #     dev.detach_kernel_driver(INTERFACE_NUMBER)
 
-    # dfu_clear_status(devh, intf.bInterfaceNumber)
+    # # Set the active configuration
+    # dev.set_configuration()
+    #
+    # desc = usb.control.get_descriptor(
+    #     dev, desc_type=0x1, desc_size=0x12, desc_index=INTERFACE_NUMBER)
+    #
+    # print(desc.tobytes().decode('utf-8', errors='ignore'))
 
-
-    dfu_get_status(devh, intf.bInterfaceNumber)
-
-    print(dfu_get_state(devh, intf.bInterfaceNumber))
-
-    # a = dfu_upload(devh, intf.bInterfaceNumber, start, data)
-    # print(a.tobytes())
-
-    # setalt = intf.set_altsetting()
+    # # dev.ctrl_transfer(
+    #     usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_STANDARD | usb.util.D
+    # # )
