@@ -1,8 +1,14 @@
+import warnings
 from enum import IntEnum
+import logging
+import inspect
 
 import usb.core
 import usb.util
-from construct import *
+
+from construct import Byte, Int16ul, Struct, BytesInteger, Int8ul, CString, Container
+
+logger = logging.getLogger(__name__)
 
 
 # dfu.h
@@ -86,11 +92,8 @@ class DFUCommands(IntEnum):
 
 
 # /* DFU interface */
-DFU_IFF_DFU = 0x0001
-
-
-# /* DFU Mode, (not Runtime) */
 class DFUMode(IntEnum):
+    DFU_IFF_DFU = 0x0001  # /* DFU Mode, (not Runtime) */
     DFU_IFF_VENDOR = 0x0100
     DFU_IFF_PRODUCT = 0x0200
     DFU_IFF_CONFIG = 0x0400
@@ -115,26 +118,58 @@ dfu_if = Struct(
     'configuration' / Int8ul,
     'interface' / Int8ul,
     'altsetting' / Int8ul,
-    'alt_name' / CString('utf-8'),
+    'alt_name' / CString('utf-8'),  # or Bytes() pointer
     'bus' / Int16ul,
     'devnum' / Int8ul,
-    'path' / CString('utf-8'),
+    'path' / CString('utf-8'),  # or Bytes() pointer
     'flags' / Int16ul,
     'count' / Int16ul,
-    # 'dev' / libusb_device,
-    # 'dev_handle' / libusb_device_handle,
+    # 'dev' / usb.core.Device,
+    # 'dev_handle' / usb.core.Device  # or Bytes() void pointer  (libusb_device_handle)
 )
 
 
 def dfu_init(timeout: int) -> None:
-    raise NotImplementedError()
+    """
+    NOTE: Maybe not needed cause python can define globals after
+    :param timeout:
+    :return:
+    """
+    warnings.warn("Function dfu_init can be removed in the future", FutureWarning)
+
+    global dfu_timeout
+
+    if timeout > 0:
+        dfu_timeout = timeout
+    else:
+        if 0 != dfu_debug_level:
+            raise ValueError(f"dfu_init: Invalid timeout value {timeout}")
+
+
+def dfu_verify_init():  # NOTE: (function: typing.Callable)
+    warnings.warn("Function dfu_verify_init can be removed in the future", FutureWarning)
+    caller = inspect.stack()[0][3]
+    if INVALID_DFU_TIMEOUT == dfu_timeout:
+        if 0 != dfu_debug_level:
+            raise ValueError(f"{caller}: dfu system not property initialized.\n")
+    return 0
 
 
 def dfu_debug(level: int) -> None:
-    raise NotImplementedError()
+    """
+    NOTE: Maybe not needed cause python can define globals after
+    :param level:
+    :return:
+    """
+    warnings.warn("Function dfu_debug can be removed in the future", FutureWarning)
+
+    global dfu_debug_level
+    dfu_debug_level = level
 
 
 def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
+    dfu_verify_init()
+
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_DETACH,
@@ -147,6 +182,8 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
 
 
 def dfu_download(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> bytes:
+    dfu_verify_init()
+
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_DNLOAD,
@@ -159,6 +196,8 @@ def dfu_download(device: usb.core.Device, interface: int, transaction: int, data
 
 
 def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> bytes:
+    dfu_verify_init()
+
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_UPLOAD,
@@ -170,8 +209,9 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: 
     return result.tobytes()
 
 
-# TODO: int out
 def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
+    dfu_verify_init()
+
     status = Container(
         bStatus=DFUStatus.ERROR_UNKNOWN,
         bwPollTimeout=0,
@@ -196,6 +236,8 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
 
 
 def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
+    dfu_verify_init()
+
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_CLRSTATUS,
@@ -208,6 +250,8 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
 
 
 def dfu_get_state(device: usb.core.Device, interface: int) -> int:
+    dfu_verify_init()
+
     length = 1
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
@@ -224,6 +268,8 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
 
 
 def dfu_abort(device: usb.core.Device, interface: int) -> int:
+    dfu_verify_init()
+
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_ABORT,
