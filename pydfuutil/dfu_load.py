@@ -26,7 +26,6 @@ def dfuload_do_upload(dif: DFU_IF,
                       total_size: int = -1) -> [int, bytes]:
     """
     Uploads data from DFU device from special page
-    TODO: add rich progress bar
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
     :param file: optional - io.BytesIO object

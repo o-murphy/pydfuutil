@@ -1,6 +1,9 @@
 from time import sleep
 
 import libusb_package
+
+libusb_package
+
 import usb.backend.libusb1
 import usb.core
 
