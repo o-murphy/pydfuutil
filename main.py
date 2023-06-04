@@ -66,8 +66,6 @@ class DFUDevice:
                 if dfu_abort(self.dev, self.intf) < 0:
                     return False
                 _, status = self.status()
-            elif status.bState == DFUState.DFU_IDLE:
-                break
             else:
                 break
 
