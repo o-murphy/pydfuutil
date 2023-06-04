@@ -6,7 +6,7 @@ import usb.core
 
 from pydfuutil.dfu import *
 
-dfu_timeout = 5000
+DFU_TIMEOUT = 5000
 
 USB_DT_DFU = 0x21
 

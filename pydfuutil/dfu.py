@@ -1,17 +1,15 @@
+import dataclasses
 import warnings
 from enum import IntEnum
 import logging
 import inspect
-
-import usb.core
 import usb.util
 
-from construct import Byte, Int16ul, Struct, BytesInteger, Int8ul, CString, Container
+from construct import Byte, Struct, BytesInteger, Container
 
 logger = logging.getLogger(__name__)
 
 
-# dfu.h
 class DFUState(IntEnum):
     APP_IDLE = 0x00
     APP_DETACH = 0x01
@@ -26,7 +24,7 @@ class DFUState(IntEnum):
     DFU_ERROR = 0x0a
 
 
-dfu_states_names = {
+_DFU_STATES_NAMES = {
     DFUState.APP_IDLE: 'appIDLE',
     DFUState.APP_DETACH: 'appDETACH',
     DFUState.DFU_IDLE: 'dfuIDLE',
@@ -60,7 +58,7 @@ class DFUStatus(IntEnum):
     ERROR_STALLEDPKT = 0x0f
 
 
-dfu_status_names = {
+_DFU_STATUS_NAMES = {
     DFUStatus.OK: "No error condition is present",
     DFUStatus.ERROR_TARGET: "File is not targeted for use by this device",
     DFUStatus.ERROR_FILE: "File is for this device but fails some vendor-specific test",
@@ -103,30 +101,48 @@ class DFUMode(IntEnum):
     DFU_IFF_PATH = 0x4000
 
 
-dfu_status = Struct(
-    'bStatus' / Byte,
-    'bwPollTimeout' / BytesInteger(3),
-    'bState' / Byte,
-    'iString' / Byte
+_DFU_STATUS = Struct(
+    bStatus=Byte,
+    bwPollTimeout=BytesInteger(3),
+    bState=Byte,
+    iString=Byte
 )
 
-# Todo: dataclass typed dictor Struct
-dfu_if = Struct(
-    'vendor' / Int16ul,
-    'product' / Int16ul,
-    'bcdDevice' / Int16ul,
-    'configuration' / Int8ul,
-    'interface' / Int8ul,
-    'altsetting' / Int8ul,
-    'alt_name' / CString('utf-8'),  # or Bytes() pointer
-    'bus' / Int16ul,
-    'devnum' / Int8ul,
-    'path' / CString('utf-8'),  # or Bytes() pointer
-    'flags' / Int16ul,
-    'count' / Int16ul,
-    # 'dev' / usb.core.Device,
-    # 'dev_handle' / usb.core.Device  # or Bytes() void pointer  (libusb_device_handle)
-)
+
+@dataclasses.dataclass
+class DFU_IF:
+    __slots__ = [
+        'vendor', 'product', 'bcdDevice',
+        'configuration', 'interface',
+        'altsetting', 'alt_name',
+        'bus', 'devnum',
+        'path', 'flags', 'count',
+        'dev',
+        # 'dev_handle'
+    ]
+
+    def __init__(self, vendor: int, product: int, bcdDevice: int,
+                 configuration: int, interface: int,
+                 altsetting: int, alt_name: str,
+                 bus: int, devnum: int,
+                 path: [str, int], flags: int, count: int,
+                 dev: usb.core.Device,
+                 # dev_handle: usb.core.Device
+                 ):
+        self.vendor = vendor
+        self.product = product
+        self.bcdDevice = bcdDevice
+        self.configuration = configuration
+        self.interface = interface
+        self.altsetting = altsetting
+        self.alt_name = alt_name  # or Bytes() pointer
+        self.bus = bus
+        self.devnum = devnum
+        self.path = path  # or Bytes() pointer
+        self.flags = flags
+        self.count = count
+        self.dev = dev
+        # self.dev_handle = dev_handle
 
 
 def dfu_init(timeout: int) -> None:
@@ -137,21 +153,26 @@ def dfu_init(timeout: int) -> None:
     """
     warnings.warn("Function dfu_init can be removed in the future", FutureWarning)
 
-    global dfu_timeout
+    global DFU_TIMEOUT
 
     if timeout > 0:
-        dfu_timeout = timeout
+        DFU_TIMEOUT = timeout
     else:
-        if 0 != dfu_debug_level:
+        if 0 != DFU_DEBUG_LEVEL:
             raise ValueError(f"dfu_init: Invalid timeout value {timeout}")
 
 
-def dfu_verify_init():  # NOTE: (function: typing.Callable)
+def dfu_verify_init() -> int:  # NOTE: (function: typing.Callable) not needed cause python can get it from stack
+    """
+    Verifies setted DFU_TIMEOUT and DFU_DEBUG_LEVEL
+    :raise ValueError with caller function name
+    :return: 0
+    """
     warnings.warn("Function dfu_verify_init can be removed in the future", FutureWarning)
     caller = inspect.stack()[0][3]
-    if INVALID_DFU_TIMEOUT == dfu_timeout:
-        if 0 != dfu_debug_level:
-            raise ValueError(f"{caller}: dfu system not property initialized.\n")
+    if INVALID_DFU_TIMEOUT == DFU_TIMEOUT:
+        if 0 != DFU_DEBUG_LEVEL:
+            raise ValueError(f'"{caller}": dfu system not property initialized.')
     return 0
 
 
@@ -163,11 +184,19 @@ def dfu_debug(level: int) -> None:
     """
     warnings.warn("Function dfu_debug can be removed in the future", FutureWarning)
 
-    global dfu_debug_level
-    dfu_debug_level = level
+    global DFU_DEBUG_LEVEL
+    DFU_DEBUG_LEVEL = level
 
 
 def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
+    """
+    Sends to device command to switch it to DFU mode
+    u have to free device and handle it again
+    :param device: usb.core.Device
+    :param interface: usb.core.Interface.bInterfaceNumber
+    :param timeout: timeout to dfu detach
+    :return: returns error code
+    """
     dfu_verify_init()
 
     result = device.ctrl_transfer(
@@ -176,12 +205,20 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
         wValue=timeout,
         wIndex=interface,
         data_or_wLength=None,
-        timeout=dfu_timeout,
+        timeout=DFU_TIMEOUT,
     )
     return result.tobytes()
 
 
-def dfu_download(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> bytes:
+def dfu_download(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> bytes:
+    """
+    Download data to special page of DFU device
+    :param device: usb.core.Device
+    :param interface: usb.core.interface.bInterfaceNumber
+    :param transaction: start page int(total_data_size/xfer_size)
+    :param data_or_length: page size bytes(xfer_size) or xfer_size
+    :return: downloaded data or error code in bytes
+    """
     dfu_verify_init()
 
     result = device.ctrl_transfer(
@@ -189,13 +226,21 @@ def dfu_download(device: usb.core.Device, interface: int, transaction: int, data
         bRequest=DFUCommands.DFU_DNLOAD,
         wValue=transaction,
         wIndex=interface,
-        data_or_wLength=data,
-        timeout=dfu_timeout,
+        data_or_wLength=data_or_length,
+        timeout=DFU_TIMEOUT,
     )
     return result.tobytes()
 
 
-def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: bytes) -> bytes:
+def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> bytes:
+    """
+    Uploads data from special page of DFU device
+    :param device: usb.core.Device
+    :param interface: usb.core.Interface.bInterfaceNumber
+    :param transaction: start page int(total_data_size/xfer_size)
+    :param data_or_length: page size bytes(xfer_size) or xfer_size
+    :return: uploaded data or error code in bytes
+    """
     dfu_verify_init()
 
     result = device.ctrl_transfer(
@@ -203,13 +248,19 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data: 
         bRequest=DFUCommands.DFU_UPLOAD,
         wValue=transaction,
         wIndex=interface,
-        data_or_wLength=data,
-        timeout=dfu_timeout,
+        data_or_wLength=data_or_length,
+        timeout=DFU_TIMEOUT,
     )
     return result.tobytes()
 
 
 def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
+    """
+    Returns DFU interface status
+    :param device: usb.core.Device
+    :param interface: usb.core.Interface.bInterfaceNumber
+    :return: error code and _DFU_STATUS [Container, dict] object
+    """
     dfu_verify_init()
 
     status = Container(
@@ -226,16 +277,22 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
         wValue=0,
         wIndex=interface,
         data_or_wLength=length,
-        timeout=dfu_timeout,
+        timeout=DFU_TIMEOUT,
     )
     if len(result) == 6:
-        con = dfu_status.parse(result.tobytes())
+        con = _DFU_STATUS.parse(result.tobytes())
         con.pop('_io')
         status.update(con)
     return int.from_bytes(result.tobytes(), byteorder='little'), status
 
 
 def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
+    """
+    Clears DFU interface status
+    :param device: usb.core.Device
+    :param interface: usb.core.Interface.bInterfaceNumber
+    :return: error code
+    """
     dfu_verify_init()
 
     result = device.ctrl_transfer(
@@ -244,12 +301,18 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,
-        timeout=dfu_timeout,
+        timeout=DFU_TIMEOUT,
     )
     return int.from_bytes(result.tobytes(), byteorder='little')
 
 
 def dfu_get_state(device: usb.core.Device, interface: int) -> int:
+    """
+    Returns DFU interface state
+    :param device: usb.core.Device
+    :param interface: usb.core.Interface.bInterfaceNumber
+    :return: dfu state or error code
+    """
     dfu_verify_init()
 
     length = 1
@@ -259,7 +322,7 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
         wValue=0,
         wIndex=interface,
         data_or_wLength=length,
-        timeout=dfu_timeout,
+        timeout=DFU_TIMEOUT,
     )
 
     if result.tobytes()[0] < 1:
@@ -268,6 +331,12 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
 
 
 def dfu_abort(device: usb.core.Device, interface: int) -> int:
+    """
+    Aborts DFU command
+    :param device: usb.core.Device
+    :param interface: usb.core.Interface.bInterfaceNumber
+    :return: error code
+    """
     dfu_verify_init()
 
     result = device.ctrl_transfer(
@@ -276,33 +345,40 @@ def dfu_abort(device: usb.core.Device, interface: int) -> int:
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,
-        timeout=dfu_timeout,
+        timeout=DFU_TIMEOUT,
     )
 
     return int.from_bytes(result.tobytes(), byteorder='little')
 
 
 def dfu_state_to_string(state: int) -> [str, None]:
+    """
+    :param state:
+    :return: State name by DFUState Enum
+    """
     try:
-        return dfu_states_names[DFUState(state)]
+        return _DFU_STATES_NAMES[DFUState(state)]
     except (ValueError, KeyError):
         return None
 
 
 def dfu_status_to_string(status: int) -> [str, None]:
+    """
+    :param status:
+    :return: State name by DFUStatus Enum
+    """
     try:
-        return dfu_status_names[DFUStatus(status)]
+        return _DFU_STATUS_NAMES[DFUStatus(status)]
     except (ValueError, KeyError):
         return None
 
 
-debug: int = 0
-
-# dfu.c
+# global definitions
+DEBUG: int = 0
 
 INVALID_DFU_TIMEOUT = -1
 
-dfu_timeout: int = INVALID_DFU_TIMEOUT
-transaction: int = 0
+DFU_TIMEOUT: int = INVALID_DFU_TIMEOUT
+DFU_TRANSACTION: int = 0
 
-dfu_debug_level: int = 0
+DFU_DEBUG_LEVEL: int = 0
