@@ -56,7 +56,7 @@ class DFUDevice:
         _, status = self.status()
         while status.bState != DFUState.DFU_IDLE:
 
-            if status.bState in [DFUState.DFU_IDLE, DFUState.APP_DETACH]:
+            if status.bState in [DFUState.APP_IDLE, DFUState.APP_DETACH]:
                 return False
             elif status.bState == DFUState.DFU_ERROR:
                 if dfu_clear_status(self.dev, self.intf) < 0:
