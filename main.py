@@ -6,6 +6,8 @@ import libusb_package
 import logging
 
 # logging.basicConfig(level=logging.DEBUG)
+from construct import Struct, Int8ul, BitStruct, BitsInteger, Flag, Byte, FlagsEnum, Int16ul
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -113,21 +115,47 @@ def get_intf_extra(intf: usb.core.Interface, match=USB_DT_DFU):
     return ext
 
 
+
+bmAttrs = FlagsEnum(
+    Byte,
+    USB_DFU_CAN_DOWNLOAD=0x1,  # is support updates
+    USB_DFU_CAN_UPLOAD=0x2,  # is prog warranty ok
+    USB_DFU_MANIFEST_TOL=0x4,
+    USB_DFU_WILL_DETACH=0x8,
+)
+
+usb_dfu_func_descriptor = Struct(
+
+    bLength=Int8ul,
+    bDescriptorType=Int8ul,
+    bmAttributes=bmAttrs,
+    wDetachTimeOut=Int16ul,
+    wTransferSize=Int16ul,
+    bcdDFUVersion=Int16ul,
+)
+
+
 if __name__ == '__main__':
     dev = None
     while dev is None:
-        dev = get_dev_h()
+        dev: usb.core.Device = get_dev_h()
         dfudev = DFUDevice(dev)
 
-    # dfudev = DFUDevice(get_dev_h())
-    dfudev.is_connect_valid()
+    intf = dev.get_active_configuration().interfaces()[0]
+    print(intf.extra_descriptors)
+    # dev.set_interface_altsetting()
 
+    # dfudev = DFUDevice(get_dev_h())
+    if not dfudev.is_connect_valid():
+        dfu.dfu_detach(dfudev.dev, dfudev.intf, 1000)
+        print(dfudev.status())
+        sleep(2)
     #
     # print(dfudev.probe())
 
-    dfu.dfu_detach(dfudev.dev, dfudev.intf, 1000)
-
-    sleep(2)
+    # dfu.dfu_detach(dfudev.dev, dfudev.intf, 1000)
+    #
+    # sleep(2)
 
     logger.debug('FREE DEVICE')
     dev = None

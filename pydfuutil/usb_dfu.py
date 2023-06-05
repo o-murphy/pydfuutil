@@ -1,0 +1,1 @@
+USB_DT_DFU		=	0x21
