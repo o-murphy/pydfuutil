@@ -1,6 +1,5 @@
 from pydfuutil.dfu import *
 from pydfuutil.dfu import DFU_TRANSACTION
-import logging
 from rich import progress
 
 
@@ -65,7 +64,7 @@ def dfuload_do_upload(dif: DFU_IF,
 
         total_bytes += len(rc)
 
-        # /* last block, return */
+        # last block, return
         if (len(rc) < xfer_size) or (total_bytes >= total_size >= 0):
             ret = total_bytes
             break

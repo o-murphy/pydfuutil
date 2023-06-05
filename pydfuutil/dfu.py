@@ -1,13 +1,16 @@
 import dataclasses
+import inspect
+import logging
 import warnings
 from enum import IntEnum
-import logging
-import inspect
-import usb.util
 
+import usb.util
 from construct import Byte, Struct, BytesInteger, Container
 
-logging.basicConfig(level=logging.DEBUG, filemode='w', filename='dfu.log', format='%(asctime)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.DEBUG,
+                    # filemode='w',
+                    # filename='dfu.log',
+                    format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -149,9 +152,9 @@ class DFU_IF:
 
 def dfu_init(timeout: int) -> None:
     """
-    NOTE: Maybe not needed cause python can define globals after
-    :param timeout:
-    :return:
+    Initiate dfu_util library with specified commands timeout
+    :param timeout in milliseconds
+    :return: None
     """
     warnings.warn("Function dfu_init can be removed in the future", FutureWarning)
 
@@ -192,6 +195,16 @@ def dfu_debug(level: int) -> None:
 
 def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     """
+
+     *  DFU_DETACH Request (DFU Spec 1.0, Section 5.1)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *  timeout   - the timeout in ms the USB device should wait for a pending
+     *              USB reset before giving up and terminating the operation
+     *
+     *  returns 0 or < 0 on error
+
     Sends to device command to switch it to DFU mode
     u have to free device and handle it again
     :param device: usb.core.Device
@@ -215,6 +228,16 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
 
 def dfu_download(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> bytes:
     """
+     *  DFU_DNLOAD Request (DFU Spec 1.0, Section 6.1.1)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *  length    - the total number of bytes to transfer to the USB
+     *              device - must be less than wTransferSize
+     *  data      - the data to transfer
+     *
+     *  returns the number of bytes written or < 0 on error
+
     Download data to special page of DFU device
     :param device: usb.core.Device
     :param interface: usb.core.interface.bInterfaceNumber
@@ -240,6 +263,16 @@ def dfu_download(device: usb.core.Device, interface: int, transaction: int, data
 
 def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> bytes:
     """
+     *  DFU_UPLOAD Request (DFU Spec 1.0, Section 6.2)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *  length    - the maximum number of bytes to receive from the USB
+     *              device - must be less than wTransferSize
+     *  data      - the buffer to put the received data in
+     *
+     *  returns the number of bytes received or < 0 on error
+
     Uploads data from special page of DFU device
     :param device: usb.core.Device
     :param interface: usb.core.Interface.bInterfaceNumber
@@ -265,6 +298,14 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_o
 
 def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
     """
+     *  DFU_GETSTATUS Request (DFU Spec 1.0, Section 6.1.2)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *  status    - the data structure to be populated with the results
+     *
+     *  return the number of bytes read in or < 0 on an error
+
     Returns DFU interface status
     :param device: usb.core.Device
     :param interface: usb.core.Interface.bInterfaceNumber
@@ -301,6 +342,13 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
 
 def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
     """
+     *  DFU_CLRSTATUS Request (DFU Spec 1.0, Section 6.1.3)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *
+     *  return 0 or < 0 on an error
+
     Clears DFU interface status
     :param device: usb.core.Device
     :param interface: usb.core.Interface.bInterfaceNumber
@@ -324,6 +372,16 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
 
 def dfu_get_state(device: usb.core.Device, interface: int) -> int:
     """
+     *  DFU_GETSTATE Request (DFU Spec 1.0, Section 6.1.5)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *  length    - the maximum number of bytes to receive from the USB
+     *              device - must be less than wTransferSize
+     *  data      - the buffer to put the received data in
+     *
+     *  returns the state or < 0 on error
+
     Returns DFU interface state
     :param device: usb.core.Device
     :param interface: usb.core.Interface.bInterfaceNumber
@@ -348,6 +406,13 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
 
 def dfu_abort(device: usb.core.Device, interface: int) -> int:
     """
+     *  DFU_ABORT Request (DFU Spec 1.0, Section 6.1.4)
+     *
+     *  device    - the usb_dev_handle to communicate with
+     *  interface - the interface to communicate with
+     *
+     *  returns 0 or < 0 on an error
+
     Aborts DFU command
     :param device: usb.core.Device
     :param interface: usb.core.Interface.bInterfaceNumber

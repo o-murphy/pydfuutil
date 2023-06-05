@@ -1,25 +1,21 @@
+import logging
 from time import sleep
 
 import libusb_package
+import usb.backend.libusb1
+import usb.core
+from construct import Struct, Int8ul, Byte, FlagsEnum, Int16ul, lib
 
-
-import logging
-
-# logging.basicConfig(level=logging.DEBUG)
-from construct import Struct, Int8ul, BitStruct, BitsInteger, Flag, Byte, FlagsEnum, Int16ul
+from pydfuutil import dfu
+from pydfuutil.usb_dfu import USB_DT_DFU, USB_DFU_FUNC_DESCRIPTOR
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import usb.backend.libusb1
-import usb.core
+lib.setGlobalPrintFalseFlags(True)
 
-# from pydfuutil.dfu import *
-from pydfuutil import dfu
-
-dfu.DFU_TIMEOUT = 5000
-
-USB_DT_DFU = 0x21
+# dfu.DFU_TIMEOUT = 5000
+dfu.dfu_init(5000)
 
 
 class DFUDevice:
@@ -55,7 +51,6 @@ class DFUDevice:
 
                 # usb.control.alt
                 print(intf)
-
 
     def connect(self):
         ...
@@ -115,58 +110,36 @@ def get_intf_extra(intf: usb.core.Interface, match=USB_DT_DFU):
     return ext
 
 
-
-bmAttrs = FlagsEnum(
-    Byte,
-    USB_DFU_CAN_DOWNLOAD=0x1,  # is support updates
-    USB_DFU_CAN_UPLOAD=0x2,  # is prog warranty ok
-    USB_DFU_MANIFEST_TOL=0x4,
-    USB_DFU_WILL_DETACH=0x8,
-)
-
-usb_dfu_func_descriptor = Struct(
-
-    bLength=Int8ul,
-    bDescriptorType=Int8ul,
-    bmAttributes=bmAttrs,
-    wDetachTimeOut=Int16ul,
-    wTransferSize=Int16ul,
-    bcdDFUVersion=Int16ul,
-)
-
-
 if __name__ == '__main__':
     dev = None
-    while dev is None:
-        dev: usb.core.Device = get_dev_h()
-        dfudev = DFUDevice(dev)
-
-    intf = dev.get_active_configuration().interfaces()[0]
-    print(intf.extra_descriptors)
-    # dev.set_interface_altsetting()
-
-    # dfudev = DFUDevice(get_dev_h())
-    if not dfudev.is_connect_valid():
-        dfu.dfu_detach(dfudev.dev, dfudev.intf, 1000)
-        print(dfudev.status())
-        sleep(2)
-    #
-    # print(dfudev.probe())
-
-    # dfu.dfu_detach(dfudev.dev, dfudev.intf, 1000)
-    #
-    # sleep(2)
-
-    logger.debug('FREE DEVICE')
-    dev = None
     dfudev = None
-
-
-    logger.debug('Waiting for reconnect...')
     while dev is None:
         dev = get_dev_h()
         dfudev = DFUDevice(dev)
-    logger.debug('Connecting...')
+
+    print(dev)
+
+    intf = dev.get_active_configuration().interfaces()[0]
+    extra = intf.extra_descriptors
+    dfu_desc = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(extra))
+    print(dfu_desc)
+
+    # dev.set_interface_altsetting()
+
+    if not dfudev.is_connect_valid():
+        dfu.dfu_detach(dfudev.dev, dfudev.intf, int(dfu_desc.wDetachTimeOut / 1000))
+        dfudev.status()
+        sleep(2)
+
+        logger.debug('FREE DEVICE')
+        dev = None
+        dfudev = None
+
+        logger.debug('Waiting for reconnect...')
+        while dev is None:
+            dev = get_dev_h()
+            dfudev = DFUDevice(dev)
+        logger.debug('Connecting...')
 
     dfudev.is_connect_valid()
 
@@ -175,19 +148,14 @@ if __name__ == '__main__':
     data = bytes(2048)
 
     a = dfu.dfu_upload(dfudev.dev, dfudev.intf, start, data)
-    dfu.dfu_upload(dfudev.dev, dfudev.intf, start, 0)
+    # dfu.dfu_upload(dfudev.dev, dfudev.intf, start, 0)
     logger.info(f'UPLOADED: {a[:10]}... (length: {len(a)}, truncated)')
 
-    # while True:
     dfudev.is_connect_valid()
-
     dfudev.status()
 
-    # print(a[:20])
     a = bytearray(a)
     a[:4] = b'ABCD'
-    # a = bytes(a)
-    # print(a[:20])
 
     try:
         # cfg = dfudev.dev.get_active_configuration()
@@ -205,156 +173,3 @@ if __name__ == '__main__':
         dfu.dfu_abort(dfudev.dev, dfudev.intf)
 
     dfudev.status()
-    # dfudev.is_connect_valid()
-    # dfudev.status()
-
-
-    # usb.util.release_interface(dfudev.dev, 0)
-    # usb.util.dispose_resources(dfudev.dev)
-    # dfudev.dev = None
-    #
-    # dfudev.dev = get_dev_h()
-    # s = dfudev.status()
-
-    # print(dfu_clear_status(dfudev.dev, dfudev.intf))
-    #
-    # # dfu_detach(dfudev.dev, dfudev.intf, 1000)
-    # dfu_clear_status(dfudev.dev, dfudev.intf)
-
-    # dfudev.status()
-    # # print(dfu_clear_status(dfudev.dev, dfudev.intf))
-    #
-    # dfudev.dev.reset()
-    #
-    # dfudev.status()
-    # dfu_clear_status(dfudev.dev, dfudev.intf)
-    #
-    #
-    #
-    # try:
-    #     bb = bytearray(a)
-    #     bb[:3] = b'DFU'
-    #     b = bytes(bb)
-    #     b = dfu_download(dfudev.dev, dfudev.intf, start, b)
-    #     print(b)
-    # except Exception:
-    #     pass
-    #
-    # dfu_clear_status(dfudev.dev, dfudev.intf)
-    #
-    #
-    # print(dfu_upload(dfudev.dev, dfudev.intf, start, data))
-
-    #
-    # # intf: usb.core.Interface = usb.util.find_descriptor(
-    # #                 dev[0],
-    # #                 custom_match=lambda d: d.bDescriptorType == 0x4
-    # #             )
-    # # print(intf)
-    #
-    # dev = get_dev_h()
-    # print(dev)
-    #
-    # desc = get_dev_descriptor(dev)
-    # intf = get_intf_descriptor(dev, desc, 0)
-    #
-    # _, status = dfu_get_status(dev, intf.bInterfaceNumber)
-    # print(status, dfu_state_to_string(status['bState']))
-    #
-    #
-    # usb.util.claim_interface(dev, intf.bInterfaceNumber)
-    # dfu_detach(dev, intf.bInterfaceNumber, 1000)
-    # usb.util.release_interface(dev, intf.bInterfaceNumber)
-    #
-    # _, status = dfu_get_status(dev, intf.bInterfaceNumber)
-    # print(status, dfu_state_to_string(status['bState']))
-    #
-    #
-    # # reconnect
-    # # dfu_clear_status(dev, intf.bInterfaceNumber)
-    # # dev = get_dev_h()
-    # # intf = get_intf_descriptor(dev, desc, 0)
-    # _, status = dfu_get_status(dev, intf.bInterfaceNumber)
-    # print(status, dfu_state_to_string(status['bState']))
-
-    # # dfu_clear_status(dev, intf.bInterfaceNumber)
-    #
-    #
-    # dfu_get_status(dev, intf.bInterfaceNumber)
-    #
-    # print(dfu_get_state(dev, intf.bInterfaceNumber))
-    #
-    # # a = dfu_upload(dev, intf.bInterfaceNumber, start, data)
-    # # print(a.tobytes())
-    #
-    # # setalt = intf.set_altsetting()
-
-    # INTERFACE_NUMBER = 0
-    # dev: usb.core.Device = get_dev_h()
-    # print(dev)
-    #
-    # # if dev.is_kernel_driver_active(INTERFACE_NUMBER):
-    # #     dev.detach_kernel_driver(INTERFACE_NUMBER)
-    #
-    # # Set the active configuration
-    # dev.set_configuration()
-    #
-    # # Claim the interface
-    # usb.util.claim_interface(dev, INTERFACE_NUMBER)
-
-    # # Control transfer to read the iSerialNumber
-    # response = dev.ctrl_transfer(
-    #     bmRequestType=usb.util.CTRL_TYPE_STANDARD | usb.util.CTRL_IN,
-    #     bRequest=0x06,
-    #     wValue=(usb.util.DESC_TYPE_STRING << 8) | 0x00,
-    #     wIndex=INTERFACE_NUMBER,
-    #     data_or_wLength=255,
-    # )
-
-    # response = usb.control.get_descriptor(dev, desc_type=0x1, desc_size=0x12, desc_index=INTERFACE_NUMBER)
-    # print(response)
-    # # Convert the response to a string
-    # serial_number = response[2:].tobytes().decode("utf-16le")
-    # serial_number = response.tobytes().decode("utf-16le")
-
-    # STRING_INDEX = 0x03
-    #
-    # new_string = "TSA9 #0000001"
-    #
-    # existing_string = usb.util.get_string(dev, 0x03)
-    # print("iSerialNumber:", existing_string)
-    #
-    # # usb.util.set_string(dev, 0x03, "TSA9 #0000001")
-    #
-    # dev.ctrl_transfer(
-    #     bmRequestType=usb.util.CTRL_TYPE_VENDOR | usb.util.CTRL_OUT,
-    #     bRequest=0x80,  # Custom request code for setting the string
-    #     wValue=STRING_INDEX,
-    #     wIndex=0,
-    #     data_or_wLength=new_string.encode("utf-16le"),
-    # )
-    #
-    # print("iSerialNumber:", usb.util.get_string(dev, 0x03))
-    #
-    # # Release the interface and close the device
-    # usb.util.release_interface(dev, INTERFACE_NUMBER)
-    # usb.util.dispose_resources(dev)
-    #
-    #
-    #
-    #
-    # # # Detach the kernel driver if active
-    # # if dev.is_kernel_driver_active(INTERFACE_NUMBER):
-    # #     dev.detach_kernel_driver(INTERFACE_NUMBER)
-    #
-    # # # Set the active configuration
-    # # dev.set_configuration()
-    # #
-    # # desc = usb.control.get_descriptor(
-    # #     dev, desc_type=0x1, desc_size=0x12, desc_index=INTERFACE_NUMBER)
-    # #
-    # # print(desc.tobytes().decode('utf-8', errors='ignore'))
-    #
-    # # # dev.ctrl_transfer(
-    # #     usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_STANDARD | usb.util.D
-    # # # )
