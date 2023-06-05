@@ -7,7 +7,9 @@ import usb.util
 
 from construct import Byte, Struct, BytesInteger, Container
 
+logging.basicConfig(level=logging.DEBUG, filemode='w', filename='dfu.log', format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class DFUState(IntEnum):
@@ -198,7 +200,7 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     :return: returns error code
     """
     dfu_verify_init()
-
+    logger.debug('DFU_DETACH...')
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=DFUCommands.DFU_DETACH,
@@ -207,6 +209,7 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
         data_or_wLength=None,
         timeout=DFU_TIMEOUT,
     )
+    logger.debug(f'DFU_DETACH {len(result) >= 0}')
     return result.tobytes()
 
 
@@ -220,6 +223,7 @@ def dfu_download(device: usb.core.Device, interface: int, transaction: int, data
     :return: downloaded data or error code in bytes
     """
     dfu_verify_init()
+    logger.debug('DFU_DOWNLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
@@ -229,6 +233,8 @@ def dfu_download(device: usb.core.Device, interface: int, transaction: int, data
         data_or_wLength=data_or_length,
         timeout=DFU_TIMEOUT,
     )
+    logger.debug(f'DFU_DOWNLOAD {result >= 0}')
+
     return result.tobytes()
 
 
@@ -242,6 +248,7 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_o
     :return: uploaded data or error code in bytes
     """
     dfu_verify_init()
+    logger.debug('DFU_UPLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
@@ -251,6 +258,8 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_o
         data_or_wLength=data_or_length,
         timeout=DFU_TIMEOUT,
     )
+    logger.debug(f'DFU_UPLOAD {len(result) >= 0}')
+
     return result.tobytes()
 
 
@@ -262,6 +271,7 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
     :return: error code and _DFU_STATUS [Container, dict] object
     """
     dfu_verify_init()
+    logger.debug('DFU_GET_STATUS...')
 
     status = Container(
         bStatus=DFUStatus.ERROR_UNKNOWN,
@@ -279,10 +289,13 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
         data_or_wLength=length,
         timeout=DFU_TIMEOUT,
     )
+
     if len(result) == 6:
         con = _DFU_STATUS.parse(result.tobytes())
         con.pop('_io')
         status.update(con)
+    logger.debug(f'DFU_GET_STATUS {len(result) == 6}')
+    logger.debug(f'CURRENT STATE {dfu_state_to_string(status.bState)}')
     return int.from_bytes(result.tobytes(), byteorder='little'), status
 
 
@@ -294,6 +307,7 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
     :return: error code
     """
     dfu_verify_init()
+    logger.debug('DFU_CLEAR_STATUS...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
@@ -303,6 +317,8 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
         data_or_wLength=None,
         timeout=DFU_TIMEOUT,
     )
+    logger.debug(f'DFU_CLEAR_STATUS {len(result) >= 0}')
+
     return int.from_bytes(result.tobytes(), byteorder='little')
 
 
@@ -338,6 +354,7 @@ def dfu_abort(device: usb.core.Device, interface: int) -> int:
     :return: error code
     """
     dfu_verify_init()
+    logger.debug('DFU_ABORT...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
@@ -347,6 +364,7 @@ def dfu_abort(device: usb.core.Device, interface: int) -> int:
         data_or_wLength=None,
         timeout=DFU_TIMEOUT,
     )
+    logger.debug(f'DFU_ABORT {len(result) >= 0}')
 
     return int.from_bytes(result.tobytes(), byteorder='little')
 

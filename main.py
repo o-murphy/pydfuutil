@@ -2,14 +2,20 @@ from time import sleep
 
 import libusb_package
 
-libusb_package
+
+import logging
+
+# logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 import usb.backend.libusb1
 import usb.core
 
-from pydfuutil.dfu import *
+# from pydfuutil.dfu import *
+from pydfuutil import dfu
 
-DFU_TIMEOUT = 5000
+dfu.DFU_TIMEOUT = 5000
 
 USB_DT_DFU = 0x21
 
@@ -20,7 +26,7 @@ class DFUDevice:
         self.intf = 0x00
 
     def status(self) -> (int, dict):
-        _, status = dfu_get_status(self.dev, self.intf)
+        _, status = dfu.dfu_get_status(self.dev, self.intf)
         sleep(status.bwPollTimeout)
         return _, status
 
@@ -54,28 +60,28 @@ class DFUDevice:
 
     def is_connect_valid(self):
         _, status = self.status()
-        while status.bState != DFUState.DFU_IDLE:
+        while status.bState != dfu.DFUState.DFU_IDLE:
 
-            if status.bState in [DFUState.APP_IDLE, DFUState.APP_DETACH]:
+            if status.bState in [dfu.DFUState.APP_IDLE, dfu.DFUState.APP_DETACH]:
                 return False
-            elif status.bState == DFUState.DFU_ERROR:
-                if dfu_clear_status(self.dev, self.intf) < 0:
+            elif status.bState == dfu.DFUState.DFU_ERROR:
+                if dfu.dfu_clear_status(self.dev, self.intf) < 0:
                     return False
                 _, status = self.status()
-            elif status.bState in [DFUState.DFU_DOWNLOAD_IDLE, DFUState.DFU_UPLOAD_IDLE]:
-                if dfu_abort(self.dev, self.intf) < 0:
+            elif status.bState in [dfu.DFUState.DFU_DOWNLOAD_IDLE, dfu.DFUState.DFU_UPLOAD_IDLE]:
+                if dfu.dfu_abort(self.dev, self.intf) < 0:
                     return False
                 _, status = self.status()
             else:
                 break
 
-        if status.bStatus != DFUStatus.OK:
-            if dfu_clear_status(self.dev, self.intf) < 0:
+        if status.bStatus != dfu.DFUStatus.OK:
+            if dfu.dfu_clear_status(self.dev, self.intf) < 0:
                 return False
             _, status = self.status()
             if _ < 0:
                 return False
-            if status.bStatus != DFUStatus.OK:
+            if status.bStatus != dfu.DFUStatus.OK:
                 return False
             sleep(status.bwPollTimeout)
 
@@ -108,34 +114,72 @@ def get_intf_extra(intf: usb.core.Interface, match=USB_DT_DFU):
 
 
 if __name__ == '__main__':
-    # dev = get_dev_h()
-    dfudev = DFUDevice(get_dev_h())
-    print(dfudev.is_connect_valid())
+    dev = None
+    while dev is None:
+        dev = get_dev_h()
+        dfudev = DFUDevice(dev)
 
-    print(dfudev.probe())
+    # dfudev = DFUDevice(get_dev_h())
+    dfudev.is_connect_valid()
 
-    # dfu_detach(dfudev.dev, dfudev.intf, 1000)
     #
-    # dfudev.dev = None
-    #
-    # sleep(1)
-    #
-    # # dev = get_dev_h()
-    # # dfudev = DFUDevice(dev)
-    # # print(dfudev.is_connect_valid())
-    #
-    # dfudev.dev = get_dev_h()
-    #
-    # # dfu_clear_status(dfudev.dev, dfudev.intf)
-    #
-    # # s = dfudev.status()
-    #
-    # offset = 532480
-    # start = int((offset + 4096) / 2048)
-    # data = bytes(2048)
+    # print(dfudev.probe())
 
-    # a = dfu_upload(dfudev.dev, dfudev.intf, start, data)
-    # print(a)
+    dfu.dfu_detach(dfudev.dev, dfudev.intf, 1000)
+
+    sleep(2)
+
+    logger.debug('FREE DEVICE')
+    dev = None
+    dfudev = None
+
+
+    logger.debug('Waiting for reconnect...')
+    while dev is None:
+        dev = get_dev_h()
+        dfudev = DFUDevice(dev)
+    logger.debug('Connecting...')
+
+    dfudev.is_connect_valid()
+
+    offset = 532480
+    start = int((offset + 4096) / 2048)
+    data = bytes(2048)
+
+    a = dfu.dfu_upload(dfudev.dev, dfudev.intf, start, data)
+    dfu.dfu_upload(dfudev.dev, dfudev.intf, start, 0)
+    logger.info(f'UPLOADED: {a[:10]}... (length: {len(a)}, truncated)')
+
+    # while True:
+    dfudev.is_connect_valid()
+
+    dfudev.status()
+
+    # print(a[:20])
+    a = bytearray(a)
+    a[:4] = b'ABCD'
+    # a = bytes(a)
+    # print(a[:20])
+
+    try:
+        # cfg = dfudev.dev.get_active_configuration()
+        #
+        # intf: usb.core.Interface = cfg.interfaces()[0]
+        # intf.set_altsetting()
+
+        b = dfu.dfu_download(dfudev.dev, dfudev.intf, start, bytes(a))
+        # dfu.dfu_download(dfudev.dev, dfudev.intf, start, 0)
+        # print(b)
+    except Exception as exc:
+        logger.error(exc)
+        dfudev.status()
+
+        dfu.dfu_abort(dfudev.dev, dfudev.intf)
+
+    dfudev.status()
+    # dfudev.is_connect_valid()
+    # dfudev.status()
+
 
     # usb.util.release_interface(dfudev.dev, 0)
     # usb.util.dispose_resources(dfudev.dev)
