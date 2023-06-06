@@ -155,7 +155,7 @@ if __name__ == '__main__':
     dfudev.status()
 
     a = bytearray(a)
-    a[:4] = b'ABCD'
+    a[:5] = b'VASYA'
 
     try:
         # cfg = dfudev.dev.get_active_configuration()
