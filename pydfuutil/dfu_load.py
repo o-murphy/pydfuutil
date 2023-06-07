@@ -70,7 +70,7 @@ def dfuload_do_upload(dif: DFU_IF,
             break
 
         transaction += 1
-        _progress_bar.update(upload_task, advance=xfer_size)
+        # _progress_bar.update(upload_task, advance=xfer_size)
         _progress_bar.update(upload_task, advance=xfer_size, description='[magenta1]Uploading...')
 
     _progress_bar.update(upload_task, description='[yellow4]Upload finished!')

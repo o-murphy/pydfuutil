@@ -25,6 +25,8 @@ with open('requirements-dev.txt', 'r') as fp:
 with open('README.md', 'r') as fp:
     long_description = fp.read()
 
+package_data = {'pydfuutil': ['requirements.txt', 'requirements-dev.txt']}
+
 setup(
     name='pydfuutil',
     version=__version__,
@@ -50,7 +52,7 @@ setup(
     },
 
     include_package_data=True,
-    # package_data=package_data,
+    package_data=package_data,
 
     # scripts=['scripts/dfu_cli.bat', 'scripts/dfu_cli.sh'],
 
