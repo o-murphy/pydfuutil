@@ -2,34 +2,42 @@ import copy
 import logging
 from time import sleep
 from typing import Generator
+import construct
 
 import libusb_package
-from usb.backend import libusb1
 import usb.core
+from usb.backend import libusb1
 
 from pydfuutil import dfu
+from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 
+
+# setting global params
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+construct.lib.setGlobalPrintFalseFlags(True)
 
 libusb1.get_backend(libusb_package.find_library)
 
 
-def find(find_all=False, backend = None, custom_match = None, **args):
+def find(find_all=False, backend=None, custom_match=None, **args):
     dev = usb.core.find(find_all, backend, custom_match, **args)
 
     def device_iter():
         for d in dev:
-            d = copy.copy(d)
+            d: DfuDevice = copy.copy(d)
             d.__class__ = DfuDevice
+            d.dfu_init()
+
             yield d
 
     if dev is None:
         return dev
     elif isinstance(dev, usb.core.Device):
-        dev = copy.copy(dev)
+        dev: DfuDevice = copy.copy(dev)
         dev.__class__ = DfuDevice
+        dev.dfu_init()
         return dev
     elif isinstance(dev, Generator):
         return device_iter()
@@ -37,33 +45,116 @@ def find(find_all=False, backend = None, custom_match = None, **args):
 
 class DfuDevice(usb.core.Device):
 
-    @property
-    def is_connect_valid(self):
-        return
+    def __init__(self, dev, backend, dfu_timeout=None, num_connect_attempts=5):
+        super(DfuDevice, self).__init__(dev, backend)
+        self.dfu_init()
 
-    @property
+    def dfu_init(self, dfu_timeout=None, num_connect_attempts=5):
+        self.dfu_interface: usb.core.Interface = None
+        self.dfu_descriptor: dict = None
+
+        self.num_connect_attempts = num_connect_attempts
+
+        dfu.dfu_init(dfu_timeout if dfu_timeout else 5000)
+
+    def get_dfu_descriptor(self, interface: usb.core.Interface):
+        try:
+            extra = interface.extra_descriptors
+            return USB_DFU_FUNC_DESCRIPTOR.parse(bytes(extra))
+        except Exception as exc:
+            logger.warning(
+                f'DFU descriptor not found on interface {interface.bInterfaceNumber}: {self._str()}'
+            )
+            return None
+
+    def get_dfu_interface(self):
+        cfg: usb.core.Configuration = self.get_active_configuration()
+        for intf in cfg.interfaces():
+            if intf.bInterfaceClass != 0xfe or intf.bInterfaceSubClass != 1:
+                continue
+
+            dfu_desc = self.get_dfu_descriptor(intf)
+            if dfu_desc:
+                self.dfu_interface = intf
+                self.dfu_descriptor = dfu_desc
+                break
+
+        if not self.dfu_interface:
+            logger.error(f'No DFU interface found: {self._str()}')
+
     def get_status(self) -> (int, dict):
-        _, status = dfu.dfu_get_status(self, intf)
+        _, status = dfu.dfu_get_status(self, self.dfu_interface.bInterfaceNumber)
         sleep(status.bwPollTimeout)
+        sleep(0.5)
         return _, status
+
+    def is_connect_valid(self):
+        _, status = self.get_status()
+        while status.bState != dfu.DFUState.DFU_IDLE:
+
+            if status.bState in [dfu.DFUState.APP_IDLE, dfu.DFUState.APP_DETACH]:
+                return False
+            elif status.bState == dfu.DFUState.DFU_ERROR:
+                if dfu.dfu_clear_status(self, self.dfu_interface.bInterfaceNumber) < 0:
+                    return False
+                _, status = self.get_status()
+            elif status.bState in [dfu.DFUState.DFU_DOWNLOAD_IDLE, dfu.DFUState.DFU_UPLOAD_IDLE]:
+                if dfu.dfu_abort(self, self.dfu_interface.bInterfaceNumber) < 0:
+                    return False
+                _, status = self.get_status()
+            else:
+                break
+
+        if status.bStatus != dfu.DFUStatus.OK:
+            if dfu.dfu_clear_status(self, self.dfu_interface.bInterfaceNumber) < 0:
+                return False
+            _, status = self.get_status()
+            if _ < 0:
+                return False
+            if status.bStatus != dfu.DFUStatus.OK:
+                return False
+            sleep(status.bwPollTimeout)
+
+        return True
 
     def probe(self):
         ...
 
     def connect(self):
-        ...
+        if self.num_connect_attempts > 0:
+            self.num_connect_attempts -= 1
+            self.get_dfu_interface()
+            if not self.dfu_interface:
+                raise IOError(f'No DFU interface found: {self._str()}')
+
+            if not self.is_connect_valid():
+                dfu.dfu_detach(self, self.dfu_interface.bInterfaceNumber, 1000)
+                sleep(1)
+                self.reconnect()
+        else:
+            raise ConnectionError(f"Can't connect device: {self._str()}")
 
     def disconnect(self):
-        ...
+        usb.util.release_interface(self, self.dfu_interface.bInterfaceNumber)
+        usb.util.dispose_resources(self)
 
     def reconnect(self):
-        ...
+        
+        def reattach_device_handle() -> DfuDevice:
+            return find(idVendor=self.idVendor, idProduct=self.idProduct)
+    
+        countdown = 5
+        dev_handle = None
+        while countdown > 0 and dev_handle is None:
+            dev_handle: DfuDevice = reattach_device_handle()
+            countdown -= 1
+            sleep(1)
 
-    def get_dfu_descriptor(self):
-        ...
+        if dev_handle is None:
+            raise ConnectionResetError(f"Can't reconnect device: {self._str()}")
 
-    def get_dfu_interface(self):
-        ...
+        self.__dict__.update(dev_handle.__dict__)
+        self.connect()
 
     def do_upload(self):
         ...
@@ -72,10 +163,13 @@ class DfuDevice(usb.core.Device):
         ...
 
 
+dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x000C)
 
+if dfudev is not None:
+    dfudev.connect()
+    # usb.util.release_interface(dfudev, dfudev.dfu_interface.bInterfaceNumber)
+    dfudev.disconnect()
 
-
-dfudev = DfuDevice()
-cfg: usb.core.Configuration = dfudev.get_active_configuration()
-intf: usb.core.Interface = cfg.interfaces()[0]
-
+    while True:
+        sleep(10)
+    # dfudev.reset()
