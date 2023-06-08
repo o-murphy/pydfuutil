@@ -15,8 +15,10 @@ from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 
 
 # setting global params
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+dfu.logger.setLevel(logging.INFO)
 
 _progress_bar = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
@@ -199,6 +201,11 @@ class DfuDevice(usb.core.Device):
                 _progress_bar.update(upload_task, advance=USB_PAGE, description='[magenta1]Uploading...')
 
                 ret += rc[0]
+
+                # if rc[0].find(b'T\x00S\x00A\x007\x00 \x00#\x00') >= 0:
+                #     print(rc[0])
+                #     print(f'ONPAGE: {page}', rc[0].find(b'T\x00S\x00A\x007\x00 \x00#\x00'))
+
                 if len(rc[0]) < USB_PAGE or (len(ret) >= total >= 0):
                     break
                 page += 1
@@ -225,11 +232,5 @@ if dfudev is not None:
 
     print(dfudev)
 
-    # ret = dfudev.do_upload(0, -1, 2048)
-
     dfudev.disconnect()
-
-    # with open('dump.bin', 'wb') as fp:
-    #     fp.write(ret)
-    # print(len(ret))
 
