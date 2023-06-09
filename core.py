@@ -269,6 +269,44 @@ if __name__ == '__main__':
     start = int((offset + 4096) / 2048)
     data = bytes(2048)
 
+    # ANSI escape codes for moving the cursor up and clearing the line
+    move_up = '\x1b[1A'
+    clear_line = '\x1b[2K'
+
+    counter = 0
+    num_lines = 3
+
+    # while True:
+    #     devs = usb.core.show_devices().split('\n')
+    #     dfudevs = filter(lambda d: d.find('1fc9:000c') >= 0, devs)
+    #     lines_to_print = []
+    #
+    #     # for i in range(3):
+    #     #     line = f'{i + 1}\tCounter: {counter}'
+    #     #     lines_to_print.append(line)
+    #     #
+    #     # # Clear the console by printing newlines
+    #     # print('\n' * num_lines, end='')
+    #     #
+    #     # for line in lines_to_print:
+    #     #     print(line, end='\r')
+    #     #
+    #     # counter += 1
+    #
+    #
+    #     # for i, d in enumerate(dfudevs):
+    #     #     line = f'{i}\t{d}'
+    #     #     lines_to_print.append(line)
+    #     #
+    #     # for _ in range(len(lines_to_print)):
+    #     #     print(move_up + clear_line)
+    #     #
+    #     # for line in lines_to_print:
+    #     #     print(line)
+    #
+    #     sleep(1)
+
+
     def read_dev(dfudev):
         try:
             dfudev.connect()
