@@ -3,8 +3,8 @@ import logging
 import math
 from time import sleep
 from typing import Generator
-import construct
 
+import construct
 import libusb_package
 import usb.core
 from rich import progress
@@ -13,7 +13,6 @@ from usb.backend import libusb1
 from progress import DfuProgress
 from pydfuutil import dfu
 from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
-
 
 # setting global params
 # logging.basicConfig(level=logging.INFO)
@@ -57,14 +56,11 @@ def find(find_all=False, backend=None, custom_match=None, **args):
         return device_iter()
 
 
-# PortNumbers = construct.Padded(8, construct.GreedyBytes)
-
-
 class DfuDevice(usb.core.Device):
 
     def __init__(self, dev, backend, dfu_timeout=None, num_connect_attempts=5):
         super(DfuDevice, self).__init__(dev, backend)
-        self.dfu_init()
+        self.dfu_init(dfu_timeout, num_connect_attempts)
 
     def dfu_init(self, dfu_timeout=None, num_connect_attempts=5):
         self.dfu_interface: usb.core.Interface = None
@@ -141,6 +137,12 @@ class DfuDevice(usb.core.Device):
 
         return True
 
+    @property
+    def usb_port(self):
+        port = self.port_numbers
+        enc_address = ":".join(f"{num:02X}" for num in port[:6]) + ":00" * (6 - len(port))
+        return enc_address
+
     def dfu_detach(self) -> int:
         detach_timeout = self.dfu_descriptor.wDetachTimeOut / 10000
         detach_timeout = math.ceil(detach_timeout)
@@ -161,8 +163,8 @@ class DfuDevice(usb.core.Device):
         else:
             raise ConnectionError(f"Can't connect device: {self._str()}")
 
-    def reconnect(self, count: int=10, hold_port: bool=True):
-        
+    def reconnect(self, count: int = 10, hold_port: bool = True):
+
         def reattach_device_handle() -> DfuDevice:
             if not hold_port:
                 return find(idVendor=self.idVendor, idProduct=self.idProduct)
@@ -173,7 +175,7 @@ class DfuDevice(usb.core.Device):
                 return None
 
             return detached[0]
-    
+
         countdown = count
         dev_handle = None
         print('waiting', end='')
@@ -183,7 +185,6 @@ class DfuDevice(usb.core.Device):
             sleep(1)
             print('.', end='')
         print()
-
 
         if dev_handle is None:
             raise ConnectionResetError(f"Can't reconnect device: {self._str()}")
@@ -225,10 +226,6 @@ class DfuDevice(usb.core.Device):
 
                 ret += rc[0]
 
-                # if rc[0].find(b'T\x00S\x00A\x007\x00 \x00#\x00') >= 0:
-                #     print(rc[0])
-                #     print(f'ONPAGE: {page}', rc[0].find(b'T\x00S\x00A\x007\x00 \x00#\x00'))
-
                 if len(rc[0]) < USB_PAGE or (len(ret) >= total >= 0):
                     break
                 page += 1
@@ -255,52 +252,7 @@ devs = find(find_all=True, idVendor=0x1FC9, idProduct=0x000C)
 for dfudev in devs:
 
     if dfudev is not None:
-
-        print(dfudev._str(), end='\n\t')
         dfudev.connect()
-        # print(dfudev)
+        print(dfudev.usb_port)
         dfudev.disconnect()
-        print(dfudev.bus, dfudev.port_number, dfudev.address, dfudev.port_numbers, end='\n\t')
-        parent = dfudev.parent
-        print(parent.bus, parent.port_number, parent.address, parent.port_numbers)
-
-
-        # buf = PortNumbers.build(bytes(dfudev.port_numbers))
-        # enc_adress = int.from_bytes(buf, 'big')
-        # print('pn', buf, enc_adress, enc_adress.to_bytes(8, 'big'))
-
-
-    # desc = dfudev.backend.get_device_descriptor(dfudev._ctx.dev)
-    # print(desc)
-    #
-    #
-    # def _set_attr(input, output, fields):
-    #     for f in fields:
-    #         setattr(output, f, getattr(input, f))
-    #
-    # _set_attr(
-    #     desc,
-    #     dfudev,
-    #     (
-    #         'bLength',
-    #         'bDescriptorType',
-    #         'bcdUSB',
-    #         'bDeviceClass',
-    #         'bDeviceSubClass',
-    #         'bDeviceProtocol',
-    #         'bMaxPacketSize0',
-    #         'idVendor',
-    #         'idProduct',
-    #         'bcdDevice',
-    #         'iManufacturer',
-    #         'iProduct',
-    #         'iSerialNumber',
-    #         'bNumConfigurations',
-    #         'address',
-    #         'bus',
-    #         'port_number',
-    #         'port_numbers',
-    #         'speed',
-    #     )
-    # )
 
