@@ -19,6 +19,7 @@ from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+# Todo: rename _progress_bar to DFU_PROGRESS
 _progress_bar = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
     progress.BarColumn(10),
@@ -209,9 +210,10 @@ class DfuDevice(usb.core.Device):
             _task_desc.format(color='magenta1', port=self.usb_port, desc='Starting upload'),
             total=total
         )
-
+        
+        #Todo: move progress bar callback to task callback
         _progress_bar.callback = callback
-        _progress_bar.start()
+        #_progress_bar.start()
 
         try:
 
@@ -252,7 +254,7 @@ class DfuDevice(usb.core.Device):
                 color='yellow4', port=self.usb_port, desc='Upload finished!'
             )
         )
-        _progress_bar.stop()
+        #_progress_bar.stop()
         _progress_bar.remove_task(upload_task)
 
         return ret
@@ -264,6 +266,8 @@ class DfuDevice(usb.core.Device):
 if __name__ == '__main__':
 
     import threading
+    
+    _progress_bar.start()
 
     offset = 532480
     start = int((offset + 4096) / 2048)
@@ -335,5 +339,7 @@ if __name__ == '__main__':
         tr.join()
 
             # read_dev(dfudev)
+    
+    _progress_bar.stop()
 
 
