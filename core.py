@@ -15,19 +15,20 @@ from pydfuutil import dfu
 from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 
 # setting global params
-# logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-# dfu.logger.setLevel(logging.INFO)
 
 _progress_bar = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
-    progress.BarColumn(20),
+    progress.BarColumn(10),
     progress.TaskProgressColumn(),
     progress.TimeRemainingColumn(),
     progress.DownloadColumn(),
     progress.TransferSpeedColumn(),
 )
+
+_task_desc = '[{color}]{port} {desc}'
 
 construct.lib.setGlobalPrintFalseFlags(True)
 
@@ -82,10 +83,10 @@ class DfuDevice(usb.core.Device):
             extra = interface.extra_descriptors
             return USB_DFU_FUNC_DESCRIPTOR.parse(bytes(extra))
         except Exception as exc:
-            logger.warning(
+            logger.error(exc)
+            raise ConnectionRefusedError(
                 f'DFU descriptor not found on interface {interface.bInterfaceNumber}: {self._str()}'
             )
-            return None
 
     def get_dfu_interface(self):
         cfg: usb.core.Configuration = self.get_active_configuration()
@@ -100,7 +101,7 @@ class DfuDevice(usb.core.Device):
                 break
 
         if not self.dfu_interface:
-            logger.error(f'No DFU interface found: {self._str()}')
+            raise ConnectionRefusedError(f'No DFU interface found: {self._str()}')
 
     def get_status(self) -> (int, dict):
         _, status = dfu.dfu_get_status(self, self.dfu_intf)
@@ -205,7 +206,7 @@ class DfuDevice(usb.core.Device):
         ret = bytes()
 
         upload_task = _progress_bar.add_task(
-            '[magenta1]Starting upload',
+            _task_desc.format(color='magenta1', port=self.usb_port, desc='Starting upload'),
             total=total
         )
 
@@ -217,25 +218,40 @@ class DfuDevice(usb.core.Device):
             while True:
 
                 rc = dfu.dfu_upload(self, self.dfu_intf, page, USB_PAGE),
+                page += 1
 
                 if len(rc[0]) < 0:
                     ret = rc
                     break
 
-                _progress_bar.update(upload_task, advance=USB_PAGE, description='[magenta1]Uploading...')
+                _progress_bar.update(
+                    upload_task, advance=USB_PAGE,
+                    # description='[magenta1]Uploading...'
+                    description=_task_desc.format(
+                        color='magenta1',
+                        port=self.usb_port,
+                        desc='Uploading...'
+                    )
+                )
 
                 ret += rc[0]
 
                 if len(rc[0]) < USB_PAGE or (len(ret) >= total >= 0):
                     break
-                page += 1
+
+
 
         except usb.core.USBTimeoutError:
             pass
 
         dfu.dfu_upload(self, self.dfu_intf, page, 0),
 
-        _progress_bar.update(upload_task, advance=0, description='[yellow4]Upload finished!')
+        _progress_bar.update(
+            upload_task, advance=0,
+            description=_task_desc.format(
+                color='yellow4', port=self.usb_port, desc='Upload finished!'
+            )
+        )
         _progress_bar.stop()
         _progress_bar.remove_task(upload_task)
 
@@ -245,14 +261,41 @@ class DfuDevice(usb.core.Device):
         ...
 
 
-dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x000C)
-# dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x1002)
+if __name__ == '__main__':
 
-devs = find(find_all=True, idVendor=0x1FC9, idProduct=0x000C)
-for dfudev in devs:
+    import threading
 
-    if dfudev is not None:
-        dfudev.connect()
-        print(dfudev.usb_port)
-        dfudev.disconnect()
+    offset = 532480
+    start = int((offset + 4096) / 2048)
+    data = bytes(2048)
+
+    def read_dev(dfudev):
+        try:
+            dfudev.connect()
+            logger.info(f'Connected: {dfudev.usb_port}')
+
+            a = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
+            print(f'{dfudev.usb_port} {a[:5]}, {len(a)}')
+            dfudev.disconnect()
+        except Exception as exc:
+            logger.error(exc)
+            # pass
+
+    devs = find(find_all=True)
+
+    threads = []
+
+    for dfudev in devs:
+        if dfudev is not None:
+            thread = threading.Thread(target=lambda dfudev=dfudev: read_dev(dfudev))
+            threads.append(thread)
+
+            thread.start()
+            # read_dev(dfudev)
+
+    for tr in threads:
+        tr.join()
+
+            # read_dev(dfudev)
+
 
