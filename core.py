@@ -1,5 +1,6 @@
 import copy
 import logging
+import math
 from time import sleep
 from typing import Generator
 import construct
@@ -18,7 +19,7 @@ from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 # logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-dfu.logger.setLevel(logging.DEBUG)
+# dfu.logger.setLevel(logging.INFO)
 
 _progress_bar = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
@@ -56,6 +57,9 @@ def find(find_all=False, backend=None, custom_match=None, **args):
         return device_iter()
 
 
+# PortNumbers = construct.Padded(8, construct.GreedyBytes)
+
+
 class DfuDevice(usb.core.Device):
 
     def __init__(self, dev, backend, dfu_timeout=None, num_connect_attempts=5):
@@ -69,6 +73,7 @@ class DfuDevice(usb.core.Device):
         self.num_connect_attempts = num_connect_attempts
 
         dfu.dfu_init(dfu_timeout if dfu_timeout else 5000)
+        dfu.dfu_debug(logging.INFO)
 
     @property
     def dfu_intf(self) -> [int, None]:
@@ -136,6 +141,13 @@ class DfuDevice(usb.core.Device):
 
         return True
 
+    def dfu_detach(self) -> int:
+        detach_timeout = self.dfu_descriptor.wDetachTimeOut / 10000
+        detach_timeout = math.ceil(detach_timeout)
+        dfu.dfu_detach(self, self.dfu_intf, 1000)
+        sleep(1)
+        return detach_timeout
+
     def connect(self, hold_port=True):
         if self.num_connect_attempts > 0:
             self.num_connect_attempts -= 1
@@ -144,13 +156,12 @@ class DfuDevice(usb.core.Device):
                 raise IOError(f'No DFU interface found: {self._str()}')
 
             if not self.is_connect_valid():
-                dfu.dfu_detach(self, self.dfu_intf, 1000)
-                sleep(1)
-                self.reconnect(hold_port)
+                detach_timeout = self.dfu_detach()
+                self.reconnect(detach_timeout, hold_port)
         else:
             raise ConnectionError(f"Can't connect device: {self._str()}")
 
-    def reconnect(self, hold_port=True):
+    def reconnect(self, count: int=10, hold_port: bool=True):
         
         def reattach_device_handle() -> DfuDevice:
             if not hold_port:
@@ -159,16 +170,20 @@ class DfuDevice(usb.core.Device):
             devices = find(find_all=True, idVendor=self.idVendor, idProduct=self.idProduct)
             detached = tuple(filter(lambda d: d if d.port_numbers == self.port_numbers else None, devices))
             if len(detached) != 1:
-                raise ConnectionResetError(f"Can't reconnect device: {self._str()}")
+                return None
 
             return detached[0]
     
-        countdown = 5
+        countdown = count
         dev_handle = None
+        print('waiting', end='')
         while countdown > 0 and dev_handle is None:
             dev_handle: DfuDevice = reattach_device_handle()
             countdown -= 1
             sleep(1)
+            print('.', end='')
+        print()
+
 
         if dev_handle is None:
             raise ConnectionResetError(f"Can't reconnect device: {self._str()}")
@@ -236,25 +251,23 @@ class DfuDevice(usb.core.Device):
 dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x000C)
 # dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x1002)
 
-if dfudev is not None:
+devs = find(find_all=True, idVendor=0x1FC9, idProduct=0x000C)
+for dfudev in devs:
 
-    print(dfudev.bus, dfudev.port_number, dfudev.address, dfudev.port_numbers, end='\n\t')
+    if dfudev is not None:
 
-    parent = dfudev.parent
+        print(dfudev._str(), end='\n\t')
+        dfudev.connect()
+        # print(dfudev)
+        dfudev.disconnect()
+        print(dfudev.bus, dfudev.port_number, dfudev.address, dfudev.port_numbers, end='\n\t')
+        parent = dfudev.parent
+        print(parent.bus, parent.port_number, parent.address, parent.port_numbers)
 
-    print(parent.bus, parent.port_number, parent.address, parent.port_numbers)
 
-    dfudev.connect()
-
-    # print(dfudev)
-
-    dfudev.disconnect()
-
-    print(dfudev.bus, dfudev.port_number, dfudev.address, dfudev.port_numbers, end='\n\t')
-
-    parent = dfudev.parent
-
-    print(parent.bus, parent.port_number, parent.address, parent.port_numbers)
+        # buf = PortNumbers.build(bytes(dfudev.port_numbers))
+        # print(buf)
+        # print('pn', PortNumbers.parse(buf))
 
 
     # desc = dfudev.backend.get_device_descriptor(dfudev._ctx.dev)

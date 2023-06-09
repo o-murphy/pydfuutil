@@ -156,7 +156,6 @@ def dfu_init(timeout: int) -> None:
     :param timeout in milliseconds
     :return: None
     """
-    warnings.warn("Function dfu_init can be removed in the future", FutureWarning)
 
     global DFU_TIMEOUT
 
@@ -173,7 +172,6 @@ def dfu_verify_init() -> int:  # NOTE: (function: typing.Callable) not needed ca
     :raise ValueError with caller function name
     :return: 0
     """
-    warnings.warn("Function dfu_verify_init can be removed in the future", FutureWarning)
     caller = inspect.stack()[0][3]
     if INVALID_DFU_TIMEOUT == DFU_TIMEOUT:
         if 0 != DFU_DEBUG_LEVEL:
@@ -187,10 +185,10 @@ def dfu_debug(level: int) -> None:
     :param level:
     :return:
     """
-    warnings.warn("Function dfu_debug can be removed in the future", FutureWarning)
 
     global DFU_DEBUG_LEVEL
     DFU_DEBUG_LEVEL = level
+    logger.setLevel(level)
 
 
 def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
