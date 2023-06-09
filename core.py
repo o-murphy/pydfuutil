@@ -266,8 +266,8 @@ for dfudev in devs:
 
 
         # buf = PortNumbers.build(bytes(dfudev.port_numbers))
-        # print(buf)
-        # print('pn', PortNumbers.parse(buf))
+        # enc_adress = int.from_bytes(buf, 'big')
+        # print('pn', buf, enc_adress, enc_adress.to_bytes(8, 'big'))
 
 
     # desc = dfudev.backend.get_device_descriptor(dfudev._ctx.dev)
