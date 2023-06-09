@@ -15,10 +15,10 @@ from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 
 
 # setting global params
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-dfu.logger.setLevel(logging.INFO)
+dfu.logger.setLevel(logging.DEBUG)
 
 _progress_bar = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
@@ -136,7 +136,7 @@ class DfuDevice(usb.core.Device):
 
         return True
 
-    def connect(self):
+    def connect(self, hold_port=True):
         if self.num_connect_attempts > 0:
             self.num_connect_attempts -= 1
             self.get_dfu_interface()
@@ -146,14 +146,22 @@ class DfuDevice(usb.core.Device):
             if not self.is_connect_valid():
                 dfu.dfu_detach(self, self.dfu_intf, 1000)
                 sleep(1)
-                self.reconnect()
+                self.reconnect(hold_port)
         else:
             raise ConnectionError(f"Can't connect device: {self._str()}")
 
-    def reconnect(self):
+    def reconnect(self, hold_port=True):
         
         def reattach_device_handle() -> DfuDevice:
-            return find(idVendor=self.idVendor, idProduct=self.idProduct)
+            if not hold_port:
+                return find(idVendor=self.idVendor, idProduct=self.idProduct)
+
+            devices = find(find_all=True, idVendor=self.idVendor, idProduct=self.idProduct)
+            detached = tuple(filter(lambda d: d if d.port_numbers == self.port_numbers else None, devices))
+            if len(detached) != 1:
+                raise ConnectionResetError(f"Can't reconnect device: {self._str()}")
+
+            return detached[0]
     
         countdown = 5
         dev_handle = None
@@ -226,11 +234,60 @@ class DfuDevice(usb.core.Device):
 
 
 dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x000C)
+# dfudev: DfuDevice = find(idVendor=0x1FC9, idProduct=0x1002)
 
 if dfudev is not None:
+
+    print(dfudev.bus, dfudev.port_number, dfudev.address, dfudev.port_numbers, end='\n\t')
+
+    parent = dfudev.parent
+
+    print(parent.bus, parent.port_number, parent.address, parent.port_numbers)
+
     dfudev.connect()
 
-    print(dfudev)
+    # print(dfudev)
 
     dfudev.disconnect()
+
+    print(dfudev.bus, dfudev.port_number, dfudev.address, dfudev.port_numbers, end='\n\t')
+
+    parent = dfudev.parent
+
+    print(parent.bus, parent.port_number, parent.address, parent.port_numbers)
+
+
+    # desc = dfudev.backend.get_device_descriptor(dfudev._ctx.dev)
+    # print(desc)
+    #
+    #
+    # def _set_attr(input, output, fields):
+    #     for f in fields:
+    #         setattr(output, f, getattr(input, f))
+    #
+    # _set_attr(
+    #     desc,
+    #     dfudev,
+    #     (
+    #         'bLength',
+    #         'bDescriptorType',
+    #         'bcdUSB',
+    #         'bDeviceClass',
+    #         'bDeviceSubClass',
+    #         'bDeviceProtocol',
+    #         'bMaxPacketSize0',
+    #         'idVendor',
+    #         'idProduct',
+    #         'bcdDevice',
+    #         'iManufacturer',
+    #         'iProduct',
+    #         'iSerialNumber',
+    #         'bNumConfigurations',
+    #         'address',
+    #         'bus',
+    #         'port_number',
+    #         'port_numbers',
+    #         'speed',
+    #     )
+    # )
 
