@@ -213,7 +213,7 @@ class DfuDevice(usb.core.Device):
         )
 
         _progress_bar.callback = callback
-        _progress_bar.start()
+        # _progress_bar.start()
 
         try:
 
@@ -241,8 +241,6 @@ class DfuDevice(usb.core.Device):
                 if len(rc[0]) < USB_PAGE or (len(ret) >= total >= 0):
                     break
 
-
-
         except usb.core.USBTimeoutError:
             pass
 
@@ -254,7 +252,7 @@ class DfuDevice(usb.core.Device):
                 color='yellow4', port=self.usb_port, desc='Upload finished!'
             )
         )
-        _progress_bar.stop()
+        # _progress_bar.stop()
         _progress_bar.remove_task(upload_task)
 
         return ret
@@ -274,6 +272,7 @@ if __name__ == '__main__':
     # Create a console object
     console = Console()
 
+
     def table_changed(table_data):
         # Create a new table
         table = Table(title="Devices")
@@ -282,7 +281,6 @@ if __name__ == '__main__':
         table.add_column("Name", style="magenta")
         table.add_column("Status", style="green")
 
-
         # Add rows to the table with updated progress values
         for i, item in enumerate(table_data):
             table.add_row(str(i), *item)
@@ -290,6 +288,7 @@ if __name__ == '__main__':
         # Print the updated table
         console.clear()
         console.print(table)
+
 
     table_data = [0]
     try:
@@ -304,7 +303,7 @@ if __name__ == '__main__':
 
             # print(dfudevs)
             for dev in dfudevs:
-                new_table_data.append((dev, "Found"))
+                new_table_data.append((dev.split(',')[0], "Found"))
 
             if table_data != new_table_data:
                 table_data = new_table_data
@@ -315,17 +314,16 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
 
-    # def read_dev(dfudev):
-    #     try:
-    #         dfudev.connect()
-    #         logger.info(f'Connected: {dfudev.usb_port}')
-    #
-    #         a = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
-    #         print(f'{dfudev.usb_port} {a[:5]}, {len(a)}')
-    #         dfudev.disconnect()
-    #     except Exception as exc:
-    #         logger.warning(exc)
-    #         # pass
+
+    def read_dev(dfudev):
+        try:
+
+            a = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
+            print(f'{dfudev.usb_port} {a[:5]}, {len(a)}')
+            dfudev.disconnect()
+        except Exception as exc:
+            logger.warning(exc)
+            # pass
 
     def detach_dev(dfudev, results):
         try:
@@ -335,6 +333,7 @@ if __name__ == '__main__':
             results.append(dfudev)
         except Exception as exc:
             logger.warning(exc)
+
 
     devs = list(find(find_all=True))
 
@@ -359,10 +358,23 @@ if __name__ == '__main__':
         _, status = dev.get_status()
         table_data.append((dev.usb_port, dfu.dfu_state_to_string(status.bState)))
 
-
     table_changed(table_data)
 
+    threads = []
+    for dfudev in devs:
+        if dfudev is not None:
+            thread = threading.Thread(target=read_dev, args=(dfudev, ))
+            threads.append(thread)
+            thread.start()
+
+    for tr in threads:
+        tr.join()
+
+    table_data = []
+    for dev in results:
+        _, status = dev.get_status()
+        table_data.append((dev.usb_port, dfu.dfu_state_to_string(status.bState)))
+    table_changed(table_data)
+
+
     dfu_file = input("path to dfu:")
-
-
-
