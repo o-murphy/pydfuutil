@@ -8,6 +8,8 @@ import construct
 import libusb_package
 import usb.core
 from rich import progress
+from rich.console import Console
+from rich.table import Table
 from usb.backend import libusb1
 
 from progress import DfuProgress
@@ -19,7 +21,6 @@ from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# Todo: rename _progress_bar to DFU_PROGRESS
 _progress_bar = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
     progress.BarColumn(10),
@@ -84,7 +85,7 @@ class DfuDevice(usb.core.Device):
             extra = interface.extra_descriptors
             return USB_DFU_FUNC_DESCRIPTOR.parse(bytes(extra))
         except Exception as exc:
-            logger.error(exc)
+            logger.warning(exc)
             raise ConnectionRefusedError(
                 f'DFU descriptor not found on interface {interface.bInterfaceNumber}: {self._str()}'
             )
@@ -210,10 +211,9 @@ class DfuDevice(usb.core.Device):
             _task_desc.format(color='magenta1', port=self.usb_port, desc='Starting upload'),
             total=total
         )
-        
-        #Todo: move progress bar callback to task callback
+
         _progress_bar.callback = callback
-        #_progress_bar.start()
+        _progress_bar.start()
 
         try:
 
@@ -254,7 +254,7 @@ class DfuDevice(usb.core.Device):
                 color='yellow4', port=self.usb_port, desc='Upload finished!'
             )
         )
-        #_progress_bar.stop()
+        _progress_bar.stop()
         _progress_bar.remove_task(upload_task)
 
         return ret
@@ -266,70 +266,84 @@ class DfuDevice(usb.core.Device):
 if __name__ == '__main__':
 
     import threading
-    
-    _progress_bar.start()
 
     offset = 532480
     start = int((offset + 4096) / 2048)
     data = bytes(2048)
 
-    # ANSI escape codes for moving the cursor up and clearing the line
-    move_up = '\x1b[1A'
-    clear_line = '\x1b[2K'
+    # Create a console object
+    console = Console()
 
-    counter = 0
-    num_lines = 3
+    def table_changed(table_data):
+        # Create a new table
+        table = Table(title="Devices")
 
-    # while True:
-    #     devs = usb.core.show_devices().split('\n')
-    #     dfudevs = filter(lambda d: d.find('1fc9:000c') >= 0, devs)
-    #     lines_to_print = []
-    #
-    #     # for i in range(3):
-    #     #     line = f'{i + 1}\tCounter: {counter}'
-    #     #     lines_to_print.append(line)
-    #     #
-    #     # # Clear the console by printing newlines
-    #     # print('\n' * num_lines, end='')
-    #     #
-    #     # for line in lines_to_print:
-    #     #     print(line, end='\r')
-    #     #
-    #     # counter += 1
-    #
-    #
-    #     # for i, d in enumerate(dfudevs):
-    #     #     line = f'{i}\t{d}'
-    #     #     lines_to_print.append(line)
-    #     #
-    #     # for _ in range(len(lines_to_print)):
-    #     #     print(move_up + clear_line)
-    #     #
-    #     # for line in lines_to_print:
-    #     #     print(line)
-    #
-    #     sleep(1)
+        table.add_column("#", style="cyan")
+        table.add_column("Name", style="magenta")
+        table.add_column("Status", style="green")
 
 
-    def read_dev(dfudev):
+        # Add rows to the table with updated progress values
+        for i, item in enumerate(table_data):
+            table.add_row(str(i), *item)
+
+        # Print the updated table
+        console.clear()
+        console.print(table)
+
+    table_data = [0]
+    try:
+        while True:
+            # Clear the console
+
+            # devs = find(find_all=True)
+            devs = usb.core.show_devices().split('\n')
+            dfudevs = filter(lambda d: d.find('1fc9:000c') >= 0, devs)
+
+            new_table_data = []
+
+            # print(dfudevs)
+            for dev in dfudevs:
+                new_table_data.append((dev, "Found"))
+
+            if table_data != new_table_data:
+                table_data = new_table_data
+                table_changed(table_data)
+
+            # Delay for a certain period before the next update
+            sleep(2)
+    except KeyboardInterrupt:
+        pass
+
+    # def read_dev(dfudev):
+    #     try:
+    #         dfudev.connect()
+    #         logger.info(f'Connected: {dfudev.usb_port}')
+    #
+    #         a = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
+    #         print(f'{dfudev.usb_port} {a[:5]}, {len(a)}')
+    #         dfudev.disconnect()
+    #     except Exception as exc:
+    #         logger.warning(exc)
+    #         # pass
+
+    def detach_dev(dfudev, results):
         try:
             dfudev.connect()
             logger.info(f'Connected: {dfudev.usb_port}')
-
-            a = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
-            print(f'{dfudev.usb_port} {a[:5]}, {len(a)}')
             dfudev.disconnect()
+            results.append(dfudev)
         except Exception as exc:
-            logger.error(exc)
-            # pass
+            logger.warning(exc)
 
-    devs = find(find_all=True)
+    devs = list(find(find_all=True))
 
     threads = []
+    results = []
 
     for dfudev in devs:
         if dfudev is not None:
-            thread = threading.Thread(target=lambda dfudev=dfudev: read_dev(dfudev))
+            thread = threading.Thread(target=detach_dev, args=(dfudev, results))
             threads.append(thread)
 
             thread.start()
@@ -338,8 +352,17 @@ if __name__ == '__main__':
     for tr in threads:
         tr.join()
 
-            # read_dev(dfudev)
-    
-    _progress_bar.stop()
+    print(results)
+
+    table_data = []
+    for dev in results:
+        _, status = dev.get_status()
+        table_data.append((dev.usb_port, dfu.dfu_state_to_string(status.bState)))
+
+
+    table_changed(table_data)
+
+    dfu_file = input("path to dfu:")
+
 
 
