@@ -257,8 +257,66 @@ class DfuDevice(usb.core.Device):
 
         return ret
 
-    def do_download(self):
-        ...
+    def do_download(self, offset: int, data: bytes, page_size: int = 2048, callback=None):
+
+        total: int = len(data)
+        start_page: int = int(offset / page_size)
+        page = start_page
+        ret = 0
+
+        download_task = _progress_bar.add_task(
+            _task_desc.format(color='magenta1', port=self.usb_port, desc='Starting download'),
+            total=total
+        )
+
+        _progress_bar.callback = callback
+
+        part_num = 0
+
+        try:
+
+            while True:
+
+                part = data[part_num * page_size:part_num * page_size + page_size]
+
+                rc = dfu.dfu_download(self, self.dfu_intf, page, part)
+                page += 1
+                part_num += 1
+
+                if rc < 0:
+                    ret = rc
+                    break
+
+                _progress_bar.update(
+                    download_task, advance=page_size,
+                    # description='[magenta1]Uploading...'
+                    description=_task_desc.format(
+                        color='magenta1',
+                        port=self.usb_port,
+                        desc='Downloading...'
+                    )
+                )
+
+                ret += rc
+
+                if rc < page_size or ret >= total >= 0:
+                    break
+
+        except usb.core.USBTimeoutError:
+            pass
+
+        dfu.dfu_upload(self, self.dfu_intf, page, 0),
+
+        _progress_bar.update(
+            download_task, advance=0,
+            description=_task_desc.format(
+                color='yellow4', port=self.usb_port, desc='Download finished!'
+            )
+        )
+
+        _progress_bar.remove_task(download_task)
+
+        return ret
 
 
 if __name__ == '__main__':
@@ -315,14 +373,26 @@ if __name__ == '__main__':
         pass
 
 
-    def read_dev(dfudev):
+    def read_dev(dfudev, results):
         try:
 
-            a = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
-            print(f'{dfudev.usb_port} {a[:5]}, {len(a)}')
+            result = dfudev.do_upload(offset=offset + 4096, length=2048, page_size=2048)
+            results.append(result)
+            print(f'{dfudev.usb_port} {result[:5]}, {len(result)}')
             dfudev.disconnect()
         except Exception as exc:
             logger.warning(exc)
+            # pass
+
+    def write_dev(dfudev, data, results):
+        # try:
+
+            result = dfudev.do_download(offset=offset + 4096, data=data, page_size=2048)
+            results.append(result)
+
+            dfudev.disconnect()
+        # except Exception as exc:
+        #     logger.warning(exc)
             # pass
 
     def detach_dev(dfudev, results):
@@ -361,14 +431,17 @@ if __name__ == '__main__':
     table_changed(table_data)
 
     threads = []
+    results_data = []
     for dfudev in devs:
         if dfudev is not None:
-            thread = threading.Thread(target=read_dev, args=(dfudev, ))
+            thread = threading.Thread(target=read_dev, args=(dfudev, results_data))
             threads.append(thread)
             thread.start()
 
     for tr in threads:
         tr.join()
+
+    print(len(results_data))
 
     table_data = []
     for dev in results:
@@ -376,5 +449,19 @@ if __name__ == '__main__':
         table_data.append((dev.usb_port, dfu.dfu_state_to_string(status.bState)))
     table_changed(table_data)
 
+
+    threads = []
+    results_data1 = []
+    for i, dfudev in enumerate(results):
+        if dfudev is not None:
+
+            data = bytearray(results_data[i])
+            data[:8] = f'AAAAAAAA'.encode()
+            thread = threading.Thread(target=write_dev, args=(dfudev, bytes(data), results_data1))
+            threads.append(thread)
+            thread.start()
+
+    for tr in threads:
+        tr.join()
 
     dfu_file = input("path to dfu:")
