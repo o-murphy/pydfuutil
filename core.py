@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import logging
 import math
@@ -21,7 +22,7 @@ from pydfuutil.usb_dfu import USB_DFU_FUNC_DESCRIPTOR
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-_progress_bar = DfuProgress(
+DFU_PROGRESS = DfuProgress(
     progress.TextColumn("[progress.description]{task.description}"),
     progress.BarColumn(10),
     progress.TaskProgressColumn(),
@@ -207,13 +208,12 @@ class DfuDevice(usb.core.Device):
         page = start_page
         ret = bytes()
 
-        upload_task = _progress_bar.add_task(
+        upload_task = DFU_PROGRESS.add_task(
             _task_desc.format(color='magenta1', port=self.usb_port, desc='Starting upload'),
             total=total
         )
 
-        _progress_bar.callback = callback
-        # _progress_bar.start()
+        DFU_PROGRESS.callback = callback
 
         try:
 
@@ -226,7 +226,7 @@ class DfuDevice(usb.core.Device):
                     ret = rc
                     break
 
-                _progress_bar.update(
+                DFU_PROGRESS.update(
                     upload_task, advance=USB_PAGE,
                     # description='[magenta1]Uploading...'
                     description=_task_desc.format(
@@ -246,14 +246,14 @@ class DfuDevice(usb.core.Device):
 
         dfu.dfu_upload(self, self.dfu_intf, page, 0),
 
-        _progress_bar.update(
+        DFU_PROGRESS.update(
             upload_task, advance=0,
             description=_task_desc.format(
                 color='yellow4', port=self.usb_port, desc='Upload finished!'
             )
         )
-        # _progress_bar.stop()
-        _progress_bar.remove_task(upload_task)
+        # DFU_PROGRESS.stop()
+        DFU_PROGRESS.remove_task(upload_task)
 
         return ret
 
@@ -264,12 +264,12 @@ class DfuDevice(usb.core.Device):
         page = start_page
         ret = 0
 
-        download_task = _progress_bar.add_task(
+        download_task = DFU_PROGRESS.add_task(
             _task_desc.format(color='magenta1', port=self.usb_port, desc='Starting download'),
             total=total
         )
 
-        _progress_bar.callback = callback
+        DFU_PROGRESS.callback = callback
 
         part_num = 0
 
@@ -287,7 +287,7 @@ class DfuDevice(usb.core.Device):
                     ret = rc
                     break
 
-                _progress_bar.update(
+                DFU_PROGRESS.update(
                     download_task, advance=page_size,
                     # description='[magenta1]Uploading...'
                     description=_task_desc.format(
@@ -307,14 +307,14 @@ class DfuDevice(usb.core.Device):
 
         dfu.dfu_upload(self, self.dfu_intf, page, 0),
 
-        _progress_bar.update(
+        DFU_PROGRESS.update(
             download_task, advance=0,
             description=_task_desc.format(
                 color='yellow4', port=self.usb_port, desc='Download finished!'
             )
         )
 
-        _progress_bar.remove_task(download_task)
+        DFU_PROGRESS.remove_task(download_task)
 
         return ret
 
@@ -322,6 +322,8 @@ class DfuDevice(usb.core.Device):
 if __name__ == '__main__':
 
     import threading
+
+    DFU_PROGRESS.start()
 
     offset = 532480
     start = int((offset + 4096) / 2048)
@@ -373,55 +375,51 @@ if __name__ == '__main__':
         pass
 
 
-    def read_dev(dfudev, results):
+    async def read_dev(dfudev):
         try:
 
-            result = dfudev.do_upload(offset=offset + 4096, length=2048, page_size=2048)
-            results.append(result)
+            result = dfudev.do_upload(offset=offset + 4096, length=2048 * 128, page_size=2048)
             print(f'{dfudev.usb_port} {result[:5]}, {len(result)}')
             dfudev.disconnect()
+            return result
         except Exception as exc:
             logger.warning(exc)
             # pass
 
-    def write_dev(dfudev, data, results):
-        # try:
+    async def write_dev(dfudev, data):
+        try:
 
-            result = dfudev.do_download(offset=offset + 4096, data=data, page_size=2048)
+            result = dfudev.do_download(offset=offset + 4096, data=data[:2048], page_size=2048)
             results.append(result)
 
             dfudev.disconnect()
-        # except Exception as exc:
-        #     logger.warning(exc)
-            # pass
+            return result
+        except Exception as exc:
+            logger.warning(exc)
 
-    def detach_dev(dfudev, results):
+
+    async def detach_dev(dfudev):
         try:
             dfudev.connect()
             logger.info(f'Connected: {dfudev.usb_port}')
             dfudev.disconnect()
-            results.append(dfudev)
+            return dfudev
         except Exception as exc:
             logger.warning(exc)
 
 
     devs = list(find(find_all=True))
 
-    threads = []
-    results = []
+    loop = asyncio.get_event_loop()
 
+
+    tasks = []
     for dfudev in devs:
         if dfudev is not None:
-            thread = threading.Thread(target=detach_dev, args=(dfudev, results))
-            threads.append(thread)
+            tasks.append(detach_dev(dfudev))
 
-            thread.start()
-            # read_dev(dfudev)
-
-    for tr in threads:
-        tr.join()
-
-    print(results)
+    results = loop.run_until_complete(asyncio.gather(*tasks))
+    results = [i for i in results if i is not None]
 
     table_data = []
     for dev in results:
@@ -430,18 +428,12 @@ if __name__ == '__main__':
 
     table_changed(table_data)
 
-    threads = []
-    results_data = []
-    for dfudev in devs:
+    tasks = []
+    for dfudev in results:
         if dfudev is not None:
-            thread = threading.Thread(target=read_dev, args=(dfudev, results_data))
-            threads.append(thread)
-            thread.start()
+            tasks.append(read_dev(dfudev))
 
-    for tr in threads:
-        tr.join()
-
-    print(len(results_data))
+    results_data = loop.run_until_complete(asyncio.gather(*tasks))
 
     table_data = []
     for dev in results:
@@ -450,18 +442,19 @@ if __name__ == '__main__':
     table_changed(table_data)
 
 
-    threads = []
-    results_data1 = []
+    tasks = []
     for i, dfudev in enumerate(results):
         if dfudev is not None:
 
             data = bytearray(results_data[i])
             data[:8] = f'AAAAAAAA'.encode()
-            thread = threading.Thread(target=write_dev, args=(dfudev, bytes(data), results_data1))
-            threads.append(thread)
-            thread.start()
+            task = write_dev(dfudev, data)
+            tasks.append(task)
+    results_data1 = loop.run_until_complete(asyncio.gather(*tasks))
 
-    for tr in threads:
-        tr.join()
+    # print(results_data1)
 
-    dfu_file = input("path to dfu:")
+    # # dfu_file = input("path to dfu:")
+
+    DFU_PROGRESS.stop()
+
