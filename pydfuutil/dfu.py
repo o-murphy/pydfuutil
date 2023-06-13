@@ -364,9 +364,9 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
         data_or_wLength=None,
         timeout=DFU_TIMEOUT,
     )
-    logger.debug(f'DFU_CLEAR_STATUS {len(result) >= 0}')
+    logger.debug(f'DFU_CLEAR_STATUS {result >= 0}')
 
-    return int.from_bytes(result.tobytes(), byteorder='little')
+    return result
 
 
 def dfu_get_state(device: usb.core.Device, interface: int) -> int:
