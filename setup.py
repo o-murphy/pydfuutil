@@ -5,11 +5,8 @@ from setuptools import setup, find_packages
 from pydfuutil import __version__, __author__
 
 CLASSIFIERS = [
-    'Development Status :: 5 - Develop',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: GPL License',
     'Natural Language :: English',
-    'Operating System :: Windows',
     'Programming Language :: Python',
     'Topic :: Software Development :: Libraries :: Python Modules'
 ]
