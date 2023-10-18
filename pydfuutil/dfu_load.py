@@ -28,7 +28,7 @@ def dfuload_do_upload(dif: DFU_IF,
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
     :param file: optional - io.BytesIO object
-    :param total_size: optional - total bytes expected to be upload
+    :param total_size: optional - total bytes expected to be uploaded
     :return: uploaded bytes or error code
     """
 

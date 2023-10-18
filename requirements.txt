@@ -1,4 +1,0 @@
-pyusb==1.2.1
-libusb-package==1.0.26.1
-rich==13.4.1
-construct~=2.10.68

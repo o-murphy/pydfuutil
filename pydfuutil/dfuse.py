@@ -31,6 +31,7 @@ def dfuse_do_upload(dif: DFU_IF, xfer_size: int, file: 'dfu_file.file', dfuse_op
     :param dif:
     :param xfer_size:
     :param file:
+    :param dfuse_options:
     :return:
     """
     raise NotImplementedError("Feature not yet implemented")
@@ -42,6 +43,7 @@ def dfuse_do_dnload(dif: DFU_IF, xfer_size: int, file: 'dfu_file.file', dfuse_op
     :param dif:
     :param xfer_size:
     :param file:
+    :param dfuse_options:
     :return:
     """
     raise NotImplementedError("Feature not yet implemented")

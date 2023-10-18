@@ -37,6 +37,3 @@ def lmdfu_check_prefix(file: 'dfu_file.file'):
     :return:
     """
     raise NotImplementedError("Feature not yet implemented")
-
-
-

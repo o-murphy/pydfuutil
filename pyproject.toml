@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "pydfuutil"
+
+authors = [
+    { name="o-murphy", email="thehelixpg@gmail.com" },
+]
+description = "LGPL library for small arms ballistic calculations (Python 3)"
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["dfu_util", "dfu-util", "pydfu", "libusb", "python", "python3"]
+license = {file = "LICENSE"}
+classifiers = [
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = ['pyusb', 'libusb-package', 'rich', 'construct']
+dynamic = ["version"]
+
+[project.urls]
+"Homepage" = "https://github.com/o-murphy/pydfuutil"
+"Bug Reports" = "https://github.com/o-murphy/pydfuutil/issues"
+#"Funding" = "https://donate.pypi.org"
+#"Say Thanks!" = ""
+"Source" = "https://github.com/o-murphy/pydfuutil"
+
+
+[tool.setuptools]
+py-modules = ["pydfuutil"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pydfuutil*"]
+#exclude = ["*"]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "pydfuutil.__version__"}
+
+
+[project.optional-dependencies]
+dev = ['build']
