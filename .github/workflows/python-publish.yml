@@ -36,7 +36,7 @@ jobs:
         pip install build
         
     - name: Build package
-      run: python -m build
+      run: python -m build twine
       
     - name: Publish package to PyPI
       run: |
