@@ -1,3 +1,7 @@
+"""
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+"""
+
 from time import sleep
 
 

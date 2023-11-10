@@ -1,3 +1,9 @@
+"""
+Helper functions for reading the memory map in a device
+following the ST DfuSe 1.1a specification.
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+"""
+
 from enum import IntFlag
 
 from construct import Struct, Int

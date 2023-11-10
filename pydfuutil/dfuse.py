@@ -1,3 +1,9 @@
+"""
+This implements the ST Microsystems DFU extensions (DfuSe)
+as per the DfuSe 1.1a specification (Document UM0391)
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+"""
+
 from enum import Enum
 
 from pydfuutil.dfu import DFU_IF, dfu_init

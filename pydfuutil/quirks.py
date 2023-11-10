@@ -1,3 +1,8 @@
+"""
+Simple quirk system for dfu-util
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+"""
+
 VENDOR_OPENMOKO = 0x1d50  # Openmoko Freerunner / GTA02
 VENDOR_FIC = 0x1457  # Openmoko Freerunner / GTA02
 VENDOR_VOTI = 0x16c0  # OpenPCD Reader
