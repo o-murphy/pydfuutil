@@ -111,7 +111,7 @@ def parse_dfu_suffix(file: DFUFile) -> int:
                 logger.error("Could not read whole DFU suffix")
                 return -1
 
-            if dfusuffix[10] != 'D' or dfusuffix[9] != 'F' or dfusuffix[8] != 'U':
+            if dfusuffix[10] != ord('D') or dfusuffix[9] != ord('F') or dfusuffix[8] != ord('U'):
                 logger.error("No valid DFU suffix signature")
                 ret = 0
                 return ret
@@ -124,7 +124,7 @@ def parse_dfu_suffix(file: DFUFile) -> int:
                 return ret
 
             file.bcdDFU = (dfusuffix[7] << 8) + dfusuffix[6]
-            logger.info("Dfu suffix version", hex(file.bcdDFU))
+            logger.info(f"Dfu suffix version {hex(file.bcdDFU)}")
 
             file.suffixlen = dfusuffix[11]
             if file.suffixlen < DFU_SUFFIX_LENGTH:
