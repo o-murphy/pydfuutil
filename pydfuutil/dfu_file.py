@@ -3,14 +3,13 @@ Checks for, parses and generates a DFU suffix
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 """
 
-import os
-from dataclasses import dataclass
 import io
-from dfu import logger
+import os
+from dataclasses import dataclass, field
 
+from pydfuutil.dfu import logger
 
 DFU_SUFFIX_LENGTH = 16
-
 
 crc32_table = [
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
@@ -65,22 +64,15 @@ def crc32_byte(accum: int, delta: int):
 
 @dataclass
 class DFUFile:
-
-    name: bytes
-    filep: io.FileIO
-    size: int
-    dwCRC: int
-    suffixlen: int
-    bcdDFU: int
-    idVendor: int
-    idProduct: int
-    bcdDevice: int
-
-    def __init__(self):
-        """
-        TODO: implementation
-        """
-        raise NotImplementedError("Feature not yet implemented")
+    name: str
+    filep: io.FileIO = field(init=False, default=None)
+    size: int = field(init=False, default=0)
+    dwCRC: int = field(init=False, default=0)
+    suffixlen: int = field(init=False, default=0)
+    bcdDFU: int = field(init=False, default=0)
+    idVendor: int = field(init=False, default=0xffff)  # wildcard value
+    idProduct: int = field(init=False, default=0xffff)  # wildcard value
+    bcdDevice: int = field(init=False, default=0xffff)  # wildcard value
 
 
 def parse_dfu_suffix(file: DFUFile) -> int:
@@ -92,14 +84,6 @@ def parse_dfu_suffix(file: DFUFile) -> int:
 
     crc = 0xffffffff
     dfusuffix = bytearray([0] * DFU_SUFFIX_LENGTH)
-
-    file.size = 0
-    file.dwCRC = 0
-    file.suffixlen = 0
-    file.bcdDFU = 0
-    file.idVendor = 0xffff  # wildcard value
-    file.idProduct = 0xffff  # wildcard value
-    file.bcdDevice = 0xffff  # wildcard value
 
     try:
         with io.FileIO(file.name, 'rb') as filep:
