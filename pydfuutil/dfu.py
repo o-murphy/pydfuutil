@@ -1,7 +1,11 @@
+"""
+low-level DFU message sending routines (part of dfu-programmer).
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+"""
+
 import dataclasses
 import inspect
 import logging
-import warnings
 from enum import IntEnum
 
 import usb.util

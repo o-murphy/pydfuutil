@@ -1,3 +1,7 @@
+"""
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+"""
+
 from pydfuutil.dfu import *
 from pydfuutil.dfu import DFU_TRANSACTION
 from rich import progress

@@ -1,3 +1,12 @@
+"""
+USB Device Firmware Update Implementation for OpenPCD
+Protocol definitions for USB DFU
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This ought to be compliant to the USB DFU Spec 1.0 as available from
+http://www.usb.org/developers/devclass_docs/usbdfu10.pdf
+"""
+
 from enum import IntEnum
 
 import usb.util
