@@ -46,6 +46,7 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 - [ ] lmdfu
 - [ ] suffix
 - [ ] main
+- [ ] dfu_load.PROGRESS_BAR -> rich.Progress
 
 #### Done:
 - [x] dfu

@@ -2,12 +2,12 @@
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 """
 
-from pydfuutil.dfu import *
-from pydfuutil.portable import *
-from pydfuutil.quirks import *
-from pydfuutil.dfu_file import DFUFile
 from rich import progress
 
+from pydfuutil.dfu import *
+from pydfuutil.dfu_file import DFUFile
+from pydfuutil.portable import *
+from pydfuutil.quirks import *
 
 verbose: int = 0
 
@@ -88,49 +88,10 @@ def dfuload_do_upload(dif: DFU_IF,
     return ret
 
 
-# def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile) -> int:
-#     bytes_sent: int = 0
-#     bytes_per_hash: int
-#     hashes: int
-#     buf: [bytes, int]
-#     dst: DFUStatus
-#     ret: int
-#
-#     buf: bytearray = bytearray(xfer_size)
-#     bytes_per_hash = (file.size - file.suffixlen) // PROGRESS_BAR_WIDTH
-#     if bytes_per_hash == 0:
-#         bytes_per_hash = 1
-#
-#     logger.info(f"bytes_per_hash={bytes_per_hash}")
-#
-#     logger.info("Copying data from PC to DFU device")
-#
 #     download_task = _progress_bar.add_task(
 #         '[magenta1]Starting upload',
 #         total=total_size if total_size >= 0 else None
 #     )
-#
-#     while bytes_sent < file.size - file.suffixlen - bytes_sent:
-#         hashes_todo: int
-#         bytes_left: int
-#         chunk_size: int
-#
-#         bytes_left = file.size - file.suffixlen - bytes_sent
-#         if bytes_left < xfer_size:
-#             chunk_size = bytes_left
-#
-#         else:
-#             chunk_size = xfer_size
-#
-# #         ret = file.read(chunk_size)
-# #         if len(ret) < 0:
-# #             logger.error(f'{file.name}')
-# #             ret = bytes_sent
-# #             break
-# #
-# #         ret = dfu_download(device=dif.dev,
-# #                            interface=dif.interface,
-# #                            )
 
 
 def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
@@ -143,7 +104,8 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
     logger.info(f"bytes_per_hash={bytes_per_hash}")
 
     logger.info("Copying data from PC to DFU device")
-    print("Starting download: [", end="")
+    logger.info("Starting download: ")
+    print("[", end="")
     while bytes_sent < file.size - file.suffixlen:
         bytes_left = file.size - file.suffixlen - bytes_sent
         chunk_size = min(bytes_left, xfer_size)  # TODO: no idea what's there
@@ -184,7 +146,6 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
         while hashes_todo:
             print("#", end="")
             hashes_todo -= 1
-        print("", flush=True)
 
     # Send one zero-sized download request to signalize end
     ret = dfu_download(dif.dev, dif.interface, DFU_TRANSACTION, bytes())
@@ -192,7 +153,8 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
         logger.error("Error sending completion packet")
         return -1
 
-    print("] finished!")
+    print("]")
+    logger.info("finished!")
     if verbose:
         logger.info(f"Sent a total of {bytes_sent} bytes")
 
@@ -201,8 +163,8 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
     if ret < 0:
         logger.error("Unable to read DFU status")
         return -1
-    print(f"state({status.bState}) = {dfu_state_to_string(status.bState)}, "
-          f"status({status.bStatus}) = {dfu_status_to_string(status.bStatus)}")
+    logger.info(f"state({status.bState}) = {dfu_state_to_string(status.bState)}, "
+                f"status({status.bStatus}) = {dfu_status_to_string(status.bStatus)}")
 
     if not (quirks & QUIRK_POLLTIMEOUT):
         milli_sleep(status.bwPollTimeout)
