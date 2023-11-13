@@ -3,11 +3,9 @@
 """
 
 from pydfuutil.dfu import *
-from pydfuutil.dfu import DFU_TRANSACTION
+from pydfuutil.dfu_file import DFUFile
 from rich import progress
 
-
-logger = logging.getLogger(__name__)
 
 verbose: int = 0
 
@@ -25,18 +23,18 @@ PROGRESS_BAR_WIDTH = 50
 
 def dfuload_do_upload(dif: DFU_IF,
                       xfer_size: int,
-                      file: 'dfu_file.file' = None,
+                      file: DFUFile = None,
                       total_size: int = -1) -> [int, bytes]:
     """
     Uploads data from DFU device from special page
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
-    :param file: optional - io.BytesIO object
+    :param file: optional - DFUFile object
     :param total_size: optional - total bytes expected to be uploaded
     :return: uploaded bytes or error code
     """
 
-    logger.info("bytes_per_hash={xfer_size}", xfer_size)
+    logger.info(f"bytes_per_hash={xfer_size}")
     logger.info("Copying data from DFU device to PC")
 
     upload_task = _progress_bar.add_task(
@@ -46,13 +44,14 @@ def dfuload_do_upload(dif: DFU_IF,
 
     total_bytes = 0
     transaction = DFU_TRANSACTION  # start page
+    buf = bytearray(xfer_size)
 
     while True:
         rc = dfu_upload(
             device=dif.dev,
             interface=dif.interface,
             transaction=transaction,
-            data_or_length=bytes(xfer_size)
+            data_or_length=buf
         )
 
         if len(rc) < 0:
@@ -60,7 +59,8 @@ def dfuload_do_upload(dif: DFU_IF,
             break
 
         if file:
-            write_rc = len(rc)  # TODO: write_rc = file.write(rc)
+            write_rc = file.filep.write(rc)
+
             if write_rc < len(rc):
                 logger.error(f'Short file write: {write_rc}')
                 ret = total_bytes

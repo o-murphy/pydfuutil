@@ -3,9 +3,9 @@ low-level DFU message sending routines (part of dfu-programmer).
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 """
 
-import dataclasses
 import inspect
 import logging
+from dataclasses import dataclass
 from enum import IntEnum
 
 import usb.util
@@ -118,7 +118,7 @@ _DFU_STATUS = Struct(
 )
 
 
-@dataclasses.dataclass
+@dataclass
 class DFU_IF:
     __slots__ = [
         'vendor', 'product', 'bcdDevice',

@@ -51,6 +51,9 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 #### Done:
 - [x] dfu
 - [x] dfu_file
+- [ ] dfu_load
+  - [ ] dfuload_do_dnload
+  - [x] dfuload_do_upload
 - [x] portable
 - [x] quirks
 - [x] usb_dfu
