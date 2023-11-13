@@ -5,7 +5,7 @@
 from rich import progress
 
 from pydfuutil.dfu import *
-from pydfuutil.dfu_file import DFUFile
+from pydfuutil.dfu_file import *
 from pydfuutil.portable import *
 from pydfuutil.quirks import *
 

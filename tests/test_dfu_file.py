@@ -1,6 +1,7 @@
 import unittest
 
 from pydfuutil.dfu_file import *
+from pydfuutil.dfu_file import crc32_byte
 
 
 class TestDFUFile(unittest.TestCase):
