@@ -4,7 +4,7 @@
 
 import argparse
 import logging
-import os
+import os, sys
 from enum import IntEnum
 
 from pydfuutil import __version__, __copyright__
@@ -275,6 +275,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    import sys
-
     main()

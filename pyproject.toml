@@ -56,4 +56,4 @@ version = {attr = "pydfuutil.__version__"}
 dev = ['build']
 
 [project.scripts]
-dfu-suffix = "pydfuutil.suffix"
+dfu-suffix = "pydfuutil.suffix:main"
