@@ -78,14 +78,14 @@ def crc32_byte(accum: int, delta: int):
 @dataclass
 class DFUFile:
     name: str
-    filep: io.FileIO = field(init=False, default=None)
-    size: int = field(init=False, default=0)
-    dwCRC: int = field(init=False, default=0)
-    suffixlen: int = field(init=False, default=0)
-    bcdDFU: int = field(init=False, default=0)
-    idVendor: int = field(init=False, default=0xffff)  # wildcard value
-    idProduct: int = field(init=False, default=0xffff)  # wildcard value
-    bcdDevice: int = field(init=False, default=0xffff)  # wildcard value
+    filep: io.FileIO = field(default=None)
+    size: int = field(default=0)
+    dwCRC: int = field(default=0)
+    suffixlen: int = field(default=0)
+    bcdDFU: int = field(default=0)
+    idVendor: int = field(default=0xffff)  # wildcard value
+    idProduct: int = field(default=0xffff)  # wildcard value
+    bcdDevice: int = field(default=0xffff)  # wildcard value
 
 
 def parse_dfu_suffix(file: DFUFile) -> int:

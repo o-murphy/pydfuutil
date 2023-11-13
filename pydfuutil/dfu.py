@@ -151,7 +151,6 @@ class DFU_IF:
         self.flags = flags
         self.count = count
         self.dev = dev
-        # self.dev_handle = dev_handle
 
 
 def dfu_init(timeout: int) -> None:
@@ -186,8 +185,7 @@ def dfu_verify_init() -> int:  # NOTE: (function: typing.Callable) not needed ca
 def dfu_debug(level: int) -> None:
     """
     NOTE: Maybe not needed cause python can define globals after
-    :param level:
-    :return:
+    :param level: logging.level
     """
 
     global DFU_DEBUG_LEVEL

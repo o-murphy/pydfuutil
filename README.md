@@ -41,7 +41,6 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 
 #### Modules to implement:
 
-- [ ] dfu_load
 - [ ] dfuse
 - [ ] dfuse_mem
 - [ ] lmdfu
@@ -51,9 +50,7 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 #### Done:
 - [x] dfu
 - [x] dfu_file
-- [ ] dfu_load
-  - [ ] dfuload_do_dnload
-  - [x] dfuload_do_upload
+- [x] dfu_load
 - [x] portable
 - [x] quirks
 - [x] usb_dfu
