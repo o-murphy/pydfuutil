@@ -3,7 +3,7 @@ Helper functions for reading the memory map in a device
 following the ST DfuSe 1.1a specification.
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 """
-
+from dataclasses import dataclass, field
 from enum import IntFlag
 
 from construct import Struct, Int
@@ -23,14 +23,39 @@ memsegment = Struct(
 )
 
 
-def add_segment(elements: list[memsegment], new_element: memsegment) -> int:
+@dataclass
+class MemSegment:
+    start: int
+    end: int
+    pagesize: int
+    memtype: int
+    next: 'MemSegment' = field(default=None)
+
+    def __bytes__(self):
+        return memsegment.build(self.__dict__)
+
+
+def add_segment(segment_list: list[MemSegment], segment: MemSegment) -> int:
     """
     TODO: implementation
     :param elements:
     :param new_element:
     :return:
     """
-    raise NotImplementedError("Feature not yet implemented")
+    # raise NotImplementedError("Feature not yet implemented")
+    new_element = MemSegment(segment.start, segment.end, segment.pagesize, segment.memtype)
+
+    if not segment_list:
+        # list can be empty on the first call
+        segment_list.append(new_element)
+    else:
+        # find the last element in the list
+        next_element = segment_list[0]
+        while next_element.next:
+            next_element = next_element.next
+        next_element.next = new_element
+
+    return 0
 
 
 def find_segment(elements: list[memsegment], new_element: memsegment) -> memsegment:

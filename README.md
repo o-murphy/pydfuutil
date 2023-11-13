@@ -44,8 +44,8 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 - [ ] dfuse
 - [ ] dfuse_mem
 - [ ] lmdfu
-- [ ] suffix
 - [ ] main
+- [ ] dfu_load.PROGRESS_BAR -> rich.Progress
 
 #### Done:
 - [x] dfu
@@ -53,6 +53,7 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 - [x] dfu_load
 - [x] portable
 - [x] quirks
+- [x] suffix
 - [x] usb_dfu
 
 

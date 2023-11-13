@@ -4,12 +4,20 @@ Checks for, parses and generates a DFU suffix
 """
 
 import io
+import logging
 import os
 from dataclasses import dataclass, field
 
 from construct import Struct, Const, ByteSwapped, Int32ub, Int16ub, Int8sb, ConstError, StreamError, Default
 
-from pydfuutil.dfu import logger
+__all__ = ('DFUFile', 'parse_dfu_suffix', 'generate_dfu_suffix')
+
+formatter = logging.Formatter('%(levelname)s %(message)s')
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.INFO)
+stream_handler.setFormatter(formatter)
+logger = logging.getLogger("dfu-file")
+logger.addHandler(stream_handler)
 
 DFU_SUFFIX_LENGTH = 16
 
@@ -58,7 +66,6 @@ crc32_table = [
     0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 ]
-
 
 _suffix = ByteSwapped(Struct(
     dwCRC=Default(Int32ub, 0xffffffff),
@@ -145,8 +152,10 @@ def parse_dfu_suffix(file: DFUFile) -> int:
 
     except StreamError as e:
         logger.error(f"Could not read whole DFU suffix, {e}")
+        ret = -1
     except ConstError as e:
         logger.error(f"No valid DFU suffix signature, {e}")
+        ret = 0
     except Exception as e:
         logger.exception(e)
         ret = -1
