@@ -3,20 +3,16 @@
 """
 
 import argparse
-import logging
-import os, sys
+import os
+import sys
 from enum import IntEnum
 
 from pydfuutil import __version__, __copyright__
 from pydfuutil.dfu_file import *
 from pydfuutil.lmdfu import *
+from pydfuutil.logger import get_logger
 
-formatter = logging.Formatter('%(levelname)s %(message)s')
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.INFO)
-stream_handler.setFormatter(formatter)
-logger = logging.getLogger("dfu-suffix")
-logger.addHandler(stream_handler)
+logger = get_logger("dfu-suffix")
 
 
 class Mode(IntEnum):

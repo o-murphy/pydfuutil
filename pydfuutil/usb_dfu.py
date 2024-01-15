@@ -38,6 +38,7 @@ USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
 # DFU class-specific requests (Section 3, DFU Rev 1.1)
 class USB_REQ_DFU(IntEnum):
+    """Dfu requests"""
     DETACH = 0x00
     DNLOAD = 0x01
     UPLOAD = 0x02
@@ -48,6 +49,7 @@ class USB_REQ_DFU(IntEnum):
 
 
 class DFUStatus(IntEnum):
+    """Dfu statuses"""
     OK = 0x00
     ERROR_TARGET = 0x01
     ERROR_FILE = 0x02
@@ -67,6 +69,7 @@ class DFUStatus(IntEnum):
 
 
 class DFUState(IntEnum):
+    """Dfu states"""
     APP_IDLE = 0x00
     APP_DETACH = 0x01
     DFU_IDLE = 0x02

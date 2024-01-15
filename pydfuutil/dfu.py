@@ -20,6 +20,7 @@ logger.setLevel(logging.DEBUG)
 
 
 class DFUState(IntEnum):
+    """Dfu states"""
     APP_IDLE = 0x00
     APP_DETACH = 0x01
     DFU_IDLE = 0x02
@@ -49,6 +50,7 @@ _DFU_STATES_NAMES = {
 
 
 class DFUStatus(IntEnum):
+    """Dfu statuses"""
     OK = 0x00
     ERROR_TARGET = 0x01
     ERROR_FILE = 0x02
@@ -89,6 +91,7 @@ _DFU_STATUS_NAMES = {
 
 
 class DFUCommands(IntEnum):
+    """Dfu commands"""
     DFU_DETACH = 0
     DFU_DNLOAD = 1
     DFU_UPLOAD = 2
@@ -100,6 +103,7 @@ class DFUCommands(IntEnum):
 
 # /* DFU interface */
 class DFUMode(IntEnum):
+    """Dfu modes"""
     DFU_IFF_DFU = 0x0001  # /* DFU Mode, (not Runtime) */
     DFU_IFF_VENDOR = 0x0100
     DFU_IFF_PRODUCT = 0x0200
@@ -120,6 +124,8 @@ _DFU_STATUS = Struct(
 
 @dataclass
 class DFU_IF:
+    """DFU_IF structure implementation"""
+
     __slots__ = [
         'vendor', 'product', 'bcdDevice',
         'configuration', 'interface',

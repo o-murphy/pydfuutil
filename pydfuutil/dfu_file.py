@@ -4,20 +4,16 @@ Checks for, parses and generates a DFU suffix
 """
 
 import io
-import logging
 import os
 from dataclasses import dataclass, field
 
 from construct import Struct, Const, ByteSwapped, Int32ub, Int16ub, Int8sb, ConstError, StreamError, Default
 
+from pydfuutil.logger import get_logger
+
 __all__ = ('DFUFile', 'parse_dfu_suffix', 'generate_dfu_suffix')
 
-formatter = logging.Formatter('%(levelname)s %(message)s')
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.INFO)
-stream_handler.setFormatter(formatter)
-logger = logging.getLogger("dfu-file")
-logger.addHandler(stream_handler)
+logger = get_logger("dfu-file")
 
 DFU_SUFFIX_LENGTH = 16
 
