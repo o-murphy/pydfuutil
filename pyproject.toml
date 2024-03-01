@@ -1,3 +1,5 @@
+# Copyright 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -34,8 +36,6 @@ dynamic = ["version"]
 [project.urls]
 "Homepage" = "https://github.com/o-murphy/pydfuutil"
 "Bug Reports" = "https://github.com/o-murphy/pydfuutil/issues"
-#"Funding" = "https://donate.pypi.org"
-#"Say Thanks!" = ""
 "Source" = "https://github.com/o-murphy/pydfuutil"
 
 

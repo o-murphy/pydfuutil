@@ -8,6 +8,6 @@ def get_logger(name: str = "default"):
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.INFO)
     stream_handler.setFormatter(formatter)
-    logger = logging.getLogger("dfuse_mem")
+    logger = logging.getLogger(name)
     logger.addHandler(stream_handler)
     return logger

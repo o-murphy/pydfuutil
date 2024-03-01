@@ -4,19 +4,15 @@ low-level DFU message sending routines (part of dfu-programmer).
 """
 
 import inspect
-import logging
 from dataclasses import dataclass
 from enum import IntEnum
 
 import usb.util
 from construct import Byte, Struct, BytesInteger, Container
 
-logging.basicConfig(level=logging.DEBUG,
-                    # filemode='w',
-                    # filename='dfu.log',
-                    format='%(asctime)s %(levelname)s %(message)s')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from pydfuutil.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class DFUState(IntEnum):
