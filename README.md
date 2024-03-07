@@ -19,6 +19,12 @@ system for Python 3.
 * **PyDFUUtil** is an open realisation of original **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)**
 and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[PyUsb](https://github.com/pyusb/pyusb)** library as a backend)_.
 
+> [!WARNING]
+> The current status of the project is BETA version.
+> Use it for your own risk
+
+> [!TIP]
+> Searching for contributors for testing the library
 
 ## Requirements and platform support
 
@@ -43,7 +49,6 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 
 #### Modules to implement:
 
-- [ ] dfuse
 - [ ] main
 - [ ] dfu_load.PROGRESS_BAR -> rich.Progress
 
@@ -58,6 +63,7 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 - [x] usb_dfu
 - [x] lmdfu
 - [x] dfuse_mem
+- [x] dfuse
 
 
 ## Getting help
@@ -83,7 +89,11 @@ other devices.
 * **[DFU 1.0 spec](http://www.usb.org/developers/devclass_docs/usbdfu10.pdf)**
 * **[DFU 1.1 spec](http://www.usb.org/developers/devclass_docs/DFU_1.1.pdf)**
 
+## RISK NOTICE
+> [!IMPORTANT]
+> THE CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 
 ## Footnotes
 * On systems that still default to Python 2, replace python with python3
 * Project is in develop, it fulls of not implemented statements that's not according to original **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)**!
+
