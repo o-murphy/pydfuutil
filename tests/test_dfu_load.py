@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock
 
 from pydfuutil.dfu import *
-from pydfuutil.dfu import _DFU_STATUS
+from pydfuutil.dfu import _STATUS
 from pydfuutil.dfu_load import *
 
 
@@ -34,13 +34,13 @@ class TestDFULoader(unittest.TestCase):
         verbose = True
 
         status = Container(
-            bStatus=DFUStatus.OK,
+            bStatus=Status.OK,
             bwPollTimeout=100,
-            bState=DFUState.DFU_DOWNLOAD_IDLE,
+            bState=State.DFU_DOWNLOAD_IDLE,
             iString=0
         )
 
-        result = _DFU_STATUS.build(status)
+        result = _STATUS.build(status)
 
         # # Mock dfu_download to return the length of the data sent
         mock_dfu_download.return_value = xfer_size

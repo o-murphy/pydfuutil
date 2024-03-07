@@ -15,7 +15,7 @@ from pydfuutil.logger import get_logger
 logger = get_logger(__name__)
 
 
-class DFUState(IntEnum):
+class State(IntEnum):
     """Dfu states"""
     APP_IDLE = 0x00
     APP_DETACH = 0x01
@@ -30,22 +30,22 @@ class DFUState(IntEnum):
     DFU_ERROR = 0x0a
 
 
-_DFU_STATES_NAMES = {
-    DFUState.APP_IDLE: 'appIDLE',
-    DFUState.APP_DETACH: 'appDETACH',
-    DFUState.DFU_IDLE: 'dfuIDLE',
-    DFUState.DFU_DOWNLOAD_SYNC: 'dfuDNLOAD-SYNC',
-    DFUState.DFU_DOWNLOAD_BUSY: 'dfuDNBUSY',
-    DFUState.DFU_DOWNLOAD_IDLE: 'dfuDNLOAD-IDLE',
-    DFUState.DFU_MANIFEST_SYNC: 'dfuMANIFEST-SYNC',
-    DFUState.DFU_MANIFEST: 'dfuMANIFEST',
-    DFUState.DFU_MANIFEST_WAIT_RESET: 'dfuMANIFEST-WAIT-RESET',
-    DFUState.DFU_UPLOAD_IDLE: 'dfuUPLOAD-IDLE',
-    DFUState.DFU_ERROR: 'dfuERROR',
+_STATES_NAMES = {
+    State.APP_IDLE: 'appIDLE',
+    State.APP_DETACH: 'appDETACH',
+    State.DFU_IDLE: 'dfuIDLE',
+    State.DFU_DOWNLOAD_SYNC: 'dfuDNLOAD-SYNC',
+    State.DFU_DOWNLOAD_BUSY: 'dfuDNBUSY',
+    State.DFU_DOWNLOAD_IDLE: 'dfuDNLOAD-IDLE',
+    State.DFU_MANIFEST_SYNC: 'dfuMANIFEST-SYNC',
+    State.DFU_MANIFEST: 'dfuMANIFEST',
+    State.DFU_MANIFEST_WAIT_RESET: 'dfuMANIFEST-WAIT-RESET',
+    State.DFU_UPLOAD_IDLE: 'dfuUPLOAD-IDLE',
+    State.DFU_ERROR: 'dfuERROR',
 }
 
 
-class DFUStatus(IntEnum):
+class Status(IntEnum):
     """Dfu statuses"""
     OK = 0x00
     ERROR_TARGET = 0x01
@@ -66,53 +66,53 @@ class DFUStatus(IntEnum):
 
 
 _DFU_STATUS_NAMES = {
-    DFUStatus.OK: "No error condition is present",
-    DFUStatus.ERROR_TARGET: "File is not targeted for use by this device",
-    DFUStatus.ERROR_FILE: "File is for this device but fails some vendor-specific test",
-    DFUStatus.ERROR_WRITE: "Device is unable to write memory",
-    DFUStatus.ERROR_ERASE: "Memory erase function failed",
-    DFUStatus.ERROR_CHECK_ERASED: "Memory erase check failed",
-    DFUStatus.ERROR_PROG: "Program memory function failed",
-    DFUStatus.ERROR_VERIFY: "Programmed memory failed verification",
-    DFUStatus.ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
-    DFUStatus.ERROR_NOTDONE: "Received DFU_DNLOAD with wLength = 0, "
+    Status.OK: "No error condition is present",
+    Status.ERROR_TARGET: "File is not targeted for use by this device",
+    Status.ERROR_FILE: "File is for this device but fails some vendor-specific test",
+    Status.ERROR_WRITE: "Device is unable to write memory",
+    Status.ERROR_ERASE: "Memory erase function failed",
+    Status.ERROR_CHECK_ERASED: "Memory erase check failed",
+    Status.ERROR_PROG: "Program memory function failed",
+    Status.ERROR_VERIFY: "Programmed memory failed verification",
+    Status.ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
+    Status.ERROR_NOTDONE: "Received DNLOAD with wLength = 0, "
                              "but device does not think that it has all data yet",
-    DFUStatus.ERROR_FIRMWARE: "Device's firmware is corrupt. "
+    Status.ERROR_FIRMWARE: "Device's firmware is corrupt. "
                               "It cannot return to run-time (non-DFU) operations",
-    DFUStatus.ERROR_VENDOR: "iString indicates a vendor specific error",
-    DFUStatus.ERROR_USBR: "Device detected unexpected USB reset signalling",
-    DFUStatus.ERROR_POR: "Device detected unexpected power on reset",
-    DFUStatus.ERROR_UNKNOWN: "Something went wrong, but the device does not know what it was",
-    DFUStatus.ERROR_STALLEDPKT: "Device stalled an unexpected request"
+    Status.ERROR_VENDOR: "iString indicates a vendor specific error",
+    Status.ERROR_USBR: "Device detected unexpected USB reset signalling",
+    Status.ERROR_POR: "Device detected unexpected power on reset",
+    Status.ERROR_UNKNOWN: "Something went wrong, but the device does not know what it was",
+    Status.ERROR_STALLEDPKT: "Device stalled an unexpected request"
 
 }
 
 
-class DFUCommands(IntEnum):
+class Commands(IntEnum):
     """Dfu commands"""
-    DFU_DETACH = 0
-    DFU_DNLOAD = 1
-    DFU_UPLOAD = 2
-    DFU_GETSTATUS = 3
-    DFU_CLRSTATUS = 4
-    DFU_GETSTATE = 5
-    DFU_ABORT = 6
+    DETACH = 0
+    DNLOAD = 1
+    UPLOAD = 2
+    GETSTATUS = 3
+    CLRSTATUS = 4
+    GETSTATE = 5
+    ABORT = 6
 
 
 # /* DFU interface */
-class DFUMode(IntEnum):
+class Mode(IntEnum):
     """Dfu modes"""
-    DFU_IFF_DFU = 0x0001  # /* DFU Mode, (not Runtime) */
-    DFU_IFF_VENDOR = 0x0100
-    DFU_IFF_PRODUCT = 0x0200
-    DFU_IFF_CONFIG = 0x0400
-    DFU_IFF_IFACE = 0x0800
-    DFU_IFF_ALT = 0x1000
-    DFU_IFF_DEVNUM = 0x2000
-    DFU_IFF_PATH = 0x4000
+    IFF_DFU = 0x0001  # /* DFU Mode, (not Runtime) */
+    IFF_VENDOR = 0x0100
+    IFF_PRODUCT = 0x0200
+    IFF_CONFIG = 0x0400
+    IFF_IFACE = 0x0800
+    IFF_ALT = 0x1000
+    IFF_DEVNUM = 0x2000
+    IFF_PATH = 0x4000
 
 
-_DFU_STATUS = Struct(
+_STATUS = Struct(
     bStatus=Byte,
     bwPollTimeout=BytesInteger(3),
     bState=Byte,
@@ -121,8 +121,8 @@ _DFU_STATUS = Struct(
 
 
 @dataclass
-class DFU_IF:
-    """DFU_IF structure implementation"""
+class DfuIf:
+    """DfuIf structure implementation"""
 
     __slots__ = [
         'vendor', 'product', 'bcdDevice',
@@ -156,50 +156,50 @@ class DFU_IF:
         self.dev = dev
 
 
-def dfu_init(timeout: int) -> None:
+def init(timeout: int) -> None:
     """
     Initiate dfu_util library with specified commands timeout
     :param timeout in milliseconds
     :return: None
     """
 
-    global DFU_TIMEOUT
+    global TIMEOUT
 
     if timeout > 0:
-        DFU_TIMEOUT = timeout
+        TIMEOUT = timeout
     else:
-        if 0 != DFU_DEBUG_LEVEL:
+        if 0 != DEBUG_LEVEL:
             raise ValueError(f"dfu_init: Invalid timeout value {timeout}")
 
 
-def dfu_verify_init() -> int:  # NOTE: (function: typing.Callable) not needed cause python can get it from stack
+def verify_init() -> int:  # NOTE: (function: typing.Callable) not needed cause python can get it from stack
     """
-    Verifies setted DFU_TIMEOUT and DFU_DEBUG_LEVEL
+    Verifies setted TIMEOUT and DEBUG_LEVEL
     :raise ValueError with caller function name
     :return: 0
     """
     caller = inspect.stack()[0][3]
-    if INVALID_DFU_TIMEOUT == DFU_TIMEOUT:
-        if 0 != DFU_DEBUG_LEVEL:
+    if INVALID_DFU_TIMEOUT == TIMEOUT:
+        if 0 != DEBUG_LEVEL:
             raise ValueError(f'"{caller}": dfu system not property initialized.')
     return 0
 
 
-def dfu_debug(level: int) -> None:
+def debug(level: int) -> None:
     """
     NOTE: Maybe not needed cause python can define globals after
     :param level: logging.level
     """
 
-    global DFU_DEBUG_LEVEL
-    DFU_DEBUG_LEVEL = level
+    global DEBUG_LEVEL
+    DEBUG_LEVEL = level
     logger.setLevel(level)
 
 
-def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
+def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     """
 
-     *  DFU_DETACH Request (DFU Spec 1.0, Section 5.1)
+     *  DETACH Request (DFU Spec 1.0, Section 5.1)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -215,26 +215,26 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     :param timeout: timeout to dfu detach
     :return: returns error code
     """
-    dfu_verify_init()
-    logger.debug('DFU_DETACH...')
+    verify_init()
+    logger.debug('DETACH...')
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_DETACH,
+        bRequest=Commands.DETACH,
         wValue=timeout,
         wIndex=interface,
         data_or_wLength=None,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
-    logger.debug(f'DFU_DETACH {result >= 0}')
+    logger.debug(f'DETACH {result >= 0}')
     return result
 
 
-def dfu_download(device: usb.core.Device,
-                 interface: int,
-                 transaction: int,
-                 data_or_length: [bytes, int]) -> int:
+def download(device: usb.core.Device,
+             interface: int,
+             transaction: int,
+             data_or_length: [bytes, int]) -> int:
     """
-     *  DFU_DNLOAD Request (DFU Spec 1.0, Section 6.1.1)
+     *  DNLOAD Request (DFU Spec 1.0, Section 6.1.1)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -251,25 +251,25 @@ def dfu_download(device: usb.core.Device,
     :param data_or_length: page size bytes(xfer_size) or xfer_size
     :return: downloaded data or error code in bytes
     """
-    dfu_verify_init()
+    verify_init()
     logger.debug('DFU_DOWNLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_DNLOAD,
+        bRequest=Commands.DNLOAD,
         wValue=transaction,
         wIndex=interface,
         data_or_wLength=data_or_length,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
 
     logger.debug(f'DFU_DOWNLOAD {result >= 0}')
     return result
 
 
-def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> bytes:
+def upload(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> bytes:
     """
-     *  DFU_UPLOAD Request (DFU Spec 1.0, Section 6.2)
+     *  UPLOAD Request (DFU Spec 1.0, Section 6.2)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -286,26 +286,26 @@ def dfu_upload(device: usb.core.Device, interface: int, transaction: int, data_o
     :param data_or_length: page size bytes(xfer_size) or xfer_size
     :return: uploaded data or error code in bytes
     """
-    dfu_verify_init()
-    logger.debug('DFU_UPLOAD...')
+    verify_init()
+    logger.debug('UPLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_UPLOAD,
+        bRequest=Commands.UPLOAD,
         wValue=transaction,
         wIndex=interface,
         data_or_wLength=data_or_length,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
 
-    logger.debug(f'DFU_UPLOAD {len(result) >= 0}')
+    logger.debug(f'UPLOAD {len(result) >= 0}')
 
     return result.tobytes()
 
 
-def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
+def get_status(device: usb.core.Device, interface: int) -> (int, dict):
     """
-     *  DFU_GETSTATUS Request (DFU Spec 1.0, Section 6.1.2)
+     *  GETSTATUS Request (DFU Spec 1.0, Section 6.1.2)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -316,40 +316,40 @@ def dfu_get_status(device: usb.core.Device, interface: int) -> (int, dict):
     Returns DFU interface status
     :param device: usb.core.Device
     :param interface: usb.core.Interface.bInterfaceNumber
-    :return: error code and _DFU_STATUS [Container, dict] object
+    :return: error code and _STATUS [Container, dict] object
     """
-    dfu_verify_init()
+    verify_init()
     logger.debug('DFU_GET_STATUS...')
 
     status = Container(
-        bStatus=DFUStatus.ERROR_UNKNOWN,
+        bStatus=Status.ERROR_UNKNOWN,
         bwPollTimeout=0,
-        bState=DFUState.DFU_ERROR,
+        bState=State.DFU_ERROR,
         iString=0
     )
 
     length = 6
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_GETSTATUS,
+        bRequest=Commands.GETSTATUS,
         wValue=0,
         wIndex=interface,
         data_or_wLength=length,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
 
     if len(result) == 6:
-        con = _DFU_STATUS.parse(result.tobytes())
+        con = _STATUS.parse(result.tobytes())
         con.pop('_io')
         status.update(con)
     logger.debug(f'DFU_GET_STATUS {len(result) == 6}')
-    logger.debug(f'CURRENT STATE {dfu_state_to_string(status.bState)}')
+    logger.debug(f'CURRENT STATE {state_to_string(status.bState)}')
     return int.from_bytes(result.tobytes(), byteorder='little'), status
 
 
-def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
+def clear_status(device: usb.core.Device, interface: int) -> int:
     """
-     *  DFU_CLRSTATUS Request (DFU Spec 1.0, Section 6.1.3)
+     *  CLRSTATUS Request (DFU Spec 1.0, Section 6.1.3)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -361,25 +361,25 @@ def dfu_clear_status(device: usb.core.Device, interface: int) -> int:
     :param interface: usb.core.Interface.bInterfaceNumber
     :return: error code
     """
-    dfu_verify_init()
+    verify_init()
     logger.debug('DFU_CLEAR_STATUS...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_CLRSTATUS,
+        bRequest=Commands.CLRSTATUS,
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
     logger.debug(f'DFU_CLEAR_STATUS {result >= 0}')
 
     return result
 
 
-def dfu_get_state(device: usb.core.Device, interface: int) -> int:
+def get_state(device: usb.core.Device, interface: int) -> int:
     """
-     *  DFU_GETSTATE Request (DFU Spec 1.0, Section 6.1.5)
+     *  GETSTATE Request (DFU Spec 1.0, Section 6.1.5)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -394,16 +394,16 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
     :param interface: usb.core.Interface.bInterfaceNumber
     :return: dfu state or error code
     """
-    dfu_verify_init()
+    verify_init()
 
     length = 1
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_GETSTATE,
+        bRequest=Commands.GETSTATE,
         wValue=0,
         wIndex=interface,
         data_or_wLength=length,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
 
     if result.tobytes()[0] < 1:
@@ -411,9 +411,9 @@ def dfu_get_state(device: usb.core.Device, interface: int) -> int:
     return result.tobytes()[0]
 
 
-def dfu_abort(device: usb.core.Device, interface: int) -> int:
+def abort(device: usb.core.Device, interface: int) -> int:
     """
-     *  DFU_ABORT Request (DFU Spec 1.0, Section 6.1.4)
+     *  ABORT Request (DFU Spec 1.0, Section 6.1.4)
      *
      *  device    - the usb_dev_handle to communicate with
      *  interface - the interface to communicate with
@@ -425,41 +425,41 @@ def dfu_abort(device: usb.core.Device, interface: int) -> int:
     :param interface: usb.core.Interface.bInterfaceNumber
     :return: error code
     """
-    dfu_verify_init()
-    logger.debug('DFU_ABORT...')
+    verify_init()
+    logger.debug('ABORT...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=DFUCommands.DFU_ABORT,
+        bRequest=Commands.ABORT,
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,
-        timeout=DFU_TIMEOUT,
+        timeout=TIMEOUT,
     )
 
-    logger.debug(f'DFU_ABORT {result >= 0}')
+    logger.debug(f'ABORT {result >= 0}')
 
     return result
 
 
-def dfu_state_to_string(state: int) -> [str, None]:
+def state_to_string(state: int) -> [str, None]:
     """
     :param state:
-    :return: State name by DFUState Enum
+    :return: State name by State Enum
     """
     try:
-        return _DFU_STATES_NAMES[DFUState(state)]
+        return _STATES_NAMES[State(state)]
     except (ValueError, KeyError):
         return None
 
 
-def dfu_status_to_string(status: int) -> [str, None]:
+def status_to_string(status: int) -> [str, None]:
     """
     :param status:
-    :return: State name by DFUStatus Enum
+    :return: State name by Status Enum
     """
     try:
-        return _DFU_STATUS_NAMES[DFUStatus(status)]
+        return _DFU_STATUS_NAMES[Status(status)]
     except (ValueError, KeyError):
         return None
 
@@ -469,7 +469,7 @@ DEBUG: int = 0
 
 INVALID_DFU_TIMEOUT = -1
 
-DFU_TIMEOUT: int = INVALID_DFU_TIMEOUT
-DFU_TRANSACTION: int = 0
+TIMEOUT: int = INVALID_DFU_TIMEOUT
+TRANSACTION: int = 0
 
-DFU_DEBUG_LEVEL: int = 0
+DEBUG_LEVEL: int = 0

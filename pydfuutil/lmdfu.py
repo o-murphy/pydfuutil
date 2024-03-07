@@ -10,19 +10,19 @@ http://www.ti.com/general/docs/lit/getliterature.tsp?literatureNumber=spma003&fi
 from pydfuutil.dfu_file import *
 from pydfuutil.logger import get_logger
 
-__all__ = ('lmdfu_dfu_prefix',
-           'lmdfu_add_prefix',
-           'lmdfu_remove_prefix',
-           'lmdfu_check_prefix',
+__all__ = ('dfu_prefix',
+           'add_prefix',
+           'remove_prefix',
+           'check_prefix',
            'parse_dfu_suffix',
            'generate_dfu_suffix')
 
 logger = get_logger("lmdfu")
 
-# lmdfu_dfu_prefix payload length excludes prefix and suffix
+# dfu_prefix payload length excludes prefix and suffix
 
 
-lmdfu_dfu_prefix = (
+dfu_prefix = (
     0x01,  # STELLARIS_DFU_PROG
     0x00,  # Reserved
     0x00,  # LSB start address / 1024
@@ -34,7 +34,7 @@ lmdfu_dfu_prefix = (
 )
 
 
-def lmdfu_add_prefix(file: DFUFile, address: int) -> int:
+def add_prefix(file: DFUFile, address: int) -> int:
     """
     Add TI Stellaris DFU prefix to a binary file.
 
@@ -55,7 +55,7 @@ def lmdfu_add_prefix(file: DFUFile, address: int) -> int:
         # Allocate buffer
         lmdfu_dfu_prefix_buf = bytearray([0] * 16)
 
-        # Fill Stellaris lmdfu_dfu_prefix with correct data
+        # Fill Stellaris dfu_prefix with correct data
         addr = address // 1024
         lmdfu_dfu_prefix_buf[2] = addr & 0xff
         lmdfu_dfu_prefix_buf[3] = (addr >> 8) & 0xff
@@ -79,7 +79,7 @@ def lmdfu_add_prefix(file: DFUFile, address: int) -> int:
         return -1
 
 
-def lmdfu_remove_prefix(file: DFUFile) -> int:
+def remove_prefix(file: DFUFile) -> int:
     """
     Remove TI Stellaris DFU prefix from a binary file.
 
@@ -118,7 +118,7 @@ def lmdfu_remove_prefix(file: DFUFile) -> int:
         return -1
 
 
-def lmdfu_check_prefix(file: DFUFile) -> int:
+def check_prefix(file: DFUFile) -> int:
     """
     Check if a binary file contains a valid TI Stellaris DFU prefix.
 

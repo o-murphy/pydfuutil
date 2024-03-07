@@ -4,10 +4,14 @@
 
 from rich import progress
 
-from pydfuutil.dfu import *
+# from pydfuutil.dfu import *
+from pydfuutil import dfu
+from pydfuutil.logger import get_logger
 from pydfuutil.dfu_file import *
 from pydfuutil.portable import *
 from pydfuutil.quirks import *
+
+logger = get_logger(__name__)
 
 verbose: int = 0
 
@@ -23,7 +27,7 @@ _progress_bar = progress.Progress(
 PROGRESS_BAR_WIDTH = 50
 
 
-def dfuload_do_upload(dif: DFU_IF,
+def dfuload_do_upload(dif: dfu.DfuIf,
                       xfer_size: int,
                       file: DFUFile = None,
                       total_size: int = -1) -> [int, bytes]:
@@ -45,11 +49,11 @@ def dfuload_do_upload(dif: DFU_IF,
     )
 
     total_bytes = 0
-    transaction = DFU_TRANSACTION  # start page
+    transaction = dfu.TRANSACTION  # start page
     buf = bytearray(xfer_size)
 
     while True:
-        rc = dfu_upload(
+        rc = dfu.upload(
             device=dif.dev,
             interface=dif.interface,
             transaction=transaction,
@@ -94,7 +98,7 @@ def dfuload_do_upload(dif: DFU_IF,
 #     )
 
 
-def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
+def dfuload_do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
     bytes_sent = 0
     buf = bytearray(xfer_size)
 
@@ -116,7 +120,7 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
             logger.error(f"Error reading file: {file.name}")
             return -1
 
-        ret = dfu_download(dif.dev, dif.interface, ret, buf[:ret] if ret else None)
+        ret = dfu.download(dif.dev, dif.interface, ret, buf[:ret] if ret else None)
 
         if ret < 0:
             logger.error("Error during download")
@@ -124,11 +128,11 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
         bytes_sent += ret
 
         while True:
-            ret, status = dfu_get_status(dif.dev, dif.interface)
+            ret, status = dfu.get_status(dif.dev, dif.interface)
             if ret < 0:
                 logger.error("Error during download get_status")
                 return -1
-            if status.bState == DFUState.DFU_DOWNLOAD_IDLE or status.bState == DFUState.DFU_ERROR:
+            if status.bState == dfu.State.DFU_DOWNLOAD_IDLE or status.bState == dfu.State.DFU_ERROR:
                 break
             # Wait while the device executes flashing
             if quirks & QUIRK_POLLTIMEOUT:
@@ -136,10 +140,10 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
             else:
                 milli_sleep(status.bwPollTimeout)
 
-        if status.bStatus != DFUStatus.OK:
+        if status.bStatus != dfu.Status.OK:
             print(" failed!")
-            print(f"state({status.bState}) = {dfu_state_to_string(status.bState)}, "
-                  f"status({status.bStatus}) = {dfu_status_to_string(status.bStatus)}")
+            print(f"state({status.bState}) = {dfu.state_to_string(status.bState)}, "
+                  f"status({status.bStatus}) = {dfu.status_to_string(status.bStatus)}")
             return -1
 
         hashes_todo = (bytes_sent // bytes_per_hash)
@@ -148,7 +152,7 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
             hashes_todo -= 1
 
     # Send one zero-sized download request to signalize end
-    ret = dfu_download(dif.dev, dif.interface, DFU_TRANSACTION, bytes())
+    ret = dfu.download(dif.dev, dif.interface, dfu.TRANSACTION, bytes())
     if ret < 0:
         logger.error("Error sending completion packet")
         return -1
@@ -159,33 +163,33 @@ def dfuload_do_dnload(dif: DFU_IF, xfer_size: int, file: DFUFile, quirks: int, v
         logger.info(f"Sent a total of {bytes_sent} bytes")
 
     # Transition to MANIFEST_SYNC state
-    ret, status = dfu_get_status(dif.dev, dif.interface)
+    ret, status = dfu.get_status(dif.dev, dif.interface)
     if ret < 0:
         logger.error("Unable to read DFU status")
         return -1
-    logger.info(f"state({status.bState}) = {dfu_state_to_string(status.bState)}, "
-                f"status({status.bStatus}) = {dfu_status_to_string(status.bStatus)}")
+    logger.info(f"state({status.bState}) = {dfu.state_to_string(status.bState)}, "
+                f"status({status.bStatus}) = {dfu.status_to_string(status.bStatus)}")
 
     if not (quirks & QUIRK_POLLTIMEOUT):
         milli_sleep(status.bwPollTimeout)
 
     # Deal correctly with ManifestationTolerant=0 / WillDetach bits
-    while status.bState in {DFUState.DFU_MANIFEST_SYNC, DFUState.DFU_MANIFEST}:
+    while status.bState in {dfu.State.DFU_MANIFEST_SYNC, dfu.State.DFU_MANIFEST}:
         # Some devices need some time before we can obtain the status
         milli_sleep(1000)
-        ret, status = dfu_get_status(dif.dev, dif.interface)
+        ret, status = dfu.get_status(dif.dev, dif.interface)
         if ret < 0:
             logger.error("Unable to read DFU status")
             return -1
-        print(f"state({status.bState}) = {dfu_state_to_string(status.bState)}, "
-              f"status({status.bStatus}) = {dfu_status_to_string(status.bStatus)}")
+        print(f"state({status.bState}) = {dfu.state_to_string(status.bState)}, "
+              f"status({status.bStatus}) = {dfu.status_to_string(status.bStatus)}")
 
-    if status.bState == DFUState.DFU_IDLE:
+    if status.bState == dfu.State.DFU_IDLE:
         logger.info("Done!")
 
     return bytes_sent
 
 
 def dfuload_init() -> None:
-    dfu_debug(DEBUG)
-    dfu_init(DFU_TIMEOUT)
+    dfu.debug(dfu.DEBUG)
+    dfu.init(dfu.TIMEOUT)

@@ -9,8 +9,7 @@ from enum import IntEnum
 
 from pydfuutil import __version__, __copyright__
 from pydfuutil.dfu_file import DFUFile
-from pydfuutil.lmdfu import (parse_dfu_suffix, generate_dfu_suffix,
-                             lmdfu_check_prefix, lmdfu_add_prefix, lmdfu_remove_prefix)
+from pydfuutil import lmdfu
 from pydfuutil.logger import get_logger
 
 logger = get_logger("dfu-suffix")
@@ -114,7 +113,7 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
     file.idVendor = vid
     file.bcdDevice = did
 
-    ret = generate_dfu_suffix(file)
+    ret = lmdfu.generate_dfu_suffix(file)
     if ret < 0:
         try:
             raise OSError("generate")
@@ -228,14 +227,14 @@ def main() -> None:
 
                 if check_suffix(file):
                     if lmdfu_prefix:
-                        lmdfu_check_prefix(file)
+                        lmdfu.check_prefix(file)
                     logger.warning("Please remove existing DFU suffix before adding a new one.")
                     sys.exit(1)
 
                 if lmdfu_mode == LmdfuMode.ADD:
-                    if lmdfu_check_prefix(file):
+                    if lmdfu.check_prefix(file):
                         logger.info("Adding new anyway")
-                    lmdfu_add_prefix(file, lmdfu_flash_address)
+                    lmdfu.add_prefix(file, lmdfu_flash_address)
 
                 add_suffix(file, pid, vid, did)
 
@@ -243,13 +242,13 @@ def main() -> None:
                 # FIXME: could open read-only here
                 check_suffix(file)
                 if lmdfu_mode == LmdfuMode.CHECK:
-                    lmdfu_check_prefix(file)
+                    lmdfu.check_prefix(file)
 
             elif mode == Mode.DEL:
                 if not remove_suffix(file):
                     if lmdfu_mode == LmdfuMode.DEL:
-                        if lmdfu_check_prefix(file):
-                            lmdfu_remove_prefix(file)
+                        if lmdfu.check_prefix(file):
+                            lmdfu.remove_prefix(file)
                             sys.exit(1)
 
             else:
@@ -261,8 +260,8 @@ def main() -> None:
                     logger.warning("DFU suffix exist. Remove suffix before using -T or use it with -D to delete suffix")
                     sys.exit(1)
                 else:
-                    if lmdfu_check_prefix(file):
-                        lmdfu_remove_prefix(file)
+                    if lmdfu.check_prefix(file):
+                        lmdfu.remove_prefix(file)
 
         except Exception as error:
             logger.error(error)

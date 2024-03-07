@@ -16,9 +16,9 @@ logger = get_logger("dfuse_mem")
 
 
 class DFUSE(IntFlag):
-    DFUSE_READABLE = 0x1
-    DFUSE_ERASABLE = 0x2
-    DFUSE_WRITEABLE = 0x4
+    READABLE = 0x1
+    ERASABLE = 0x2
+    WRITEABLE = 0x4
 
 
 memsegment = Struct(
@@ -168,9 +168,9 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memse
             if verbose:
                 logger.info(f"Memory segment at "
                             f"0x{address:08x} {sectors} x {size} = {sectors * size} "
-                            f"({'r' if memtype & DFUSE.DFUSE_READABLE else ''}"
-                            f"{'e' if memtype & DFUSE.DFUSE_ERASABLE else ''}"
-                            f"{'w' if memtype & DFUSE.DFUSE_WRITEABLE else ''})")
+                            f"({'r' if memtype & DFUSE.READABLE else ''}"
+                            f"{'e' if memtype & DFUSE.ERASABLE else ''}"
+                            f"{'w' if memtype & DFUSE.WRITEABLE else ''})")
 
             address += sectors * size
 

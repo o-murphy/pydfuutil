@@ -3,6 +3,7 @@
 """
 
 from time import sleep
+__all__ = ("milli_sleep", )
 
 
 def milli_sleep(msec: int) -> None:
