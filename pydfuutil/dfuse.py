@@ -81,7 +81,8 @@ def dfuse_special_command(dif: dfu.DFU_IF, address: int, command: DFUSE_COMMAND)
         page_size = segment.pagesize
         if VERBOSE > 1:
             logger.info(
-                f"Erasing page size {page_size} at address 0x{address:08x}, page starting at 0x{address & ~(page_size - 1):08x}")
+                f"Erasing page size {page_size} at address 0x{address:08x}, "
+                f"page starting at 0x{address & ~(page_size - 1):08x}")
         buf[0] = 0x41  # Erase command
         length = 5
         last_erased = address
@@ -171,7 +172,9 @@ def dfuse_upload(dif: dfu.DFU_IF, length: int, data: bytes, transaction: int) ->
     :return: The status of the control transfer
     """
     status = dif.dev.ctrl_transfer(
-        bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
+        bmRequestType=usb.util.ENDPOINT_IN |
+                      usb.util.CTRL_TYPE_CLASS |
+                      usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=dfu.DFUCommands.DFU_UPLOAD,
         wValue=transaction,
         wIndex=dif.interface,
@@ -196,7 +199,9 @@ def dfuse_download(dif: dfu.DFU_IF, length: int, data: bytes, transaction: int) 
     :return: The status of the control transfer.
     """
     status = dif.dev.ctrl_transfer(
-        bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
+        bmRequestType=usb.util.ENDPOINT_OUT |
+                      usb.util.CTRL_TYPE_CLASS |
+                      usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=dfu.DFUCommands.DFU_DNLOAD,
         wValue=transaction,
         wIndex=dif.interface,
@@ -205,7 +210,8 @@ def dfuse_download(dif: dfu.DFU_IF, length: int, data: bytes, transaction: int) 
     )
 
     if status < 0:
-        logger.error(f"{dfuse_download.__name__}: libusb_control_transfer returned {status}")
+        logger.error(f"{dfuse_download.__name__}: "
+                     f"libusb_control_transfer returned {status}")
 
     return status
 
@@ -330,7 +336,11 @@ def dfuse_dnload_chunk(dif: dfu.DFU_IF, data: bytes, size: int, transaction: int
 
 # Writes an element of any size to the device, taking care of page erases
 # returns 0 on success, otherwise -EINVAL
-def dfuse_dnload_element(dif: dfu.DFU_IF, dwElementAddress: int, dwElementSize: int, data: bytes, xfer_size: int) -> int:
+def dfuse_dnload_element(dif: dfu.DFU_IF,
+                         dwElementAddress: int,
+                         dwElementSize: int,
+                         data: bytes,
+                         xfer_size: int) -> int:
     """
     Download an element in DFU.
 

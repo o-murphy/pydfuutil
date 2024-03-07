@@ -8,8 +8,9 @@ import sys
 from enum import IntEnum
 
 from pydfuutil import __version__, __copyright__
-from pydfuutil.dfu_file import *
-from pydfuutil.lmdfu import *
+from pydfuutil.dfu_file import DFUFile
+from pydfuutil.lmdfu import (parse_dfu_suffix, generate_dfu_suffix,
+                             lmdfu_check_prefix, lmdfu_add_prefix, lmdfu_remove_prefix)
 from pydfuutil.logger import get_logger
 
 logger = get_logger("dfu-suffix")
@@ -100,7 +101,7 @@ def remove_suffix(file: DFUFile) -> int:
             logger.info("DFU suffix removed")
         except OSError as e:
             logger.error(f"Error truncating file: {e}")
-            exit(1)
+            sys.exit(1)
     else:
         logger.error("Suffix removal not implemented on this platform")
     return 1
@@ -119,7 +120,7 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
             raise OSError("generate")
         except OSError as e:
             logger.error(e)
-            exit(1)
+            sys.exit(1)
     logger.info("New DFU suffix added.")
 
 
@@ -128,7 +129,7 @@ def _get_argparser():
         def add_argument(self, action):
             if action.dest == 'help':
                 action.help = 'Print this help message'
-            super(CustomHelpFormatter, self).add_argument(action)
+            super().add_argument(action)
 
     parser = argparse.ArgumentParser(
         prog='dfu-suffix',

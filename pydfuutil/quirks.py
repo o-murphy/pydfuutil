@@ -20,7 +20,7 @@ def get_quirks(vendor: int, product: int, bcdDevice: int) -> int:
     quirks = 0
 
     # Device returns bogus bwPollTimeout values
-    if vendor == VENDOR_OPENMOKO or vendor == VENDOR_FIC or vendor == VENDOR_VOTI:
+    if vendor in (VENDOR_OPENMOKO, VENDOR_FIC, VENDOR_VOTI):
         quirks |= QUIRK_POLLTIMEOUT
 
     # Reports wrong DFU version in DFU descriptor

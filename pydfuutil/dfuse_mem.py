@@ -141,7 +141,8 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memse
             elif match.group(4) and len(match.group(4)) == 1 and match.group(4) != '/':
                 memtype = ord(match.group(4))
             else:
-                logger.warning(f"Parsing type identifier '{match.group(4)}' failed for segment {count}")
+                logger.warning(f"Parsing type identifier '{match.group(4)}' "
+                               f"failed for segment {count}")
                 continue
 
             size_multiplier = match.group(3) if match.group(3) else 'B'
@@ -152,18 +153,21 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memse
                 size *= 1024 * 1024
             elif size_multiplier in {'a', 'b', 'c', 'd', 'e', 'f', 'g'}:
                 if not memtype:
-                    logger.warning(f"Non-valid multiplier '{size_multiplier}', interpreted as type identifier instead")
+                    logger.warning(f"Non-valid multiplier '{size_multiplier}', "
+                                   f"interpreted as type identifier instead")
                     memtype = size_multiplier
 
             if not memtype:
                 logger.warning(f"No valid type for segment {count}")
                 continue
 
-            segment = MemSegment(start=address, end=address + sectors * size - 1, pagesize=size, memtype=memtype & 7)
+            segment = MemSegment(start=address, end=address + sectors * size - 1,
+                                 pagesize=size, memtype=memtype & 7)
             segment_list.append(segment)
 
             if verbose:
-                logger.info(f"Memory segment at 0x{address:08x} {sectors} x {size} = {sectors * size} "
+                logger.info(f"Memory segment at "
+                            f"0x{address:08x} {sectors} x {size} = {sectors * size} "
                             f"({'r' if memtype & DFUSE.DFUSE_READABLE else ''}"
                             f"{'e' if memtype & DFUSE.DFUSE_ERASABLE else ''}"
                             f"{'w' if memtype & DFUSE.DFUSE_WRITEABLE else ''})")

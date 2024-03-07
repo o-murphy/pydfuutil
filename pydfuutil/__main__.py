@@ -148,7 +148,7 @@ def count_dfu_interfaces(dev: usb.core.Device,
     :param
     :return:
     """
-    num_found = 0
+    num_found: int
     find_dfu_if(
         # dev
     )
@@ -207,7 +207,7 @@ def count_dfu_devices(  # ...
     :param
     :return:
     """
-    num_found = 0
+    num_found: int
     raise NotImplementedError
 
 

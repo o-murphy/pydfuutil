@@ -13,7 +13,9 @@ from pydfuutil.logger import get_logger
 __all__ = ('lmdfu_dfu_prefix',
            'lmdfu_add_prefix',
            'lmdfu_remove_prefix',
-           'lmdfu_check_prefix')
+           'lmdfu_check_prefix',
+           'parse_dfu_suffix',
+           'generate_dfu_suffix')
 
 logger = get_logger("lmdfu")
 

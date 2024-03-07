@@ -75,8 +75,10 @@ _DFU_STATUS_NAMES = {
     DFUStatus.ERROR_PROG: "Program memory function failed",
     DFUStatus.ERROR_VERIFY: "Programmed memory failed verification",
     DFUStatus.ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
-    DFUStatus.ERROR_NOTDONE: "Received DFU_DNLOAD with wLength = 0, but device does not think that it has all data yet",
-    DFUStatus.ERROR_FIRMWARE: "Device's firmware is corrupt. It cannot return to run-time (non-DFU) operations",
+    DFUStatus.ERROR_NOTDONE: "Received DFU_DNLOAD with wLength = 0, "
+                             "but device does not think that it has all data yet",
+    DFUStatus.ERROR_FIRMWARE: "Device's firmware is corrupt. "
+                              "It cannot return to run-time (non-DFU) operations",
     DFUStatus.ERROR_VENDOR: "iString indicates a vendor specific error",
     DFUStatus.ERROR_USBR: "Device detected unexpected USB reset signalling",
     DFUStatus.ERROR_POR: "Device detected unexpected power on reset",
@@ -227,7 +229,10 @@ def dfu_detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     return result
 
 
-def dfu_download(device: usb.core.Device, interface: int, transaction: int, data_or_length: [bytes, int]) -> int:
+def dfu_download(device: usb.core.Device,
+                 interface: int,
+                 transaction: int,
+                 data_or_length: [bytes, int]) -> int:
     """
      *  DFU_DNLOAD Request (DFU Spec 1.0, Section 6.1.1)
      *

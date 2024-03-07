@@ -37,7 +37,7 @@ USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
 
 # DFU class-specific requests (Section 3, DFU Rev 1.1)
-class USB_REQ_DFU(IntEnum):
+class UsbReqDfu(IntEnum):
     """Dfu requests"""
     DETACH = 0x00
     DNLOAD = 0x01
