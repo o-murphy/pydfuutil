@@ -137,9 +137,8 @@ class DFU_IF:
                  altsetting: int, alt_name: str,
                  bus: int, devnum: int,
                  path: [str, int], flags: int, count: int,
-                 dev: usb.core.Device,
-                 # dev_handle: usb.core.Device
-                 ):
+                 dev: usb.core.Device):
+
         self.vendor = vendor
         self.product = product
         self.bcdDevice = bcdDevice
