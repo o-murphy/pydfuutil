@@ -506,47 +506,50 @@ def dfuse_do_dnload(dif: dfu.DFU_IF, xfer_size: int, file: dfu_file.DFUFile, dfu
     ret: int
 
     if dfuse_options:
-        dfuse_parse_options(dfuse_options)
+        opts = dfuse_parse_options(dfuse_options)
+    else:
+        logger.error("No DFUse options provided")
+        sys.exit(1)
     MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
     if not MEM_LAYOUT:
-        print("Error: Failed to parse memory layout")
-        exit(1)
+        logger.error("Failed to parse memory layout")
+        sys.exit(1)
 
-    if dfuse_unprotect:
-        if not dfuse_force:
-            print("Error: The read unprotect command will erase the flash memory and can only be used with force")
-            exit(1)
+    if opts.dfuse_unprotect:
+        if not opts.dfuse_force:
+            logger.error("The read unprotect command will erase the flash memory and can only be used with force")
+            sys.exit(1)
         dfuse_special_command(dif, 0, DFUSE_COMMAND.READ_UNPROTECT)
-        print("Device disconnects, erases flash and resets now")
-        exit(0)
+        logger.info("Device disconnects, erases flash and resets now")
+        sys.exit(0)
 
-    if dfuse_mass_erase:
-        if not dfuse_force:
-            print("Error: The mass erase command can only be used with force")
-            exit(1)
-        print("Performing mass erase, this can take a moment")
+    if opts.dfuse_mass_erase:
+        if not opts.dfuse_force:
+            logger.error("The mass erase command can only be used with force")
+            sys.exit(1)
+        logger.info("Performing mass erase, this can take a moment")
         dfuse_special_command(dif, 0, DFUSE_COMMAND.MASS_ERASE)
 
-    if dfuse_address:
+    if opts.dfuse_address:
         if file.bcdDFU == 0x11a:
-            print("Error: This is a DfuSe file, not meant for raw download")
+            logger.error("This is a DfuSe file, not meant for raw download")
             return -1
-        ret = dfuse_do_bin_dnload(dif, xfer_size, file, dfuse_address)
+        ret = dfuse_do_bin_dnload(dif, xfer_size, file, opts.dfuse_address)
     else:
         if file.bcdDFU != 0x11a:
-            print("Error: Only DfuSe file version 1.1a is supported")
-            print("(for raw binary download, use the --dfuse-address option)")
+            logger.error("Only DfuSe file version 1.1a is supported")
+            logger.info("(for raw binary download, use the --dfuse-address option)")
             return -1
         ret = dfuse_do_dfuse_dnload(dif, xfer_size, file)
 
     free_segment_list(MEM_LAYOUT)
 
-    if dfuse_leave:
+    if opts.dfuse_leave:
         dfuse_dnload_chunk(dif, b'', 0, 2)  # Zero-size
         ret2, dst = dfu.dfu_get_status(dif.dev, dif.interface)
         if ret2 < 0:
-            print("Error during download get_status")
+            logger.error("Error during download get_status")
         if VERBOSE:
-            print(f"bState = {dst.bState} and bStatus = {dst.bStatus}")
+            logger.info(f"bState = {dst.bState} and bStatus = {dst.bStatus}")
 
     return ret
