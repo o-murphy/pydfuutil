@@ -8,6 +8,9 @@ import usb.core
 from pydfuutil import __version__, __copyright__
 
 
+MAX_DESC_STR_LEN = 253
+
+
 # TODO: not implemented yet
 
 def find_dfu_if(  # libusb_device: usb.core.Device, ...
@@ -268,7 +271,7 @@ def get_cached_extra_descriptor(  # ...
     raise NotImplementedError
 
 
-def help() -> None:
+def help_() -> None:
     print(
         "  -h --help\t\t\tPrint this help message\n"
         "  -V --version\t\t\tPrint the version number\n"

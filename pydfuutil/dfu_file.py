@@ -7,7 +7,9 @@ import io
 import os
 from dataclasses import dataclass, field
 
-from construct import Struct, Const, ByteSwapped, Int32ub, Int16ub, Int8sb, ConstError, StreamError, Default
+from construct import (Struct, Const, ByteSwapped, Default,
+                       Int32ub, Int16ub, Int8sb,
+                       ConstError, StreamError)
 
 from pydfuutil.logger import get_logger
 
@@ -75,11 +77,16 @@ _suffix = ByteSwapped(Struct(
 
 
 def crc32_byte(accum: int, delta: int):
+    """
+    Calculate a 32-bit CRC
+    """
     return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8)
 
 
 @dataclass
-class DFUFile:
+class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
+    """Class to store DFU file data"""
+
     name: str
     filep: io.FileIO = field(default=None)
     size: int = field(default=0)
@@ -123,7 +130,7 @@ def parse_dfu_suffix(file: DFUFile) -> int:
             if ret < 0:
                 logger.error("Could not read DFU suffix")
                 return ret
-            elif ret < DFU_SUFFIX_LENGTH:
+            if ret < DFU_SUFFIX_LENGTH:
                 logger.error("Could not read whole DFU suffix")
                 return -1
 

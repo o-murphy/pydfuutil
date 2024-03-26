@@ -16,9 +16,10 @@ logger = get_logger("dfuse_mem")
 
 
 class DFUSE(IntFlag):
-    DFUSE_READABLE = 0x1
-    DFUSE_ERASABLE = 0x2
-    DFUSE_WRITEABLE = 0x4
+    """DFUSE read/write flags"""
+    READABLE = 0x1
+    ERASABLE = 0x2
+    WRITEABLE = 0x4
 
 
 memsegment = Struct(
@@ -31,6 +32,8 @@ memsegment = Struct(
 
 @dataclass
 class MemSegment:
+    """Memory segment"""
+
     start: int
     end: int
     pagesize: int
@@ -43,10 +46,9 @@ class MemSegment:
 
 def add_segment(segment_list: list[MemSegment], segment: MemSegment) -> int:
     """
-    TODO: implementation
-    :param elements:
-    :param new_element:
-    :return:
+    :param segment_list:
+    :param segment:
+    :return: 0 if ok
     """
     # raise NotImplementedError("Feature not yet implemented")
     new_element = MemSegment(segment.start, segment.end, segment.pagesize, segment.memtype)
@@ -87,15 +89,16 @@ def free_segment_list(elements: list[memsegment]) -> None:
     del elements[:]
 
 
-# * Parse memory map from interface descriptor string
-# * encoded as per ST document UM0424 section 4.3.2.
+# Parse memory map from interface descriptor string
+# encoded as per ST document UM0424 section 4.3.2.
 
 def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memsegment:
     """
-    * Parse memory map from interface descriptor string
-    * encoded as per ST document UM0424 section 4.3.2.
-    :param intf_desc_str:
-    :return:
+    Parse memory map from interface descriptor string
+    encoded as per ST document UM0424 section 4.3.2.
+    :param intf_desc:
+    :param verbose:
+    :return: MemSegment instance
     """
 
     segment_list = []
@@ -125,8 +128,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memse
 
         while True:
             # Initialize variables
-            sectors = 0
-            size = 0
+            sectors, size = 0, 0
 
             # Read segment details
             match = re.match(r"^(\d+)\*(\d+)([a-zA-Z])?([^/,]+)/", intf_desc)
@@ -161,16 +163,21 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memse
                 logger.warning(f"No valid type for segment {count}")
                 continue
 
-            segment = MemSegment(start=address, end=address + sectors * size - 1,
-                                 pagesize=size, memtype=memtype & 7)
-            segment_list.append(segment)
+            segment_list.append(
+                MemSegment(
+                    start=address,
+                    end=address + sectors * size - 1,
+                    pagesize=size,
+                    memtype=memtype & 7
+                )
+            )
 
             if verbose:
                 logger.info(f"Memory segment at "
                             f"0x{address:08x} {sectors} x {size} = {sectors * size} "
-                            f"({'r' if memtype & DFUSE.DFUSE_READABLE else ''}"
-                            f"{'e' if memtype & DFUSE.DFUSE_ERASABLE else ''}"
-                            f"{'w' if memtype & DFUSE.DFUSE_WRITEABLE else ''})")
+                            f"({'r' if memtype & DFUSE.READABLE else ''}"
+                            f"{'e' if memtype & DFUSE.ERASABLE else ''}"
+                            f"{'w' if memtype & DFUSE.WRITEABLE else ''})")
 
             address += sectors * size
 
