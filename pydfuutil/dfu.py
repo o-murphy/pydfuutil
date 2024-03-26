@@ -88,7 +88,7 @@ _DFU_STATUS_NAMES = {
 }
 
 
-class Commands(IntEnum):
+class Command(IntEnum):
     """Dfu commands"""
     DETACH = 0
     DNLOAD = 1
@@ -219,7 +219,7 @@ def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     logger.debug('DETACH...')
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.DETACH,
+        bRequest=Command.DETACH,
         wValue=timeout,
         wIndex=interface,
         data_or_wLength=None,
@@ -256,7 +256,7 @@ def download(device: usb.core.Device,
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.DNLOAD,
+        bRequest=Command.DNLOAD,
         wValue=transaction,
         wIndex=interface,
         data_or_wLength=data_or_length,
@@ -291,7 +291,7 @@ def upload(device: usb.core.Device, interface: int, transaction: int, data_or_le
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.UPLOAD,
+        bRequest=Command.UPLOAD,
         wValue=transaction,
         wIndex=interface,
         data_or_wLength=data_or_length,
@@ -331,7 +331,7 @@ def get_status(device: usb.core.Device, interface: int) -> (int, dict):
     length = 6
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.GETSTATUS,
+        bRequest=Command.GETSTATUS,
         wValue=0,
         wIndex=interface,
         data_or_wLength=length,
@@ -366,7 +366,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.CLRSTATUS,
+        bRequest=Command.CLRSTATUS,
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,
@@ -399,7 +399,7 @@ def get_state(device: usb.core.Device, interface: int) -> int:
     length = 1
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.GETSTATE,
+        bRequest=Command.GETSTATE,
         wValue=0,
         wIndex=interface,
         data_or_wLength=length,
@@ -430,7 +430,7 @@ def abort(device: usb.core.Device, interface: int) -> int:
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT | usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=Commands.ABORT,
+        bRequest=Command.ABORT,
         wValue=0,
         wIndex=interface,
         data_or_wLength=None,

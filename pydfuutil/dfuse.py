@@ -20,12 +20,12 @@ from pydfuutil.portable import milli_sleep
 logger = get_logger(__name__)
 
 VERBOSE = False
-MEM_LAYOUT: [None, list] = None
+MEM_LAYOUT: list = []
 
 TIMEOUT = 5000
 
 
-class DFUSE_COMMAND(Enum):
+class Command(Enum):
     SET_ADDRESS = 0x1
     ERASE_PAGE = 0x2
     MASS_ERASE = 0x3
@@ -41,7 +41,7 @@ def quad2uint(p: bytes) -> int:
     return Int32ul.parse(p)
 
 
-def dfuse_parse_options(options: str) -> argparse.Namespace:
+def parse_options(options: str) -> argparse.Namespace:
     """
     Parse DFU options string and set corresponding flags and values.
     :param options: DFU options string containing address, modifiers, and values.
@@ -60,7 +60,7 @@ def dfuse_parse_options(options: str) -> argparse.Namespace:
     return args
 
 
-def dfuse_special_command(dif: dfu.DfuIf, address: int, command: DFUSE_COMMAND) -> int:
+def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
     """
     Perform DfuSe-specific commands.
     :param dif: DFU interface
@@ -74,7 +74,7 @@ def dfuse_special_command(dif: dfu.DfuIf, address: int, command: DFUSE_COMMAND) 
     ret: int
     dst: [dict, None]
 
-    if command == DFUSE_COMMAND.ERASE_PAGE:
+    if command == Command.ERASE_PAGE:
         segment = find_segment(MEM_LAYOUT, address)
         if not segment or not (segment.memtype & DFUSE.ERASABLE):
             logger.error(f"Page at 0x{address:08x} cannot be erased")
@@ -86,16 +86,16 @@ def dfuse_special_command(dif: dfu.DfuIf, address: int, command: DFUSE_COMMAND) 
                 f"page starting at 0x{address & ~(page_size - 1):08x}")
         buf[0] = 0x41  # Erase command
         length = 5
-        last_erased = address
-    elif command == DFUSE_COMMAND.SET_ADDRESS:
+        # last_erased = address  # useless?
+    elif command == Command.SET_ADDRESS:
         if VERBOSE > 2:
             logger.debug(f"Setting address pointer to 0x{address:08x}")
         buf[0] = 0x21  # Set Address Pointer command
         length = 5
-    elif command == DFUSE_COMMAND.MASS_ERASE:
+    elif command == Command.MASS_ERASE:
         buf[0] = 0x41  # Mass erase command when length = 1
         length = 1
-    elif command == DFUSE_COMMAND.READ_UNPROTECT:
+    elif command == Command.READ_UNPROTECT:
         buf[0] = 0x92
         length = 1
     else:
@@ -107,7 +107,7 @@ def dfuse_special_command(dif: dfu.DfuIf, address: int, command: DFUSE_COMMAND) 
     buf[3] = (address >> 16) & 0xff
     buf[4] = (address >> 24) & 0xff
 
-    ret = dfuse_download(dif, length, buf, 0)
+    ret = download(dif, length, buf, 0)
     if ret < 0:
         logger.error("Error during special command download")
         sys.exit(1)
@@ -127,7 +127,7 @@ def dfuse_special_command(dif: dfu.DfuIf, address: int, command: DFUSE_COMMAND) 
 
     milli_sleep(dst.bwPollTimeout)
 
-    if command == DFUSE_COMMAND.READ_UNPROTECT:
+    if command == Command.READ_UNPROTECT:
         return ret
 
     ret, dst = dfu.get_status(dif.dev, dif.interface)
@@ -162,7 +162,7 @@ def dfuse_special_command(dif: dfu.DfuIf, address: int, command: DFUSE_COMMAND) 
     return ret
 
 
-def dfuse_upload(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
+def upload(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
     """
     UPLOAD request for DfuSe 1.1a
 
@@ -176,7 +176,7 @@ def dfuse_upload(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> 
         bmRequestType=usb.util.ENDPOINT_IN |
                       usb.util.CTRL_TYPE_CLASS |
                       usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=dfu.Commands.UPLOAD,
+        bRequest=dfu.Command.UPLOAD,
         wValue=transaction,
         wIndex=dif.interface,
         data_or_wLength=data,
@@ -184,12 +184,12 @@ def dfuse_upload(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> 
     )
 
     if status < 0:
-        logger.error(f"{dfuse_upload.__name__}: libusb_control_msg returned {status}")
+        logger.error(f"{upload.__name__}: libusb_control_msg returned {status}")
 
     return status
 
 
-def dfuse_download(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
+def download(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
     """
     DNLOAD request for DfuSe 1.1a
 
@@ -203,7 +203,7 @@ def dfuse_download(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -
         bmRequestType=usb.util.ENDPOINT_OUT |
                       usb.util.CTRL_TYPE_CLASS |
                       usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=dfu.Commands.DNLOAD,
+        bRequest=dfu.Command.DNLOAD,
         wValue=transaction,
         wIndex=dif.interface,
         data_or_wLength=data,
@@ -211,13 +211,13 @@ def dfuse_download(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -
     )
 
     if status < 0:
-        logger.error(f"{dfuse_download.__name__}: "
+        logger.error(f"{download.__name__}: "
                      f"libusb_control_transfer returned {status}")
 
     return status
 
 
-def dfuse_do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str, bytes]) -> int:
+def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str, bytes]) -> int:
     """
     TODO: implementation
     :param dif:
@@ -234,7 +234,7 @@ def dfuse_do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options
     transaction = 2
 
     if dfuse_options:
-        parsed_args = dfuse_parse_options(dfuse_options)
+        parsed_args = parse_options(dfuse_options)
         if parsed_args.length:
             upload_limit = parsed_args.length
     else:
@@ -242,7 +242,8 @@ def dfuse_do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options
         return -1
 
     if parsed_args.address:
-        MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
+        # MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
+        MEM_LAYOUT = parse_memory_layout(dif.alt_name)  # HOTFIX
         if not MEM_LAYOUT:
             logger.error("Failed to parse memory layout")
             return -1
@@ -253,9 +254,9 @@ def dfuse_do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options
         if not upload_limit:
             upload_limit = segment.end - parsed_args.address + 1
             logger.info(f"Limiting upload to end of memory segment, {upload_limit} bytes")
-        dfuse_special_command(dif, parsed_args.address, DFUSE_COMMAND.SET_ADDRESS)
+        special_command(dif, parsed_args.address, Command.SET_ADDRESS)
     else:
-        # Boot loader decides the start address, unknown to us
+        # Bootloader decides the start address, unknown to us
         # Use a short length to lower risk of running out of bounds
         if not upload_limit:
             upload_limit = 0x4000
@@ -267,7 +268,7 @@ def dfuse_do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options
     while True:
         if upload_limit - total_bytes < xfer_size:
             xfer_size = upload_limit - total_bytes
-        rc = dfuse_upload(dif, xfer_size, buf, transaction)
+        rc = upload(dif, xfer_size, buf, transaction)
         if rc < 0:
             logger.error("Error during upload")
             ret = rc
@@ -289,7 +290,7 @@ def dfuse_do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options
     return ret
 
 
-def dfuse_dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> int:
+def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> int:
     """
     Download a chunk of data during DFU download operation.
 
@@ -299,8 +300,8 @@ def dfuse_dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int)
     :param transaction: Transaction number
     :return: Number of bytes sent or error code
     """
-    bytes_sent = 0
-    ret = dfuse_download(dif, size, data if size else None, transaction)
+
+    ret = download(dif, size, data if size else None, transaction)
 
     if ret < 0:
         logger.error("Error during download")
@@ -337,11 +338,11 @@ def dfuse_dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int)
 
 # Writes an element of any size to the device, taking care of page erases
 # returns 0 on success, otherwise -EINVAL
-def dfuse_dnload_element(dif: dfu.DfuIf,
-                         dwElementAddress: int,
-                         dwElementSize: int,
-                         data: bytes,
-                         xfer_size: int) -> int:
+def dnload_element(dif: dfu.DfuIf,
+                   dwElementAddress: int,
+                   dwElementSize: int,
+                   data: bytes,
+                   xfer_size: int) -> int:
     """
     Download an element in DFU.
 
@@ -362,7 +363,7 @@ def dfuse_dnload_element(dif: dfu.DfuIf,
 
     p = 0
     while p < dwElementSize:
-        page_size = segment.pagesize
+        # page_size = segment.pagesize  # useless?
         address = dwElementAddress + p
         chunk_size = min(xfer_size, dwElementSize - p)
 
@@ -377,10 +378,10 @@ def dfuse_dnload_element(dif: dfu.DfuIf,
         else:
             logger.info(".")
 
-        dfuse_special_command(dif, address, DFUSE_COMMAND.SET_ADDRESS)
+        special_command(dif, address, Command.SET_ADDRESS)
 
         # transaction = 2 for no address offset
-        ret = dfuse_dnload_chunk(dif, data[p:p + chunk_size], chunk_size, 2)
+        ret = dnload_chunk(dif, data[p:p + chunk_size], chunk_size, 2)
         if ret != chunk_size:
             logger.error(f"Failed to write whole chunk: {ret} of {chunk_size} bytes")
             return -1
@@ -395,7 +396,7 @@ def dfuse_dnload_element(dif: dfu.DfuIf,
 
 
 # Download raw binary file to DfuSe device
-def dfuse_do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: int) -> int:
+def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: int) -> int:
     """
     Download binary data to the specified address.
 
@@ -413,7 +414,7 @@ def dfuse_do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_add
     data = file.filep.read()
     read_bytes = len(data)
 
-    ret = dfuse_dnload_element(dif, dwElementAddress, dwElementSize, data, xfer_size)
+    ret = dnload_element(dif, dwElementAddress, dwElementSize, data, xfer_size)
     if ret != 0:
         return ret
 
@@ -425,7 +426,7 @@ def dfuse_do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_add
 
 
 # Parse a DfuSe file and download contents to device
-def dfuse_do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
+def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
     """
     Download data from a DfuSe file to the DFU device.
 
@@ -478,7 +479,7 @@ def dfuse_do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
             read_bytes += len(data)
 
             if bAlternateSetting == dif.altsetting:
-                ret = dfuse_dnload_element(dif, dwElementAddress, dwElementSize, data, xfer_size)
+                ret = dnload_element(dif, dwElementAddress, dwElementSize, data, xfer_size)
                 if ret != 0:
                     return ret
 
@@ -493,7 +494,7 @@ def dfuse_do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
     return read_bytes
 
 
-def dfuse_do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str, bytes]) -> int:
+def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str, bytes]) -> int:
     """
     Perform DFU download operation.
 
@@ -507,46 +508,47 @@ def dfuse_do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options
     ret: int
 
     if dfuse_options:
-        opts = dfuse_parse_options(dfuse_options)
+        opts = parse_options(dfuse_options)
     else:
         logger.error("No DFUse options provided")
         sys.exit(1)
-    MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
+    # MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
+    MEM_LAYOUT = parse_memory_layout(dif.alt_name)  # HOTFIX
     if not MEM_LAYOUT:
         logger.error("Failed to parse memory layout")
         sys.exit(1)
 
-    if opts.dfuse_unprotect:
-        if not opts.dfuse_force:
+    if opts.unprotect:
+        if not opts.force:
             logger.error("The read unprotect command will erase the flash memory and can only be used with force")
             sys.exit(1)
-        dfuse_special_command(dif, 0, DFUSE_COMMAND.READ_UNPROTECT)
+        special_command(dif, 0, Command.READ_UNPROTECT)
         logger.info("Device disconnects, erases flash and resets now")
         sys.exit(0)
 
-    if opts.dfuse_mass_erase:
-        if not opts.dfuse_force:
+    if opts.mass_erase:
+        if not opts.force:
             logger.error("The mass erase command can only be used with force")
             sys.exit(1)
         logger.info("Performing mass erase, this can take a moment")
-        dfuse_special_command(dif, 0, DFUSE_COMMAND.MASS_ERASE)
+        special_command(dif, 0, Command.MASS_ERASE)
 
-    if opts.dfuse_address:
+    if opts.address:
         if file.bcdDFU == 0x11a:
             logger.error("This is a DfuSe file, not meant for raw download")
             return -1
-        ret = dfuse_do_bin_dnload(dif, xfer_size, file, opts.dfuse_address)
+        ret = do_bin_dnload(dif, xfer_size, file, opts.address)
     else:
         if file.bcdDFU != 0x11a:
             logger.error("Only DfuSe file version 1.1a is supported")
             logger.info("(for raw binary download, use the --dfuse-address option)")
             return -1
-        ret = dfuse_do_dfuse_dnload(dif, xfer_size, file)
+        ret = do_dfuse_dnload(dif, xfer_size, file)
 
     free_segment_list(MEM_LAYOUT)
 
-    if opts.dfuse_leave:
-        dfuse_dnload_chunk(dif, b'', 0, 2)  # Zero-size
+    if opts.leave:
+        dnload_chunk(dif, b'', 0, 2)  # Zero-size
         ret2, dst = dfu.get_status(dif.dev, dif.interface)
         if ret2 < 0:
             logger.error("Error during download get_status")

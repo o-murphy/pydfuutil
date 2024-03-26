@@ -8,7 +8,7 @@ import sys
 from enum import IntEnum
 
 from pydfuutil import __version__, __copyright__
-from pydfuutil.dfu_file import DFUFile
+from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
 from pydfuutil import lmdfu
 from pydfuutil.logger import get_logger
 

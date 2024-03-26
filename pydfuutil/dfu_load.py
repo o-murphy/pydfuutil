@@ -27,10 +27,10 @@ _progress_bar = progress.Progress(
 PROGRESS_BAR_WIDTH = 50
 
 
-def dfuload_do_upload(dif: dfu.DfuIf,
-                      xfer_size: int,
-                      file: DFUFile = None,
-                      total_size: int = -1) -> [int, bytes]:
+def do_upload(dif: dfu.DfuIf,
+              xfer_size: int,
+              file: DFUFile = None,
+              total_size: int = -1) -> [int, bytes]:
     """
     Uploads data from DFU device from special page
     :param dif: dfu.dfu_if
@@ -98,7 +98,7 @@ def dfuload_do_upload(dif: dfu.DfuIf,
 #     )
 
 
-def dfuload_do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
+def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
     bytes_sent = 0
     buf = bytearray(xfer_size)
 
@@ -190,6 +190,6 @@ def dfuload_do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int
     return bytes_sent
 
 
-def dfuload_init() -> None:
+def init() -> None:
     dfu.debug(dfu.DEBUG)
     dfu.init(dfu.TIMEOUT)

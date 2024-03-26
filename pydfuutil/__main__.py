@@ -8,6 +8,9 @@ import usb.core
 from pydfuutil import __version__, __copyright__
 
 
+MAX_DESC_STR_LEN = 253
+
+
 # TODO: not implemented yet
 
 def find_dfu_if(  # libusb_device: usb.core.Device, ...

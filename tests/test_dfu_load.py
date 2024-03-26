@@ -19,7 +19,7 @@ class TestDFULoader(unittest.TestCase):
 
         # Mock filep.write to return the length of the data written
         with patch.object(file.filep, 'write', return_value=xfer_size) as mock_write:
-            result = dfuload_do_upload(dif, xfer_size, file, total_size)
+            result = do_upload(dif, xfer_size, file, total_size)
 
         # Assertions
         self.assertEqual(result, total_size)  # Assuming xfer_size bytes are received
@@ -54,7 +54,7 @@ class TestDFULoader(unittest.TestCase):
         # Mock filep.readinto to return the length of the data read
         with patch.object(file.filep, 'readinto', return_value=xfer_size) as mock_readinto:
 
-            result = dfuload_do_dnload(dif, xfer_size, file, quirks, verbose)
+            result = do_dnload(dif, xfer_size, file, quirks, verbose)
 
         # Assertions
         self.assertEqual(result, xfer_size)  # Assuming xfer_size bytes are sent
