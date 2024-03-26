@@ -4,10 +4,10 @@ This implements the TI Stellaris DFU
 
 as per the Application Update Using the USB Device Firmware Upgrade Class
 (Document AN012373)
-http://www.ti.com/general/docs/lit/getliterature.tsp?literatureNumber=spma003&fileType=pdf
+https://www.ti.com/general/docs/lit/getliterature.tsp?literatureNumber=spma003&fileType=pdf
 """
 
-from pydfuutil.dfu_file import *
+from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix, generate_dfu_suffix
 from pydfuutil.logger import get_logger
 
 __all__ = ('dfu_prefix',
@@ -92,14 +92,14 @@ def remove_prefix(file: DFUFile) -> int:
 
         # Get file length
         file.filep.seek(0, 2)
-        len = file.filep.tell()
+        length = file.filep.tell()
         file.filep.seek(0, 0)
 
         # Read file content
         data = file.filep.read()
 
         # Check if the file has enough data to contain the prefix
-        if len < 16:
+        if length < 16:
             logger.error("Error: File does not contain a valid prefix.")
             return -1
 

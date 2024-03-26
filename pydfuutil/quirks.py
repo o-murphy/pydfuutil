@@ -16,7 +16,15 @@ QUIRK_FORCE_DFU11 = 1 << 1
 DEFAULT_POLLTIMEOUT = 5
 
 
+# pylint: disable=invalid-name
 def get_quirks(vendor: int, product: int, bcdDevice: int) -> int:
+    """
+
+    :param vendor: VID
+    :param product: PID
+    :param bcdDevice:
+    :return: quirks
+    """
     quirks = 0
 
     # Device returns bogus bwPollTimeout values

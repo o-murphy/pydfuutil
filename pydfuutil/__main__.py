@@ -271,7 +271,7 @@ def get_cached_extra_descriptor(  # ...
     raise NotImplementedError
 
 
-def help() -> None:
+def help_() -> None:
     print(
         "  -h --help\t\t\tPrint this help message\n"
         "  -V --version\t\t\tPrint the version number\n"
