@@ -3,8 +3,10 @@ pydfuutil
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 Based on existing code of dfu-programmer-0.4
 """
+import argparse
 import errno
 import re
+import sys
 from typing import Any, Callable
 
 import usb.core
@@ -12,7 +14,7 @@ import usb.core
 from pydfuutil import __version__, __copyright__, dfu
 
 MAX_DESC_STR_LEN = 253
-
+VERBOSE = False
 
 # TODO: not implemented yet
 
@@ -94,7 +96,6 @@ def _get_first_cb(dif: dfu.DfuIf, v: dfu.DfuIf) -> int:
 
     # Return a value that makes find_dfu_if return immediately
     return 1
-
 
 
 def _get_first_dfu_if(dif: dfu.DfuIf) -> int:
@@ -187,7 +188,6 @@ def get_alt_name(dfu_if: dfu.DfuIf) -> [int, str]:
                 return -1
 
     return -1
-
 
 
 def print_dfu_if(dfu_if: dfu.DfuIf, v: Any) -> int:
@@ -456,7 +456,7 @@ def usb_get_any_descriptor(dev: usb.core.Device,
 
     # Suck in the configuration descriptor list from device
     cbuf = dev.ctrl_transfer(usb.util.ENDPOINT_IN, usb.util.GET_DESCRIPTOR,
-                                    (usb.util.DESC_TYPE_CONFIG << 8) | 0, 0, conflen)
+                             (usb.util.DESC_TYPE_CONFIG << 8) | 0, 0, conflen)
 
     if len(cbuf) < conflen:
         print("Warning: failed to retrieve complete configuration descriptor, got {}/{}".format(len(cbuf), conflen))
@@ -472,7 +472,7 @@ def usb_get_any_descriptor(dev: usb.core.Device,
     # Finally try to retrieve it requesting the device directly
     # This is not supported on all devices for non-standard types
     return dev.ctrl_transfer(usb.util.ENDPOINT_IN, usb.util.GET_DESCRIPTOR,
-                                    (desc_type << 8) | desc_index, 0, resbuf, res_len)
+                             (desc_type << 8) | desc_index, 0, resbuf, res_len)
 
 
 def get_cached_extra_descriptor(dev: usb.core.Device,
@@ -550,26 +550,28 @@ def help_() -> None:
     )
 
 
-def print_version() -> None:
-    print(f"{__version__}\n\n")
-    print('Copyright 2005-2008 Weston Schmidt, Harald Welte and OpenMoko Inc.\n'
-          f'{__copyright__}\n'
-          'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
+VERSION = (f"{__version__}\n\n"
+           f"('Copyright 2005-2008 Weston Schmidt, Harald Welte and OpenMoko Inc.\n')"
+           f"{__copyright__}\n"
+           f"This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')")
 
 
-def main(argv):
+def main() -> None:
     # Todo: implement
+
+    global VERBOSE
 
     # Create argument parser
     parser = argparse.ArgumentParser(description="Description of your program")
 
     # Add arguments
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
-    parser.add_argument("-V", "--version", action="store_true", help="Show version information and exit")
+    parser.add_argument("-V", "--version", action="version", version=VERSION,
+                        help="Show version information and exit")
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase verbosity")
     parser.add_argument("-l", "--list", action="store_true", help="List option")
-    parser.add_argument("-e", "--erase", action="store_true", help="Erase option")
-    parser.add_argument("-d", "--download", metavar="FILE", help="Download option with argument")
+    parser.add_argument("-e", "--detach", action="store_true", help="Erase option")
+    parser.add_argument("-d", "--device", metavar="FILE", help="Download option with argument")
     parser.add_argument("-p", "--path", metavar="PATH", help="Path option with argument")
     parser.add_argument("-c", "--config", metavar="CONFIG", help="Config option with argument")
     parser.add_argument("-i", "--interface", metavar="INTERFACE", help="Interface option with argument")
@@ -583,15 +585,28 @@ def main(argv):
     # Parse arguments
     args = parser.parse_args()
 
+    if args.h:
+        help_()
+        sys.exit(0)
 
-    while 1:
-        c, option_index = 0, 0
+    if args.version:
+        print(VERSION)
 
+    if args.verbose:
+        VERBOSE = True
 
-    raise NotImplementedError
+    if args.list:
+        mode = MODE_LIST
+
+    if args.detach:
+        mode = MODE_DETACH
+
+    if args.device:
+        device_id_filter = args.device
+
+    if args.path:
+        dif.path = args.path
 
 
 if __name__ == '__main__':
-    import sys
-
-    main(sys.argv)
+    main()
