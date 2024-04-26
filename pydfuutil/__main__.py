@@ -198,7 +198,8 @@ def print_dfu_if(dfu_if: dfu.DfuIf, v: Any) -> int:
     :param v: Unused (can be any value).
     :return: Always returns 0.
     """
-    name = get_alt_name(dfu_if)
+
+    name: str = get_alt_name(dfu_if)
     if name is None:
         name = b"UNDEFINED"
 
@@ -558,6 +559,35 @@ def print_version() -> None:
 
 def main(argv):
     # Todo: implement
+
+    # Create argument parser
+    parser = argparse.ArgumentParser(description="Description of your program")
+
+    # Add arguments
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
+    parser.add_argument("-V", "--version", action="store_true", help="Show version information and exit")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase verbosity")
+    parser.add_argument("-l", "--list", action="store_true", help="List option")
+    parser.add_argument("-e", "--erase", action="store_true", help="Erase option")
+    parser.add_argument("-d", "--download", metavar="FILE", help="Download option with argument")
+    parser.add_argument("-p", "--path", metavar="PATH", help="Path option with argument")
+    parser.add_argument("-c", "--config", metavar="CONFIG", help="Config option with argument")
+    parser.add_argument("-i", "--interface", metavar="INTERFACE", help="Interface option with argument")
+    parser.add_argument("-a", "--altsetting", metavar="ALTSETTING", help="Altsetting option with argument")
+    parser.add_argument("-t", "--transfer-size", metavar="SIZE", help="Transfer size option with argument")
+    parser.add_argument("-U", "--vid", metavar="VID", help="VID option with argument")
+    parser.add_argument("-D", "--pid", metavar="PID", help="PID option with argument")
+    parser.add_argument("-R", "--reset", action="store_true", help="Reset option")
+    parser.add_argument("-s", "--serial", metavar="SERIAL", help="Serial option with argument")
+
+    # Parse arguments
+    args = parser.parse_args()
+
+
+    while 1:
+        c, option_index = 0, 0
+
+
     raise NotImplementedError
 
 
