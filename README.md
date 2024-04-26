@@ -50,6 +50,34 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 #### Modules to implement:
 
 - [ ] main
+  - [x] atoi()
+  - [ ] usb_path2devnum()
+  - [x] find_dfu_if()
+  - [x] _get_first_cb()
+  - [x] _get_first_dfu_if()
+  - [x] _check_match_cb()
+  - [x] get_matching_dfu_if()
+  - [x] _count_match_cb()
+  - [x] count_matching_dfu_if()
+  - [x] get_alt_name()
+  - [x] print_dfu_if()
+  - [x] list_dfu_interfaces()
+  - [x] alt_by_name()
+  - [x] _count_cb()
+  - [x] count_dfu_interfaces()
+  - [x] iterate_dfu_devices()
+  - [x] found_dfu_device()
+  - [x] get_first_dfu_device()
+  - [x] count_one_dfu_device()
+  - [x] count_dfu_devices()
+  - [x] parse_vendprod()
+  - [ ] resolve_device_path()
+  - [x] find_descriptor()
+  - [ ] usb_get_any_descriptor()
+  - [x] get_cached_extra_descriptor()
+  - [x] help_()
+  - [x] print_version()
+  - [ ] main()
 - [ ] dfu_load.PROGRESS_BAR -> rich.Progress
 
 
