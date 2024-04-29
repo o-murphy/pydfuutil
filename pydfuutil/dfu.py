@@ -125,8 +125,8 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
 
     """DfuIf structure implementation"""
 
-    vendor: int = field(default=0, )
-    product: int = field(default=0, )
+    vendor: int = field(default=None, )
+    product: int = field(default=None, )
     bcdDevice: int = field(default=0, )
     configuration: int = field(default=0, )
     interface: int = field(default=0, )
