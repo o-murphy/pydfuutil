@@ -10,7 +10,8 @@ https://www.usb.org/developers/devclass_docs/usbdfu10.pdf
 from enum import IntEnum
 
 import usb.util
-from construct import FlagsEnum, Byte, Int8ul, Struct, Int16ul
+from construct import Int8ul, Struct, Int16ul
+# from construct import FlagsEnum, Byte
 
 USB_DT_DFU = 0x21
 
