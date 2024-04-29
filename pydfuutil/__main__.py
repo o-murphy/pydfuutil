@@ -8,21 +8,25 @@ import errno
 import logging
 import re
 import sys
-from enum import IntEnum, Enum, IntFlag
+from enum import IntFlag
 from typing import Any, Callable
 
+import libusb_package
 import usb.core
 from usb.backend import libusb1
-import libusb_package
 
-from pydfuutil import __version__, __copyright__, dfu
+from pydfuutil import __version__, __copyright__
+from pydfuutil import dfu
+from pydfuutil.portable import milli_sleep
+from pydfuutil.quirks import set_quirks, QUIRK_POLLTIMEOUT
+from pydfuutil.usb_dfu import USB_DT_DFU, bmAttributes, USB_DFU_FUNC_DESCRIPTOR
 
 MAX_DESC_STR_LEN = 253
 VERBOSE = False
 
-
 # TODO: not implemented yet
 libusb1.get_backend(libusb_package.find_library)
+
 
 def atoi(s: str) -> int:
     """
@@ -260,6 +264,7 @@ def count_dfu_interfaces(dev: usb.core.Device) -> int:
     :return: The number of DFU interfaces found.
     """
     num_found: int = 0
+
     def count_cb(dif, v):
         nonlocal num_found
         num_found += v
@@ -290,8 +295,8 @@ def iterate_dfu_devices(ctx: list[usb.core.Device], dif: dfu.DfuIf) -> list[usb.
             continue
         if not count_dfu_interfaces(dev):
             continue
+        usb.util.dispose_resources(dev)
         retval.append(dev)
-
 
     return retval
 
@@ -388,7 +393,7 @@ def resolve_device_path(dif: dfu.DfuIf) -> int:
 
 
 def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
-                    res_buf: bytearray, res_size: int) -> int:
+                    res_buf: bytearray) -> int:
     """
     Look for a descriptor in a concatenated descriptor list
     Will return desc_index'th match of given descriptor type
@@ -412,8 +417,8 @@ def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
             return -1
 
         if desc_list[p + 1] == desc_type and hit == desc_index:
-            if desclen > res_size:
-                desclen = res_size
+            if desclen > len(res_buf):
+                desclen = len(res_buf)
             if p + desclen > len(desc_list):
                 desclen = len(desc_list) - p
             res_buf[:desclen] = desc_list[p:p + desclen]
@@ -466,7 +471,7 @@ def usb_get_any_descriptor(dev: usb.core.Device,
     # Finally try to retrieve it requesting the device directly
     # This is not supported on all devices for non-standard types
     return dev.ctrl_transfer(usb.util.ENDPOINT_IN, usb.util.GET_DESCRIPTOR,
-                             (desc_type << 8) | desc_index, 0, resbuf, res_len)
+                             (desc_type << 8) | desc_index, 0, resbuf)
 
 
 def get_cached_extra_descriptor(dev: usb.core.Device,
@@ -474,8 +479,7 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
                                 intf: int,
                                 desc_type: int,
                                 desc_index: int,
-                                resbuf: bytearray,
-                                res_len: int) -> int:
+                                resbuf: bytearray) -> int:
     """
     Get cached extra descriptor from libusb for an interface.
 
@@ -488,10 +492,9 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
     :param res_len: The maximum length of the descriptor buffer.
     :return: The length of the found descriptor.
     """
-    cfg = dev.get_active_configuration()
-
+    cfg = dev.configurations()[bConfValue - 1]
     try:
-        intf_desc = cfg[(bConfValue, intf)]
+        intf_desc = cfg.interfaces()[intf]
     except usb.core.USBError as e:
         if e.errno == usb.core.ENOENT:
             print("Error: Device is unconfigured")
@@ -506,7 +509,7 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
         extra_len = altsetting.extra_length
 
         if extra_len > 1:
-            ret = find_descriptor(extra, desc_type, desc_index, resbuf, res_len)
+            ret = find_descriptor(extra, desc_type, desc_index, resbuf)
 
         if ret > 1:
             break
@@ -530,6 +533,44 @@ class Mode(IntFlag):
     DETACH = 3
     UPLOAD = 4
     DOWNLOAD = 5
+
+
+def cpu_to_le16(value):
+    return value.to_bytes(2, byteorder='little')
+
+
+def le16_to_cpu(data):
+    return int.from_bytes(data, byteorder='little')
+
+
+
+class IntOrBytes:
+    def __init__(self, value):
+        if isinstance(value, int):
+            self._value = value
+        elif isinstance(value, bytes):
+            self._value = int.from_bytes(value, byteorder='big', signed=True)
+        else:
+            raise TypeError("Value must be int or bytes")
+
+    def __lt__(self, other):
+        if isinstance(other, IntOrBytes):
+            return self._value < other._value
+        elif isinstance(other, int):
+            return self._value < other
+        else:
+            raise TypeError("Comparison with unsupported type")
+
+    def __eq__(self, other):
+        if isinstance(other, IntOrBytes):
+            return self._value == other._value
+        elif isinstance(other, int):
+            return self._value == other
+        else:
+            raise TypeError("Comparison with unsupported type")
+
+    def __repr__(self):
+        return f"IntOrBytes({self._value})"
 
 
 def main() -> None:
@@ -580,6 +621,8 @@ def main() -> None:
     mode = Mode.NONE
     device_id_filter = None
 
+
+    func_dfu_rt = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
 
     if args.verbose:
         VERBOSE = True
@@ -689,11 +732,87 @@ def main() -> None:
 
     print("Opening DFU capable USB device... ")
 
-    def get_dfu_intf(dif_: dfu.DfuIf, v: Any = None):
-        nonlocal dif
-        dif = dif_
+    _rt_dif: dfu.DfuIf = None
 
-    find_dfu_if(dev, get_dfu_intf)
+    def get_first_dfu_if(dif_: dfu.DfuIf, v: Any = None):
+        nonlocal _rt_dif
+        _rt_dif = dif_
+        if not _rt_dif:
+            sys.exit(1)
+
+    find_dfu_if(dev, get_first_dfu_if)
+
+    print(f"ID {hex(_rt_dif.vendor)}:{hex(_rt_dif.product)}")
+
+    quirks = set_quirks(_rt_dif.vendor, _rt_dif.product, _rt_dif.bcdDevice)
+
+    # Obtain run-time DFU functional descriptor without asking device
+    # E.g. Free runner does not like to be requested at this point
+
+    ret = get_cached_extra_descriptor(
+        _rt_dif.dev, _rt_dif.configuration, _rt_dif.interface,
+        # USB_DT_DFU, 0, le16_to_cpu(func_dfu_rt.bcdDFUVersion)
+        USB_DT_DFU, 0, USB_DFU_FUNC_DESCRIPTOR.bcdDFUVersion.build(func_dfu_rt.bcdDFUVersion)
+    )
+
+    if ret == 7:
+        print("Deducing device DFU version from functional descriptor "
+              "length")
+        func_dfu_rt.bcdDFUVersion = 0x0100
+    elif ret < 9:
+        print("WARNING: Can not find cached DFU functional "
+              "descriptor")
+        print("Warning: Assuming DFU version 1.0")
+        func_dfu_rt.bcdDFUVersion = 0x0100
+
+    print(f"Run-time device DFU version {hex(func_dfu_rt.bcdDFUVersion)}")
+
+    # Transition from run-Time mode to DFU mode
+
+    if not (_rt_dif.flags & dfu.Mode.IFF_DFU):
+        # In the 'first round' during runtime mode, there can only be one
+        # DFU Interface descriptor according to the DFU Spec.
+
+        # FIXME: check if the selected device really has only one
+
+        print("Claiming USB DFU Runtime Interface...")
+        try:
+            usb.util.claim_interface(_rt_dif.dev, _rt_dif.interface)
+        except usb.core.USBError as exc:
+            print(f"Cannot claim interface {_rt_dif.interface}")
+            sys.exit(1)
+
+        try:
+            _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
+        except usb.core.USBError as exc:
+            print(f"Cannot set alt interface zero")
+            sys.exit(1)
+
+        print("Determining device status: ")
+        _, status = dfu.get_status(_rt_dif.dev, _rt_dif.interface)
+        if _ < 0:
+            print("error get_status")
+            sys.exit(1)
+        print(f"state = {dfu.state_to_string(status.bState)}, status = {status.bStatus}")
+        if not quirks & QUIRK_POLLTIMEOUT:
+            milli_sleep(status.bwPollTimeout)
+
+        if status.bState in [dfu.State.APP_IDLE, dfu.State.APP_DETACH]:
+            print("Device really in Runtime Mode, send DFU "
+                  "detach request...")
+
+            ret = dfu.detach(_rt_dif.dev, _rt_dif.interface, 1000)
+            print(ret)
+            if IntOrBytes(ret) < 0:
+                print("error detaching")
+                exit(1)
+
+            # print(bmAttributes.USB_DFU_WILL_DETACH.__dir__())
+            # print(func_dfu_rt.bmAttributes)
+            # # if func_dfu_rt.bmAttributes & bmAttributes.USB_DFU_WILL_DETACH:
+            # #     print('continue')
+
+
 
 
 

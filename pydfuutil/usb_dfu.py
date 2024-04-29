@@ -14,6 +14,12 @@ from construct import FlagsEnum, Byte, Int8ul, Struct, Int16ul
 
 USB_DT_DFU = 0x21
 
+# class bmAttributes(IntEnum):
+#     USB_DFU_CAN_DOWNLOAD = 0x1
+#     USB_DFU_CAN_UPLOAD = 0x2
+#     USB_DFU_MANIFEST_TOL = 0x3
+#     USB_DFU_WILL_DETACH = 0x4
+
 bmAttributes = FlagsEnum(
     Byte,
     USB_DFU_CAN_DOWNLOAD=0x1,  # is support updates
