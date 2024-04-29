@@ -44,6 +44,45 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
     # install a specific version (e.g. 0.0.1b1)
     python -m pip install pydfuutil==0.0.1b1
 
+## Usage
+Run pydfuutil -h to got commandline options list
+```Bash
+ pydfuutil -h python -m 
+# or
+python -m pydfuutil -h
+
+####### usage:
+usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d VID:PID] [-p BUS-PORT] [-c CONFIG_NR] [-i INTF_NR] [-a ALT] [-t SIZE] [-U FILE] [-D FILE] [-R] [-s ADDRESS]
+
+Python implementation of DFU-Util tools
+
+options:
+  -h, --help            show this help message and exit
+  -V, --version         Print the version number
+  -v, --verbose         Print verbose debug statements
+  -l, --list            List the currently attached DFU capable USB devices
+  -e, --detach          Detach the currently attached DFU capable USB devices
+  -d VID:PID, --device VID:PID
+                        Specify Vendor/Product ID of DFU device
+  -p BUS-PORT, --path BUS-PORT
+                        Specify path to DFU device
+  -c CONFIG_NR, --cfg CONFIG_NR
+                        Specify the Configuration of DFU device
+  -i INTF_NR, --intf INTF_NR
+                        Specify the DFU Interface number
+  -a ALT, --alt ALT     Specify the Altsetting of the DFU Interface
+  -t SIZE, --transfer-size SIZE
+                        Specify the number of bytes per USB Transfer
+  -U FILE, --upload FILE
+                        Read firmware from device into <file>
+  -D FILE, --download FILE
+                        Write firmware from <file> into device
+  -R, --reset           Issue USB Reset signalling once we're finished
+  -s ADDRESS, --dfuse-address ADDRESS
+                        ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
+
+```
+
 
 ## Todos
 

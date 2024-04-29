@@ -592,7 +592,10 @@ def main() -> None:
     global VERBOSE
 
     # Create argument parser
-    parser = argparse.ArgumentParser(description="Description of your program")
+    parser = argparse.ArgumentParser(
+        prog="pydfuutil",
+        description="Python implementation of DFU-Util tools"
+    )
 
     # Add arguments
     parser.add_argument("-V", "--version", action="version", version=VERSION,
@@ -621,7 +624,7 @@ def main() -> None:
                         help="Write firmware from <file> into device")
     parser.add_argument("-R", "--reset", action="store_true",
                         help="Issue USB Reset signalling once we're finished")
-    parser.add_argument("-s", "--dfuse", metavar="ADDRESS",
+    parser.add_argument("-s", "--dfuse-address", metavar="ADDRESS",
                         help="ST DfuSe mode, specify target address "
                              "for raw file download or upload. "
                              "Not applicable for DfuSe file (.dfu) downloads")
@@ -694,8 +697,8 @@ def main() -> None:
     if args.reset:
         final_reset = 1
 
-    if args.dfuse:
-        dfuse_options = args.dfuse
+    if args.dfuse_address:
+        dfuse_options = args.dfuse_address
 
     print(VERSION)
 
