@@ -768,58 +768,82 @@ def main() -> None:
     # Transition from run-Time mode to DFU mode
 
     if not (_rt_dif.flags & dfu.Mode.IFF_DFU):
-
-        # In the 'first round' during runtime mode, there can only be one
-        # DFU Interface descriptor according to the DFU Spec.
-
-        # FIXME: check if the selected device really has only one
-
-        print("Claiming USB DFU Runtime Interface...")
         try:
-            usb.util.claim_interface(_rt_dif.dev, _rt_dif.interface)
-        except usb.core.USBError as exc:
-            print(f"Cannot claim interface {_rt_dif.interface}")
-            sys.exit(1)
+            # In the 'first round' during runtime mode, there can only be one
+            # DFU Interface descriptor according to the DFU Spec.
 
-        try:
-            _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
-        except usb.core.USBError as exc:
-            print(f"Cannot set alt interface zero")
-            sys.exit(1)
+            # FIXME: check if the selected device really has only one
 
-        print("Determining device status: ")
-        _, status = dfu.get_status(_rt_dif.dev, _rt_dif.interface)
-        if _ < 0:
-            print("error get_status")
-            sys.exit(1)
-        print(f"state = {dfu.state_to_string(status.bState)}, status = {status.bStatus}")
-        if not quirks & QUIRK_POLLTIMEOUT:
-            milli_sleep(status.bwPollTimeout)
+            print("Claiming USB DFU Runtime Interface...")
+            try:
+                usb.util.claim_interface(_rt_dif.dev, _rt_dif.interface)
+            except usb.core.USBError as exc:
+                print(f"Cannot claim interface {_rt_dif.interface}")
+                sys.exit(1)
 
-        if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
-            print("Device really in Runtime Mode, send DFU "
-                  "detach request...")
+            try:
+                _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
+            except usb.core.USBError as exc:
+                print(f"Cannot set alt interface zero")
+                sys.exit(1)
 
-            if IntOrBytes(dfu.detach(_rt_dif.dev, _rt_dif.interface, 1000)) < 0:
-                print("error detaching")
-                exit(1)
+            print("Determining device status: ")
+            _, status = dfu.get_status(_rt_dif.dev, _rt_dif.interface)
+            if _ < 0:
+                print("error get_status")
+                sys.exit(1)
+            print(f"state = {dfu.state_to_string(status.bState)}, status = {status.bStatus}")
+            if not quirks & QUIRK_POLLTIMEOUT:
+                milli_sleep(status.bwPollTimeout)
 
-            if func_dfu_rt.bmAttributes & bmAttributes.USB_DFU_WILL_DETACH:
-                print("Device will detach and reattach...")
+            if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
+                print("Device really in Runtime Mode, send DFU "
+                      "detach request...")
+
+                if IntOrBytes(dfu.detach(_rt_dif.dev, _rt_dif.interface, 1000)) < 0:
+                    print("error detaching")
+                    exit(1)
+
+                if func_dfu_rt.bmAttributes & bmAttributes.USB_DFU_WILL_DETACH:
+                    print("Device will detach and reattach...")
+                else:
+                    print("Resetting USB...\n")
+                    try:
+                        _rt_dif.dev.reset()
+                    except usb.core.USBError as exc:
+                        print("error resetting after detach")
+                milli_sleep(2000)
+            elif status.bState == dfu.State.DFU_ERROR:
+                print("dfuERROR, clearing status")
+                if IntOrBytes(dfu.clear_status(_rt_dif.dev, _rt_dif.interface)) < 0:
+                    print("error detaching")
+                    exit(1)
             else:
-                print("Resetting USB...\n")
-                try:
-                    _rt_dif.dev.reset()
-                except usb.core.USBError as exc:
-                    print("error resetting after detach")
-            milli_sleep(2000)
-        elif status.bState == dfu.State.DFU_ERROR:
-            print("dfuERROR, clearing status")
-            if IntOrBytes(dfu.clear_status(_rt_dif.dev, _rt_dif.interface)) < 0:
-                print("error detaching")
-                exit(1)
-        else:
-            print("WARNING: Runtime device already in DFU state ?!?")
+
+                raise RuntimeWarning("Runtime device already in DFU state ?!?")
+
+            usb.util.release_interface(_rt_dif.dev, _rt_dif.interface)
+            # TODO: libusb_close(_rt_dif.dev)
+
+            if mode == Mode.DETACH:
+                # TODO: libusb_exit(ctx)
+                sys.exit(0)
+
+            if dif.flags & dfu.Mode.IFF_PATH:
+                ret = resolve_device_path(dif)
+                if IntOrBytes(ret) < 0:
+                    print(f"internal error: cannot re-parse {dif.path}")
+                    abort()
+                if not ret:
+                    print("Cannot resolve path after RESET?")
+                    sys.exit(1)
+
+            ...
+
+        except RuntimeWarning as exc:
+            print(exc)
+
+        # dfustate
 
 
 
