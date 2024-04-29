@@ -4,8 +4,8 @@ low-level DFU message sending routines (part of dfu-programmer).
 """
 
 import inspect
-from dataclasses import dataclass
-from enum import IntEnum
+from dataclasses import dataclass, field
+from enum import IntEnum, IntFlag
 
 import usb.util
 from construct import Byte, Struct, BytesInteger, Container
@@ -100,7 +100,7 @@ class Command(IntEnum):
 
 
 # /* DFU interface */
-class Mode(IntEnum):
+class Mode(IntFlag):
     """Dfu modes"""
     IFF_DFU = 0x0001  # /* DFU Mode, (not Runtime) */
     IFF_VENDOR = 0x0100
@@ -125,36 +125,59 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
 
     """DfuIf structure implementation"""
 
-    __slots__ = (
-        'vendor', 'product', 'bcdDevice',
-        'configuration', 'interface',
-        'altsetting', 'alt_name',
-        'bus', 'devnum',
-        'path', 'flags', 'count',
-        'dev',
-    )
+    vendor: int = field(default=None, )
+    product: int = field(default=None, )
+    bcdDevice: int = field(default=0, )
+    configuration: int = field(default=0, )
+    interface: int = field(default=0, )
+    altsetting: int = field(default=0, )
+    alt_name: str = field(default="", )
+    bus: int = field(default=0, )
+    devnum: int = field(default=0, )
+    path: [str, int] = field(default="", )
+    flags: [Mode, int] = field(default=0, )
+    count: int = field(default=0, )
+    dev: usb.core.Device = field(default=None)
 
-    # pylint: disable=too-many-arguments, invalid-name
-    def __init__(self, vendor: int, product: int, bcdDevice: int,
-                 configuration: int, interface: int,
-                 altsetting: int, alt_name: str,
-                 bus: int, devnum: int,
-                 path: [str, int], flags: int, count: int,
-                 dev: usb.core.Device):
+    @property
+    def device_ids(self) -> dict:
+        id_filter = {}
+        if self.vendor:
+            id_filter["idVendor"] = self.vendor
+        if self.product:
+            id_filter["idProduct"] = self.product
+        return id_filter
 
-        self.vendor = vendor
-        self.product = product
-        self.bcdDevice = bcdDevice
-        self.configuration = configuration
-        self.interface = interface
-        self.altsetting = altsetting
-        self.alt_name = alt_name  # or Bytes() pointer
-        self.bus = bus
-        self.devnum = devnum
-        self.path = path  # or Bytes() pointer
-        self.flags = flags
-        self.count = count
-        self.dev = dev
+    # __slots__ = (
+    #     'vendor', 'product', 'bcdDevice',
+    #     'configuration', 'interface',
+    #     'altsetting', 'alt_name',
+    #     'bus', 'devnum',
+    #     'path', 'flags', 'count',
+    #     'dev',
+    # )
+
+    # # pylint: disable=too-many-arguments, invalid-name
+    # def __init__(self, vendor: int, product: int, bcdDevice: int,
+    #              configuration: int, interface: int,
+    #              altsetting: int, alt_name: str,
+    #              bus: int, devnum: int,
+    #              path: [str, int], flags: int, count: int,
+    #              dev: usb.core.Device):
+    #
+    #     self.vendor = vendor
+    #     self.product = product
+    #     self.bcdDevice = bcdDevice
+    #     self.configuration = configuration
+    #     self.interface = interface
+    #     self.altsetting = altsetting
+    #     self.alt_name = alt_name  # or Bytes() pointer
+    #     self.bus = bus
+    #     self.devnum = devnum
+    #     self.path = path  # or Bytes() pointer
+    #     self.flags = flags
+    #     self.count = count
+    #     self.dev = dev
 
 
 def init(timeout: int) -> None:

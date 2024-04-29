@@ -17,7 +17,7 @@ DEFAULT_POLLTIMEOUT = 5
 
 
 # pylint: disable=invalid-name
-def get_quirks(vendor: int, product: int, bcdDevice: int) -> int:
+def set_quirks(vendor: int, product: int, bcdDevice: int) -> int:
     """
 
     :param vendor: VID

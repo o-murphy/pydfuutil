@@ -44,12 +44,109 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
     # install a specific version (e.g. 0.0.1b1)
     python -m pip install pydfuutil==0.0.1b1
 
+## Usage
+
+### dfu-util
+```Bash
+pydfuutil -h 
+# or
+python -m pydfuutil -h
+
+####### usage:
+usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d VID:PID] [-p BUS-PORT] [-c CONFIG_NR] [-i INTF_NR] [-a ALT] [-t SIZE] [-U FILE] [-D FILE] [-R] [-s ADDRESS]
+
+Python implementation of DFU-Util tools
+
+options:
+  -h, --help            show this help message and exit
+  -V, --version         Print the version number
+  -v, --verbose         Print verbose debug statements
+  -l, --list            List the currently attached DFU capable USB devices
+  -e, --detach          Detach the currently attached DFU capable USB devices
+  -d VID:PID, --device VID:PID
+                        Specify Vendor/Product ID of DFU device
+  -p BUS-PORT, --path BUS-PORT
+                        Specify path to DFU device
+  -c CONFIG_NR, --cfg CONFIG_NR
+                        Specify the Configuration of DFU device
+  -i INTF_NR, --intf INTF_NR
+                        Specify the DFU Interface number
+  -a ALT, --alt ALT     Specify the Altsetting of the DFU Interface
+  -t SIZE, --transfer-size SIZE
+                        Specify the number of bytes per USB Transfer
+  -U FILE, --upload FILE
+                        Read firmware from device into <file>
+  -D FILE, --download FILE
+                        Write firmware from <file> into device
+  -R, --reset           Issue USB Reset signalling once we`re finished
+  -s ADDRESS, --dfuse-address ADDRESS
+                        ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
+```
+
+### dfu-suffix
+```Bash
+pydfuutil-suffix -h
+# or 
+python -m pydfuutil.suffix -h
+
+
+usage: dfu-suffix [-h] [-V] (-c | -a | -D) [-p <productID>] [-v <vendorID>] [-d <deviceID>] [-s <address>] [-T] <file>
+
+positional arguments:
+  <file>                Target filename
+
+options:
+  -h, --help            Print this help message
+  -V, --version         Print the version number
+  -c, --check           Check DFU suffix of <file>
+  -a, --add             Add DFU suffix to <file>
+  -D, --delete          Delete DFU suffix from <file>
+  -p <productID>, --pid <productID>
+                        Add product ID into DFU suffix in <file>
+  -v <vendorID>, --vid <vendorID>
+                        Add vendor ID into DFU suffix in <file>
+  -d <deviceID>, --did <deviceID>
+                        Add device ID into DFU suffix in <file>
+  -s <address>, --stellaris-address <address>
+                        Specify lmdfu address for LMDFU_ADD
+  -T, --stellaris       Set lmdfu mode to LMDFU_CHECK
+
+```
+
 
 ## Todos
 
 #### Modules to implement:
 
 - [ ] main
+  - [x] atoi()
+  - [ ] usb_path2devnum()
+  - [x] find_dfu_if()
+  - [x] _get_first_cb()
+  - [x] _get_first_dfu_if()
+  - [x] _check_match_cb()
+  - [x] get_matching_dfu_if()
+  - [x] _count_match_cb()
+  - [x] count_matching_dfu_if()
+  - [x] get_alt_name()
+  - [x] print_dfu_if()
+  - [x] list_dfu_interfaces()
+  - [x] alt_by_name()
+  - [x] _count_cb()
+  - [x] count_dfu_interfaces()
+  - [x] iterate_dfu_devices()
+  - [x] found_dfu_device()
+  - [x] get_first_dfu_device()
+  - [x] count_one_dfu_device()
+  - [x] count_dfu_devices()
+  - [x] parse_vendprod()
+  - [ ] resolve_device_path()
+  - [x] find_descriptor()
+  - [ ] usb_get_any_descriptor()
+  - [x] get_cached_extra_descriptor()
+  - [x] help_()
+  - [x] print_version()
+  - [ ] main()
 - [ ] dfu_load.PROGRESS_BAR -> rich.Progress
 
 
