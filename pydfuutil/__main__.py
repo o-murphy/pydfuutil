@@ -5,8 +5,10 @@ Based on existing code of dfu-programmer-0.4
 """
 import argparse
 import errno
+import io
 import re
 import sys
+from enum import IntEnum
 from typing import Any, Callable
 
 import usb.core
@@ -15,6 +17,7 @@ from pydfuutil import __version__, __copyright__, dfu
 
 MAX_DESC_STR_LEN = 253
 VERBOSE = False
+
 
 # TODO: not implemented yet
 
@@ -465,7 +468,7 @@ def usb_get_any_descriptor(dev: usb.core.Device,
     # Search through the configuration descriptor list
     ret = find_descriptor(cbuf, desc_type, desc_index, resbuf, res_len)
     if ret > 1:
-        if verbose:
+        if VERBOSE:
             print("Found descriptor in complete configuration descriptor list")
         return ret
 
@@ -517,43 +520,25 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
         if ret > 1:
             break
 
-    if ret < 2 and verbose:
+    if ret < 2 and VERBOSE:
         print("Did not find cached descriptor")
 
     return ret
-
-
-def help_() -> None:
-    print(
-        "  -h --help\t\t\tPrint this help message\n"
-        "  -V --version\t\t\tPrint the version number\n"
-        "  -v --verbose\t\t\tPrint verbose debug statements\n"
-        "  -l --list\t\t\tList the currently attached DFU capable USB devices\n"
-    )
-    print(
-        "  -e --detach\t\t\tDetach the currently attached DFU capable USB devices\n"
-        "  -d --device vendor:product\tSpecify Vendor/Product ID of DFU device\n"
-        "  -p --path bus-port. ... .port\tSpecify path to DFU device\n"
-        "  -c --cfg config_nr\t\tSpecify the Configuration of DFU device\n"
-        "  -i --intf intf_nr\t\tSpecify the DFU Interface number\n"
-        "  -a --alt alt\t\t\tSpecify the Altsetting of the DFU Interface\n"
-        "\t\t\t\tby name or by number\n"
-    )
-    print(
-        "  -t --transfer-size\t\tSpecify the number of bytes per USB Transfer\n"
-        "  -U --upload file\t\tRead firmware from device into <file>\n"
-        "  -D --download file\t\tWrite firmware from <file> into device\n"
-        "  -R --reset\t\t\tIssue USB Reset signalling once we're finished\n"
-        "  -s --dfuse-address address\tST DfuSe mode, specify target address for\n"
-        "\t\t\t\traw file download or upload. Not applicable for\n"
-        "\t\t\t\tDfuSe file (.dfu) downloads\n"
-    )
 
 
 VERSION = (f"{__version__}\n\n"
            f"('Copyright 2005-2008 Weston Schmidt, Harald Welte and OpenMoko Inc.\n')"
            f"{__copyright__}\n"
            f"This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')")
+
+
+class Mode(IntEnum):
+    NONE = 0
+    VERSION = 1
+    LIST = 1
+    DETACH = 3
+    UPLOAD = 4
+    DOWNLOAD = 5
 
 
 def main() -> None:
@@ -565,47 +550,98 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Description of your program")
 
     # Add arguments
-    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
+    # parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
     parser.add_argument("-V", "--version", action="version", version=VERSION,
-                        help="Show version information and exit")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase verbosity")
-    parser.add_argument("-l", "--list", action="store_true", help="List option")
-    parser.add_argument("-e", "--detach", action="store_true", help="Erase option")
-    parser.add_argument("-d", "--device", metavar="FILE", help="Download option with argument")
-    parser.add_argument("-p", "--path", metavar="PATH", help="Path option with argument")
-    parser.add_argument("-c", "--config", metavar="CONFIG", help="Config option with argument")
-    parser.add_argument("-i", "--interface", metavar="INTERFACE", help="Interface option with argument")
-    parser.add_argument("-a", "--altsetting", metavar="ALTSETTING", help="Altsetting option with argument")
-    parser.add_argument("-t", "--transfer-size", metavar="SIZE", help="Transfer size option with argument")
-    parser.add_argument("-U", "--vid", metavar="VID", help="VID option with argument")
-    parser.add_argument("-D", "--pid", metavar="PID", help="PID option with argument")
-    parser.add_argument("-R", "--reset", action="store_true", help="Reset option")
-    parser.add_argument("-s", "--serial", metavar="SERIAL", help="Serial option with argument")
+                        help="Print the version number")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Print verbose debug statements")
+    parser.add_argument("-l", "--list", action="store_true",
+                        help="List the currently attached DFU capable USB devices")
+    parser.add_argument("-e", "--detach", action="store_true",
+                        help="Detach the currently attached DFU capable USB devices")
+    parser.add_argument("-d", "--device", metavar="VID:PID",
+                        help="Specify Vendor/Product ID of DFU device")
+    parser.add_argument("-p", "--path", metavar="BUS-PORT",
+                        help="Specify path to DFU device")
+    parser.add_argument("-c", "--config", metavar="CONFIG_NR",
+                        help="Specify the Configuration of DFU device")
+    parser.add_argument("-i", "--interface", metavar="INTF_NR",
+                        help="Specify the DFU Interface number")
+    parser.add_argument("-a", "--altsetting", metavar="ALT",
+                        help="Specify the Altsetting of the DFU Interface")
+    parser.add_argument("-t", "--transfer-size", metavar="SIZE",
+                        help="Specify the number of bytes per USB Transfer")
+    parser.add_argument("-U", "--upload", metavar="FILE",
+                        help="Read firmware from device into <file>")
+    parser.add_argument("-D", "--download", metavar="FILE",
+                        help="Write firmware from <file> into device")
+    parser.add_argument("-R", "--reset", action="store_true",
+                        help="Issue USB Reset signalling once we're finished")
+    parser.add_argument("-s", "--serial", metavar="ADDRESS",
+                        help="ST DfuSe mode, specify target address for raw file download or upload. "
+                             "Not applicable for DfuSe file (.dfu) downloads")
 
     # Parse arguments
     args = parser.parse_args()
 
-    if args.h:
-        help_()
-        sys.exit(0)
-
-    if args.version:
-        print(VERSION)
+    dif: dfu.DfuIf = dfu.DfuIf()
+    file_name = None
 
     if args.verbose:
         VERBOSE = True
 
     if args.list:
-        mode = MODE_LIST
+        mode = Mode.LIST
 
     if args.detach:
-        mode = MODE_DETACH
+        mode = Mode.DETACH
 
     if args.device:
         device_id_filter = args.device
 
     if args.path:
         dif.path = args.path
+        dif.flags |= dfu.Mode.IFF_PATH
+        if ret := resolve_device_path(dif):
+            print(f"unable to parse {args.path}")
+            sys.exit(2)
+        if not ret:
+            print(f"cannot find {args.path}")
+            sys.exit(1)
+
+    if args.config:
+        dif.configuration = atoi(args.config)
+        dif.flags |= dfu.Mode.IFF_CONFIG
+
+    if args.interface:
+        dif.interface = atoi(args.interface)
+        dif.flags |= dfu.Mode.IFF_IFACE
+
+    if args.altsetting:
+        altsetting = int(args.altsetting, 0)
+        if args.altsetting.isdigit() and altsetting:
+            dif.altsetting = altsetting
+        else:
+            alt_name = args.altsetting
+        dif.flags |= dfu.Mode.IFF_ALT
+
+    if args.transfer_size:
+        transfer_size = atoi(args.transfer_size)
+
+    if args.upload:
+        mode = Mode.UPLOAD
+        file_name = args.upload
+
+    if args.download:
+        mode = Mode.DOWNLOAD
+        file_name = args.download
+
+    if args.reset:
+        mode = Mode.DOWNLOAD
+        final_reset = 1
+
+    if args.serial:
+        dfuse_options = args.serial
 
 
 if __name__ == '__main__':
