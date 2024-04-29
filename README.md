@@ -45,9 +45,10 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
     python -m pip install pydfuutil==0.0.1b1
 
 ## Usage
-Run pydfuutil -h to got commandline options list
+
+### dfu-util
 ```Bash
- pydfuutil -h python -m 
+pydfuutil -h 
 # or
 python -m pydfuutil -h
 
@@ -77,9 +78,38 @@ options:
                         Read firmware from device into <file>
   -D FILE, --download FILE
                         Write firmware from <file> into device
-  -R, --reset           Issue USB Reset signalling once we're finished
+  -R, --reset           Issue USB Reset signalling once we`re finished
   -s ADDRESS, --dfuse-address ADDRESS
                         ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
+```
+
+### dfu-suffix
+```Bash
+pydfuutil-suffix -h
+# or 
+python -m pydfuutil.suffix -h
+
+
+usage: dfu-suffix [-h] [-V] (-c | -a | -D) [-p <productID>] [-v <vendorID>] [-d <deviceID>] [-s <address>] [-T] <file>
+
+positional arguments:
+  <file>                Target filename
+
+options:
+  -h, --help            Print this help message
+  -V, --version         Print the version number
+  -c, --check           Check DFU suffix of <file>
+  -a, --add             Add DFU suffix to <file>
+  -D, --delete          Delete DFU suffix from <file>
+  -p <productID>, --pid <productID>
+                        Add product ID into DFU suffix in <file>
+  -v <vendorID>, --vid <vendorID>
+                        Add vendor ID into DFU suffix in <file>
+  -d <deviceID>, --did <deviceID>
+                        Add device ID into DFU suffix in <file>
+  -s <address>, --stellaris-address <address>
+                        Specify lmdfu address for LMDFU_ADD
+  -T, --stellaris       Set lmdfu mode to LMDFU_CHECK
 
 ```
 

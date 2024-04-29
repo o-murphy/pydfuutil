@@ -35,7 +35,7 @@ def print_version() -> None:
     """
     Prints dfu-suffix version to console
     """
-    print(f'dfu-suffix " {__version__} "\n')
+    print(f'pydfuutil-suffix " {__version__} "\n')
     print(f'{__copyright__[0]}\n'
           'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
 
