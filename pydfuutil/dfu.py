@@ -139,6 +139,15 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
     count: int = field(default=0, )
     dev: usb.core.Device = field(default=None)
 
+    @property
+    def device_ids(self) -> dict:
+        id_filter = {}
+        if self.vendor:
+            id_filter["idVendor"] = self.vendor
+        if self.product:
+            id_filter["idProduct"] = self.product
+        return id_filter
+
     # __slots__ = (
     #     'vendor', 'product', 'bcdDevice',
     #     'configuration', 'interface',
