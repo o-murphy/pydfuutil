@@ -543,7 +543,6 @@ def le16_to_cpu(data):
     return int.from_bytes(data, byteorder='little')
 
 
-
 class IntOrBytes:
     def __init__(self, value):
         if isinstance(value, int):
@@ -620,7 +619,6 @@ def main() -> None:
     file_name = None
     mode = Mode.NONE
     device_id_filter = None
-
 
     func_dfu_rt = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
 
@@ -770,6 +768,7 @@ def main() -> None:
     # Transition from run-Time mode to DFU mode
 
     if not (_rt_dif.flags & dfu.Mode.IFF_DFU):
+
         # In the 'first round' during runtime mode, there can only be one
         # DFU Interface descriptor according to the DFU Spec.
 
@@ -797,22 +796,30 @@ def main() -> None:
         if not quirks & QUIRK_POLLTIMEOUT:
             milli_sleep(status.bwPollTimeout)
 
-        if status.bState in [dfu.State.APP_IDLE, dfu.State.APP_DETACH]:
+        if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
             print("Device really in Runtime Mode, send DFU "
                   "detach request...")
 
-            ret = dfu.detach(_rt_dif.dev, _rt_dif.interface, 1000)
-            print(ret)
-            if IntOrBytes(ret) < 0:
+            if IntOrBytes(dfu.detach(_rt_dif.dev, _rt_dif.interface, 1000)) < 0:
                 print("error detaching")
                 exit(1)
 
-            # print(bmAttributes.USB_DFU_WILL_DETACH.__dir__())
-            # print(func_dfu_rt.bmAttributes)
-            # # if func_dfu_rt.bmAttributes & bmAttributes.USB_DFU_WILL_DETACH:
-            # #     print('continue')
-
-
+            if func_dfu_rt.bmAttributes & bmAttributes.USB_DFU_WILL_DETACH:
+                print("Device will detach and reattach...")
+            else:
+                print("Resetting USB...\n")
+                try:
+                    _rt_dif.dev.reset()
+                except usb.core.USBError as exc:
+                    print("error resetting after detach")
+            milli_sleep(2000)
+        elif status.bState == dfu.State.DFU_ERROR:
+            print("dfuERROR, clearing status")
+            if IntOrBytes(dfu.clear_status(_rt_dif.dev, _rt_dif.interface)) < 0:
+                print("error detaching")
+                exit(1)
+        else:
+            print("WARNING: Runtime device already in DFU state ?!?")
 
 
 
