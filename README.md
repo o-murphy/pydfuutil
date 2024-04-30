@@ -79,7 +79,7 @@ options:
                         Read firmware from device into <file>
   -D <file>, --download <file>
                         Write firmware from <file> into device
-  -R, --reset           Issue USB Reset signalling once we're finished
+  -R, --reset           Issue USB Reset signalling once we`re finished
   -s <address>, --dfuse-address <address>
                         ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
 ```
@@ -120,11 +120,12 @@ options:
 - [x] dfu_load
 - [x] portable
 - [x] quirks
-- [x] suffix
+- [x] suffix + cli entry point
 - [x] usb_dfu
 - [x] lmdfu
 - [x] dfuse_mem
 - [ ] dfuse (not fully supported yet)
+- [ ] dfu-util cli entry point (not fully supported yet)
 
 
 ## Getting help
