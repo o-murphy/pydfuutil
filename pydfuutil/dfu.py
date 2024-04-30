@@ -187,7 +187,7 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
 
     @property
     def device_ids(self) -> dict:
-        """Returns filter for usb.core.find() by VID:PID"""
+        """Returns filter dict for usb.core.find() by VID:PID"""
         id_filter = {}
         if self.vendor:
             id_filter["idVendor"] = self.vendor
@@ -214,7 +214,7 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
         """Binds self to dfu.get_status()"""
         return get_status(self.dev, self.interface)
 
-    def get_state(self) -> int:
+    def get_state(self) -> State:
         """Binds self to dfu.get_state()"""
         return get_state(self.dev, self.interface)
 
@@ -448,7 +448,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
     return result
 
 
-def get_state(device: usb.core.Device, interface: int) -> int:
+def get_state(device: usb.core.Device, interface: int) -> State:
     """
      *  GETSTATE Request (DFU Spec 1.0, Section 6.1.5)
      *
@@ -478,10 +478,12 @@ def get_state(device: usb.core.Device, interface: int) -> int:
         data_or_wLength=length,
         timeout=TIMEOUT,
     )
-
-    if result.tobytes()[0] < 1:
+    value = result.tobytes()[0] < 1
+    if value < 1:
         return -1
-    return result.tobytes()[0]
+    if value in State.__members__.values():
+        value = State(value)
+    return value
 
 
 def abort(device: usb.core.Device, interface: int) -> int:
