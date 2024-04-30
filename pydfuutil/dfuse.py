@@ -9,7 +9,6 @@ import sys
 from enum import Enum
 
 import usb.util
-from construct import Int32ul
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
@@ -41,7 +40,7 @@ def quad2uint(p: bytes) -> int:
     :param p: 4-byte sequence
     :return: Converted unsigned integer
     """
-    return Int32ul.parse(p)
+    return int.from_bytes(p, byteorder='little', signed=False)
 
 
 def parse_options(options: str) -> argparse.Namespace:
