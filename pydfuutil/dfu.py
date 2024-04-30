@@ -4,11 +4,10 @@ low-level DFU message sending routines (part of dfu-programmer).
 """
 
 import inspect
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum, IntFlag
 
 import usb.util
-from construct import Byte, Struct, BytesInteger, Container
 
 from pydfuutil.logger import get_logger
 
@@ -28,6 +27,12 @@ class State(IntEnum):
     DFU_MANIFEST_WAIT_RESET = 0x08
     DFU_UPLOAD_IDLE = 0x09
     DFU_ERROR = 0x0a
+
+    def to_string(self):
+        """
+        :return: State.self name by State Enum
+        """
+        return state_to_string(self)
 
 
 _STATES_NAMES = {
@@ -64,6 +69,12 @@ class Status(IntEnum):
     ERROR_UNKNOWN = 0x0e
     ERROR_STALLEDPKT = 0x0f
 
+    def to_string(self):
+        """
+        :return: Status.self name by Status Enum
+        """
+        return status_to_string(self)
+
 
 _DFU_STATUS_NAMES = {
     Status.OK: "No error condition is present",
@@ -76,9 +87,9 @@ _DFU_STATUS_NAMES = {
     Status.ERROR_VERIFY: "Programmed memory failed verification",
     Status.ERROR_ADDRESS: "Cannot program memory due to received address that is out of range",
     Status.ERROR_NOTDONE: "Received DNLOAD with wLength = 0, "
-                             "but device does not think that it has all data yet",
+                          "but device does not think that it has all data yet",
     Status.ERROR_FIRMWARE: "Device's firmware is corrupt. "
-                              "It cannot return to run-time (non-DFU) operations",
+                           "It cannot return to run-time (non-DFU) operations",
     Status.ERROR_VENDOR: "iString indicates a vendor specific error",
     Status.ERROR_USBR: "Device detected unexpected USB reset signalling",
     Status.ERROR_POR: "Device detected unexpected power on reset",
@@ -112,35 +123,71 @@ class Mode(IntFlag):
     IFF_PATH = 0x4000
 
 
-_STATUS = Struct(
-    bStatus=Byte,
-    bwPollTimeout=BytesInteger(3),
-    bState=Byte,
-    iString=Byte
-)
+@dataclass(frozen=True)
+class StatusData:
+    """
+    Converts dfu_get_status result bytes to applicable dataclass
+    """
+    # pylint: disable=invalid-name
+    bStatus: Status = Status.ERROR_UNKNOWN
+    bwPollTimeout: int = 0
+    bState: State = State.DFU_ERROR
+    iString: int = 0
+
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        """Creates StatusData instance from bytes sequence"""
+        if len(data) >= 6:
+            bStatus = (Status(data[0])
+                       if data[0] in Status.__members__.values()
+                       else Status.ERROR_UNKNOWN)
+            bwPollTimeout = int.from_bytes(data[1:4], 'little')
+            bState = (State(data[4])
+                      if data[0] in State.__members__.values()
+                      else State.DFU_ERROR)
+            iString = data[5]
+            return cls(
+                bStatus,
+                bwPollTimeout,
+                bState,
+                iString
+            )
+        return cls()
+
+    def __bytes__(self) -> bytes:
+        return (
+                bytes([self.bStatus.value])
+                + self.bwPollTimeout.to_bytes(3, 'little')
+                + bytes([self.bState.value, self.iString])
+        )
+
+    def __int__(self):
+        return int.from_bytes(self, 'little')
 
 
 @dataclass
 class DfuIf:  # pylint: disable=too-many-instance-attributes
 
-    """DfuIf structure implementation"""
+    """DFU Interface dataclass"""
+    # pylint: disable=invalid-name
 
-    vendor: int = field(default=None, )
-    product: int = field(default=None, )
-    bcdDevice: int = field(default=0, )
-    configuration: int = field(default=0, )
-    interface: int = field(default=0, )
-    altsetting: int = field(default=0, )
-    alt_name: str = field(default="", )
-    bus: int = field(default=0, )
-    devnum: int = field(default=0, )
-    path: [str, int] = field(default="", )
-    flags: [Mode, int] = field(default=0, )
-    count: int = field(default=0, )
-    dev: usb.core.Device = field(default=None)
+    vendor: int = None
+    product: int = None
+    bcdDevice: int = None
+    configuration: int = None
+    interface: int = None
+    altsetting: int = None
+    alt_name: str = None
+    bus: int = None
+    devnum: int = None
+    path: [str, int] = None
+    flags: [Mode, int] = None
+    count: int = None
+    dev: usb.core.Device = None
 
     @property
     def device_ids(self) -> dict:
+        """Returns filter for usb.core.find() by VID:PID"""
         id_filter = {}
         if self.vendor:
             id_filter["idVendor"] = self.vendor
@@ -148,36 +195,28 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
             id_filter["idProduct"] = self.product
         return id_filter
 
-    # __slots__ = (
-    #     'vendor', 'product', 'bcdDevice',
-    #     'configuration', 'interface',
-    #     'altsetting', 'alt_name',
-    #     'bus', 'devnum',
-    #     'path', 'flags', 'count',
-    #     'dev',
-    # )
+    # The binds to direct dfu functions to get more pythonic
+    # Use them better instead of direct
 
-    # # pylint: disable=too-many-arguments, invalid-name
-    # def __init__(self, vendor: int, product: int, bcdDevice: int,
-    #              configuration: int, interface: int,
-    #              altsetting: int, alt_name: str,
-    #              bus: int, devnum: int,
-    #              path: [str, int], flags: int, count: int,
-    #              dev: usb.core.Device):
-    #
-    #     self.vendor = vendor
-    #     self.product = product
-    #     self.bcdDevice = bcdDevice
-    #     self.configuration = configuration
-    #     self.interface = interface
-    #     self.altsetting = altsetting
-    #     self.alt_name = alt_name  # or Bytes() pointer
-    #     self.bus = bus
-    #     self.devnum = devnum
-    #     self.path = path  # or Bytes() pointer
-    #     self.flags = flags
-    #     self.count = count
-    #     self.dev = dev
+    def download(self, transaction: int, data_or_length: [bytes, int]) -> int:
+        """Binds self to dfu.download()"""
+        return download(self.dev, self.interface, transaction, data_or_length)
+
+    def upload(self, transaction: int, data_or_length: [bytes, int]) -> bytes:
+        """Binds self to dfu.upload()"""
+        return upload(self.dev, self.interface, transaction, data_or_length)
+
+    def abort(self) -> int:
+        """Binds self to dfu.abort()"""
+        return abort(self.dev, self.interface)
+
+    def get_status(self) -> StatusData:
+        """Binds self to dfu.get_status()"""
+        return get_status(self.dev, self.interface)
+
+    def get_state(self) -> int:
+        """Binds self to dfu.get_state()"""
+        return get_state(self.dev, self.interface)
 
 
 def init(timeout: int) -> None:
@@ -214,7 +253,7 @@ def verify_init() -> int:
 def debug(level: int) -> None:
     """
     NOTE: Maybe not needed cause python can define globals after
-    :param level: logging.level
+    :param level: logging level (DEBUG, INFO, WARNING, ERROR)
     """
 
     # pylint: disable=global-statement
@@ -321,7 +360,7 @@ def upload(device: usb.core.Device,
     :return: uploaded data or error code in bytes
     """
     verify_init()
-    logger.debug('UPLOAD...')
+    logger.debug('DFU_UPLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN
@@ -334,12 +373,12 @@ def upload(device: usb.core.Device,
         timeout=TIMEOUT,
     )
 
-    logger.debug(f'UPLOAD {len(result) >= 0}')
+    logger.debug(f'DFU_UPLOAD {len(result) >= 0}')
 
     return result.tobytes()
 
 
-def get_status(device: usb.core.Device, interface: int) -> (int, dict):
+def get_status(device: usb.core.Device, interface: int) -> StatusData:
     """
      *  GETSTATUS Request (DFU Spec 1.0, Section 6.1.2)
      *
@@ -357,13 +396,6 @@ def get_status(device: usb.core.Device, interface: int) -> (int, dict):
     verify_init()
     logger.debug('DFU_GET_STATUS...')
 
-    status = Container(
-        bStatus=Status.ERROR_UNKNOWN,
-        bwPollTimeout=0,
-        bState=State.DFU_ERROR,
-        iString=0
-    )
-
     length = 6
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN
@@ -376,13 +408,12 @@ def get_status(device: usb.core.Device, interface: int) -> (int, dict):
         timeout=TIMEOUT,
     )
 
-    if len(result) == 6:
-        con = _STATUS.parse(result.tobytes())
-        con.pop('_io')
-        status.update(con)
-    logger.debug(f'DFU_GET_STATUS {len(result) == 6}')
-    logger.debug(f'CURRENT STATE {state_to_string(status.bState)}')
-    return int.from_bytes(result.tobytes(), byteorder='little'), status
+    if len(result) == length:
+        status = StatusData.from_bytes(result.tobytes())
+        logger.debug(f'DFU_GET_STATUS {len(result) == 6}')
+        logger.debug(f'CURRENT STATE {status.bState.to_string()}')
+        return status
+    return StatusData.from_bytes(result)
 
 
 def clear_status(device: usb.core.Device, interface: int) -> int:

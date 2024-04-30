@@ -569,10 +569,9 @@ class IntOrBytes:
     def __lt__(self, other):
         if isinstance(other, IntOrBytes):
             return self._value < other._value
-        elif isinstance(other, int):
+        if isinstance(other, int):
             return self._value < other
-        else:
-            raise TypeError("Comparison with unsupported type")
+        raise TypeError("Comparison with unsupported type")
 
     def __eq__(self, other):
         if isinstance(other, IntOrBytes):
@@ -794,11 +793,11 @@ def main() -> None:
     def check_status():
         logger.debug('Status again')
         _log_msg = "Determining device status: "
-        _, status = dfu.get_status(_rt_dif.dev, _rt_dif.interface)
-        if _ < 0:
+        ret = int(status := dfu.get_status(_rt_dif.dev, _rt_dif.interface))
+        if ret < 0:
             logger.error(f"{_log_msg}error get_status")
             sys.exit(1)
-        logger.info(f"{_log_msg}state = {dfu.state_to_string(status.bState)}, "
+        logger.info(f"{_log_msg}state = {status.bState.to_string()}, "
                     f"status = {status.bStatus}")
 
         if not quirks & QUIRK_POLLTIMEOUT:
@@ -814,13 +813,13 @@ def main() -> None:
         logger.info("Claiming USB DFU Runtime Interface...")
         try:
             usb.util.claim_interface(_rt_dif.dev, _rt_dif.interface)
-        except usb.core.USBError as exc:
+        except usb.core.USBError:
             logger.error(f"Cannot claim interface {_rt_dif.interface}")
             sys.exit(1)
 
         try:
             _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
-        except usb.core.USBError as exc:
+        except usb.core.USBError:
             logger.error(f"Cannot set alt interface zero")
             sys.exit(1)
 
@@ -840,7 +839,7 @@ def main() -> None:
                 logger.info("Resetting USB...\n")
                 try:
                     _rt_dif.dev.reset()
-                except usb.core.USBError as exc:
+                except usb.core.USBError:
                     logger.error("error resetting after detach")
             milli_sleep(2000)
             break
@@ -939,14 +938,14 @@ def main() -> None:
     logger.info("Claiming USB DFU Interface...")
     try:
         usb.util.claim_interface(dif.dev, dif.interface)
-    except usb.core.USBError as e:
+    except usb.core.USBError:
         logger.error("Cannot claim interface")
         sys.exit(1)
 
     logger.info(f"Setting Alternate Setting {dif.altsetting} ...\n")
     try:
         dif.dev.set_interface_altsetting(dif.interface, dif.altsetting)
-    except usb.core.USBError as e:
+    except usb.core.USBError:
         logger.error("Cannot set alternate interface")
         sys.exit(1)
 
@@ -978,18 +977,18 @@ def main() -> None:
             break
 
     if status.bStatus != dfu.Status.OK:
-        logger.warning(f"DFU Status: {dfu.status_to_string(status.bStatus)}")
+        logger.warning(f"DFU Status: {status.bStatus.to_string()}")
         # Clear our status & try again.
         dfu.clear_status(dif.dev, dif.interface)
-        _, status = dfu.get_status(dif.dev, dif.interface)
+        _ = int(status := dfu.get_status(dif.dev, dif.interface))
         if status.bStatus != dfu.Status.OK:
             logger.error(f"{status.bStatus}")
             sys.exit(1)
         if not quirks & QUIRK_POLLTIMEOUT:
             milli_sleep(status.bwPollTimeout)
 
-    logger.debug(f"State: {dfu.state_to_string(status.bState)}, "
-                 f"Status: {dfu.status_to_string(status.bStatus)} Continue...")
+    logger.debug(f"State: {status.bState.to_string()}, "
+                 f"Status: {status.bStatus.to_string()} Continue...")
 
     # Get the DFU mode DFU functional descriptor
     # If it is not found cached, we will request it from the device
@@ -1082,17 +1081,17 @@ def main() -> None:
                     sys.exit(1)
                 elif ret == 0:
                     logger.warning("File has no DFU suffix")
-                elif file.bcdDFU != 0x0100 and file.bcdDFU != 0x011a:
+                elif file.bcdDFU not in (0x0100, 0x011a):
                     logger.error(f"Unsupported DFU file revision 0x{file.bcdDFU:04x}")
                     sys.exit(1)
 
                 # Check vendor ID
-                if file.idVendor != 0xffff and dif.vendor != file.idVendor:
+                if file.idVendor not in (0xffff, dif.vendor):
                     logger.warning(f"Warning: File vendor ID 0x{file.idVendor:04x} "
                                    f"does not match device 0x{dif.vendor:04x}")
 
                 # Check product ID
-                if file.idProduct != 0xffff and dif.product != file.idProduct:
+                if file.idProduct not in (0xffff, dif.product):
                     logger.warning(f"File product ID 0x{file.idProduct:04x} "
                                    f"does not match device 0x{dif.product:04x}")
 
@@ -1123,7 +1122,7 @@ def main() -> None:
 
     usb.util.release_interface(dif.dev, dif.interface)
     usb.util.dispose_resources(dif.dev)
-    exit(0)
+    sys.exit(0)
 
 
 if __name__ == '__main__':

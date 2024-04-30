@@ -113,7 +113,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if download(dif, length, buf, 0) < 0:
             raise IOError("Error during special command download")
 
-        ret, dst = dfu.get_status(dif.dev, dif.interface)
+        ret = int(dst := dfu.get_status(dif.dev, dif.interface))
         if ret < 0:
             raise IOError("Error during special command get_status")
 
@@ -129,11 +129,11 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if command == Command.READ_UNPROTECT:
             return ret
 
-        ret, dst = dfu.get_status(dif.dev, dif.interface)
+        ret = int(dst := dfu.get_status(dif.dev, dif.interface))
         if ret < 0:
             logger.error(
-                f"state({dst.bState}) = {dfu.state_to_string(dst.bState)}, "
-                f"status({dst.bStatus}) = {dfu.status_to_string(dst.bStatus)}")
+                f"state({dst.bState}) = {dst.bState.to_string()}, "
+                f"status({dst.bStatus}) = {dst.bStatus.to_string()}")
             raise IOError("Error during second get_status")
 
         if dst.bStatus != dfu.Status.OK:
@@ -144,7 +144,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if dfu.abort(dif.dev, dif.interface) < 0:
             raise IOError("Error sending dfu abort request")
 
-        ret, dst = dfu.get_status(dif.dev, dif.interface)
+        ret = int(dst := dfu.get_status(dif.dev, dif.interface))
         if ret < 0:
             raise IOError("Error during abort get_status")
 
@@ -312,7 +312,7 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     bytes_sent = ret
 
     while True:
-        ret, status = dfu.get_status(dif.dev, dif.interface)
+        ret = int(status := dfu.get_status(dif.dev, dif.interface))
         if ret < 0:
             logger.error("Error during download get_status")
             return ret
@@ -331,8 +331,8 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     if status.bStatus != dfu.Status.OK:
         logger.error("Download failed!")
         logger.error("state(%u) = %s, status(%u) = %s", status.bState,
-                     dfu.state_to_string(status.bState), status.bStatus,
-                     dfu.status_to_string(status.bStatus))
+                     status.bState.to_string(), status.bStatus,
+                     status.bStatus.to_string())
         return -1
 
     return bytes_sent
@@ -563,7 +563,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
 
     if opts.leave:
         dnload_chunk(dif, b'', 0, 2)  # Zero-size
-        ret2, dst = dfu.get_status(dif.dev, dif.interface)
+        ret2 = int(dst := dfu.get_status(dif.dev, dif.interface))
         if ret2 < 0:
             logger.error("Error during download get_status")
         if VERBOSE:
