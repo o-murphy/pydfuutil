@@ -34,6 +34,7 @@ logging.propagate = False
 logger = get_logger("pydfuutil")
 logger.setLevel(logging.INFO)
 usb_logger = logging.getLogger('usb')
+
 MAX_DESC_STR_LEN = 253
 HAVE_GETPAGESIZE = not (sys.platform == 'win32')
 VERBOSE = False
@@ -96,7 +97,7 @@ def find_dfu_if(dev: usb.core.Device,
                     dev=dev
                 )
 
-                logger.debug(f"{handler.__name__}, handler")
+                logger.debug(f"{handler.__name__}, {handler}, {v}")
                 if handler:
                     rc = handler(dfu_if, v)
                     if rc != 0:

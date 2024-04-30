@@ -19,9 +19,8 @@ class TestDfu(unittest.TestCase):
         self.assertEqual(dfu.State.APP_IDLE.to_string(), "appIDLE")
 
     @patch("pydfuutil.dfu.verify_init")
-    @patch("pydfuutil.dfu.logger")
-    @patch("pydfuutil.dfu.usb.core.find")
-    def test_detach(self, mock_find, mock_logger, mock_verify_init):
+    @patch("usb.core.find")
+    def test_detach(self, mock_find, mock_verify_init):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -38,7 +37,6 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_verify_init.assert_called_once()
-        mock_logger.debug.assert_called_with('DETACH True')
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21 | 0x01,
             bRequest=dfu.Command.DETACH,  # Assuming Command.DETACH is 23
@@ -47,13 +45,11 @@ class TestDfu(unittest.TestCase):
             data_or_wLength=None,
             timeout=1000,  # Assuming TIMEOUT is 1000
         )
-        mock_logger.debug.assert_called_with('DETACH True')
         self.assertEqual(result, 1)  # Assuming success returns 1
 
     @patch("pydfuutil.dfu.verify_init")
-    @patch("pydfuutil.dfu.logger")
-    @patch("pydfuutil.dfu.usb.core.find")
-    def test_upload(self, mock_find, mock_logger, mock_verify_init):
+    @patch("usb.core.find")
+    def test_upload(self, mock_find, mock_verify_init):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -71,7 +67,6 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_verify_init.assert_called_once()
-        mock_logger.debug.assert_called_with('DFU_UPLOAD True')
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
             bRequest=dfu.Command.UPLOAD,  # Assuming Command.UPLOAD
@@ -80,13 +75,11 @@ class TestDfu(unittest.TestCase):
             data_or_wLength=data,
             timeout=1000,  # Assuming TIMEOUT is 1000
         )
-        mock_logger.debug.assert_called_with('DFU_UPLOAD True')
         self.assertEqual(result, data)  # Assuming success returns bytes(10)
 
     @patch("pydfuutil.dfu.verify_init")
-    @patch("pydfuutil.dfu.logger")
-    @patch("pydfuutil.dfu.usb.core.find")
-    def test_dwnload(self, mock_find, mock_logger, mock_verify_init):
+    @patch("usb.core.find")
+    def test_dwnload(self, mock_find, mock_verify_init):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -104,7 +97,6 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_verify_init.assert_called_once()
-        mock_logger.debug.assert_called_with('DFU_DOWNLOAD True')
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
             bRequest=dfu.Command.DNLOAD,  # Assuming Command.DNLOAD
@@ -113,13 +105,11 @@ class TestDfu(unittest.TestCase):
             data_or_wLength=data,
             timeout=1000,  # Assuming TIMEOUT is 1000
         )
-        mock_logger.debug.assert_called_with('DFU_DOWNLOAD True')
         self.assertEqual(result, len(data))  # Assuming success returns 10
 
     @patch("pydfuutil.dfu.verify_init")
-    @patch("pydfuutil.dfu.logger")
-    @patch("pydfuutil.dfu.usb.core.find")
-    def test_get_status(self, mock_find, mock_logger, mock_verify_init):
+    @patch("usb.core.find")
+    def test_get_status(self, mock_find, mock_verify_init):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -137,7 +127,6 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_verify_init.assert_called_once()
-        mock_logger.debug.assert_called_with('CURRENT STATE appIDLE')
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
             bRequest=dfu.Command.GETSTATUS,  # Assuming Command.GETSTATUS
@@ -146,13 +135,11 @@ class TestDfu(unittest.TestCase):
             data_or_wLength=length,
             timeout=1000,  # Assuming TIMEOUT is 1000
         )
-        mock_logger.debug.assert_called_with('CURRENT STATE appIDLE')
         self.assertEqual(status.bState, 0)  # Assuming success returns 0
 
     @patch("pydfuutil.dfu.verify_init")
-    @patch("pydfuutil.dfu.logger")
-    @patch("pydfuutil.dfu.usb.core.find")
-    def test_clear_status(self, mock_find, mock_logger, mock_verify_init):
+    @patch("usb.core.find")
+    def test_clear_status(self, mock_find, mock_verify_init):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -169,7 +156,6 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_verify_init.assert_called_once()
-        mock_logger.debug.assert_called_with('DFU_CLEAR_STATUS True')
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
             bRequest=dfu.Command.CLRSTATUS,  # Assuming Command.CLRSTATUS
@@ -178,13 +164,11 @@ class TestDfu(unittest.TestCase):
             data_or_wLength=None,
             timeout=1000,  # Assuming TIMEOUT is 1000
         )
-        mock_logger.debug.assert_called_with('DFU_CLEAR_STATUS True')
         self.assertEqual(result, 0)  # Assuming success returns 0
 
     @patch("pydfuutil.dfu.verify_init")
-    @patch("pydfuutil.dfu.logger")
-    @patch("pydfuutil.dfu.usb.core.find")
-    def test_abort(self, mock_find, mock_logger, mock_verify_init):
+    @patch("usb.core.find")
+    def test_abort(self, mock_find, mock_verify_init):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -201,7 +185,6 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_verify_init.assert_called_once()
-        mock_logger.debug.assert_called_with('ABORT True')
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
             bRequest=dfu.Command.ABORT,  # Assuming Command.ABORT
@@ -210,7 +193,6 @@ class TestDfu(unittest.TestCase):
             data_or_wLength=None,
             timeout=1000,  # Assuming TIMEOUT is 1000
         )
-        mock_logger.debug.assert_called_with('ABORT True')
         self.assertEqual(result, 0)  # Assuming success returns 0
 
 

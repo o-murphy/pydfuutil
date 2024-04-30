@@ -6,7 +6,7 @@ from pydfuutil.dfu_load import *
 
 class TestDFULoader(unittest.TestCase):
 
-    def test_dfuload_do_upload(self):
+    def test_dfu_load_do_upload(self):
         xfer_size = 256
         file = DFUFile(name='test_file', filep=Mock())  # Provide a mock file object
         total_size = 1024
@@ -22,7 +22,7 @@ class TestDFULoader(unittest.TestCase):
         # Assertions
         self.assertEqual(result, total_size)  # Assuming total_size bytes are received
 
-    def test_dfuload_do_dnload(self):
+    def test_dfu_load_do_dnload(self):
 
         xfer_size = 1024
         result = dfu.StatusData(dfu.Status.OK, 100, dfu.State.DFU_DOWNLOAD_IDLE, 0)
