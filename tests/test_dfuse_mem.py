@@ -33,16 +33,12 @@ class TestDfuSeMem(unittest.TestCase):
     def test_free(self):
         mem_seq = MemSegment.from_bytes(bytes(10))
         del mem_seq
-        try:
-            print(mem_seq)
-        except UnboundLocalError as exc:
-            self.assertTrue(exc)
-
+        self.assertNotIn('mem_seq', locals())
 
     def test_add_segment_empty_list(self):
         # Test adding a segment to an empty list
         seqment_sequence = None
-        segment = MemSegment(0, 10, 4, 'data')
+        segment = MemSegment(0, 10, 4, 0)
         seqment_sequence = add_segment(seqment_sequence, segment)
         self.assertNotEqual(seqment_sequence, None)
         self.assertEqual(seqment_sequence.end, 10)
@@ -50,8 +46,8 @@ class TestDfuSeMem(unittest.TestCase):
 
     def test_add_segment_nonempty_list(self):
         # Test adding a segment to a non-empty list
-        seqment_sequence = MemSegment(0, 10, 4, 'data')
-        segment = MemSegment(12, 20, 4, 'code')
+        seqment_sequence = MemSegment(0, 10, 4, 0)
+        segment = MemSegment(12, 20, 4, 0)
         seqment_sequence = add_segment(seqment_sequence, segment)
 
         self.assertNotEqual(seqment_sequence, None)
@@ -61,9 +57,9 @@ class TestDfuSeMem(unittest.TestCase):
 
     def test_add_segment_with_existing_next(self):
         # Test adding a segment when the last element in the list already has a next element
-        seqment_sequence = MemSegment(0, 10, 4, 'data')
-        seqment_sequence.next = MemSegment(22, 30, 4, 'heap')
-        segment = MemSegment(12, 20, 4, 'code')
+        seqment_sequence = MemSegment(0, 10, 4, 0)
+        seqment_sequence.next = MemSegment(22, 30, 4, 0)
+        segment = MemSegment(12, 20, 4, 0)
         seqment_sequence = add_segment(seqment_sequence, segment)
         self.assertNotEqual(seqment_sequence.next, None)
         self.assertNotEqual(seqment_sequence.next.next, None)
