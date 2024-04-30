@@ -31,8 +31,6 @@ try:
 except ImportError:
     pass
 
-logging.basicConfig(level=logging.DEBUG)
-logging.propagate = False
 logger = get_logger("pydfuutil")
 logger.setLevel(logging.INFO)
 usb_logger = logging.getLogger('usb')
@@ -619,25 +617,25 @@ def main() -> None:
                         help="List the currently attached DFU capable USB devices")
     parser.add_argument("-e", "--detach", action="store_true",
                         help="Detach the currently attached DFU capable USB devices")
-    parser.add_argument("-d", "--device", metavar="VID:PID",
+    parser.add_argument("-d", "--device", metavar="<deviceID>:<productID>",
                         help="Specify Vendor/Product ID of DFU device")
-    parser.add_argument("-p", "--path", metavar="BUS-PORT",
+    parser.add_argument("-p", "--path", metavar="<bus/port>",
                         help="Specify path to DFU device")
-    parser.add_argument("-c", "--cfg", metavar="CONFIG_NR",
+    parser.add_argument("-c", "--cfg", metavar="<config>",
                         help="Specify the Configuration of DFU device")
-    parser.add_argument("-i", "--intf", metavar="INTF_NR",
+    parser.add_argument("-i", "--intf", metavar="<interface>",
                         help="Specify the DFU Interface number")
-    parser.add_argument("-a", "--alt", metavar="ALT",
+    parser.add_argument("-a", "--alt", metavar="<alt>",
                         help="Specify the Altsetting of the DFU Interface")
-    parser.add_argument("-t", "--transfer-size", metavar="SIZE",
+    parser.add_argument("-t", "--transfer-size", metavar="<size>",
                         help="Specify the number of bytes per USB Transfer")
-    parser.add_argument("-U", "--upload", metavar="FILE",
+    parser.add_argument("-U", "--upload", metavar="<file>",
                         help="Read firmware from device into <file>")
-    parser.add_argument("-D", "--download", metavar="FILE",
+    parser.add_argument("-D", "--download", metavar="<file>",
                         help="Write firmware from <file> into device")
     parser.add_argument("-R", "--reset", action="store_true",
                         help="Issue USB Reset signalling once we're finished")
-    parser.add_argument("-s", "--dfuse-address", metavar="ADDRESS",
+    parser.add_argument("-s", "--dfuse-address", metavar="<address>",
                         help="ST DfuSe mode, specify target address "
                              "for raw file download or upload. "
                              "Not applicable for DfuSe file (.dfu) downloads")

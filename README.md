@@ -53,7 +53,7 @@ pydfuutil -h
 python -m pydfuutil -h
 
 ####### usage:
-usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d VID:PID] [-p BUS-PORT] [-c CONFIG_NR] [-i INTF_NR] [-a ALT] [-t SIZE] [-U FILE] [-D FILE] [-R] [-s ADDRESS]
+usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d <deviceID>:<productID>] [-p <bus/port>] [-c <config>] [-i <intf_num>] [-a <alt>] [-t <size>] [-U <file>] [-D <file>] [-R] [-s <address>]
 
 Python implementation of DFU-Util tools
 
@@ -63,23 +63,24 @@ options:
   -v, --verbose         Print verbose debug statements
   -l, --list            List the currently attached DFU capable USB devices
   -e, --detach          Detach the currently attached DFU capable USB devices
-  -d VID:PID, --device VID:PID
+  -d <deviceID>:<productID>, --device <deviceID>:<productID>
                         Specify Vendor/Product ID of DFU device
-  -p BUS-PORT, --path BUS-PORT
+  -p <bus/port>, --path <bus/port>
                         Specify path to DFU device
-  -c CONFIG_NR, --cfg CONFIG_NR
+  -c <config>, --cfg <config>
                         Specify the Configuration of DFU device
-  -i INTF_NR, --intf INTF_NR
+  -i <interface>, --intf <interface>
                         Specify the DFU Interface number
-  -a ALT, --alt ALT     Specify the Altsetting of the DFU Interface
-  -t SIZE, --transfer-size SIZE
+  -a <alt>, --alt <alt>
+                        Specify the Altsetting of the DFU Interface
+  -t <size>, --transfer-size <size>
                         Specify the number of bytes per USB Transfer
-  -U FILE, --upload FILE
+  -U <file>, --upload <file>
                         Read firmware from device into <file>
-  -D FILE, --download FILE
+  -D <file>, --download <file>
                         Write firmware from <file> into device
-  -R, --reset           Issue USB Reset signalling once we`re finished
-  -s ADDRESS, --dfuse-address ADDRESS
+  -R, --reset           Issue USB Reset signalling once we're finished
+  -s <address>, --dfuse-address <address>
                         ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
 ```
 
@@ -122,7 +123,7 @@ options:
 - [x] suffix
 - [x] usb_dfu
 - [x] lmdfu
-- [ ] dfuse_mem (not fully supported yet)
+- [x] dfuse_mem
 - [ ] dfuse (not fully supported yet)
 
 

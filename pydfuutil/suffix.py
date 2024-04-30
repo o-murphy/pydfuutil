@@ -111,8 +111,10 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
 
 def _get_argparser():
     """Get custom argument parser"""
+
     class CustomHelpFormatter(argparse.HelpFormatter):
         """Custom argument parser formatter"""
+
         def add_argument(self, action):
             if action.dest == 'help':
                 action.help = 'Print this help message'
@@ -184,30 +186,22 @@ def main() -> None:
     parser = _get_argparser()
     args = get_args(parser)
 
-    # file = args.check or args.add or args.delete
-    # file_name = file.name
-
     lmdfu_mode = LmdfuMode.NONE
     lmdfu_flash_address: int = 0
     lmdfu_prefix: int = 0
-    # end: str  # unused
 
-    pid: int = 0xffff
-    vid: int = 0xffff
-    did: int = 0xffff
+    empty = 0xffff
 
     file = DFUFile(args.file.name)
     file.filep, mode = args.file, args.mode
 
-    if args.pid:
-        pid = args.pid
-    if args.vid:
-        vid = args.vid
-    if args.did:
-        did = args.did
+    pid = args.pid if args.pid else empty
+    vid = args.vid if args.vid else empty
+    did = args.did if args.did else empty
+
     if args.lmdfu_flash_address:
-        lmdfu_mode = LmdfuMode.ADD
-        lmdfu_flash_address = args.lmdfu_flash_address
+        lmdfu_mode, lmdfu_flash_address = LmdfuMode.ADD, args.lmdfu_flash_address
+
     if args.lmdfu_mode:
         lmdfu_mode = LmdfuMode.CHECK
 
@@ -216,8 +210,6 @@ def main() -> None:
 
     if mode != Mode.NONE:
         try:
-            # with open(file.name, "r+b") as file.filep:
-
             if mode == Mode.ADD:
 
                 if check_suffix(file):
@@ -240,26 +232,24 @@ def main() -> None:
                     lmdfu.check_prefix(file)
 
             elif mode == Mode.DEL:
-                if not remove_suffix(file):
-                    if lmdfu_mode == LmdfuMode.DEL:
-                        if lmdfu.check_prefix(file):
-                            lmdfu.remove_prefix(file)
-                            sys.exit(1)
+                if (not remove_suffix(file)
+                        and lmdfu_mode == LmdfuMode.DEL
+                        and lmdfu.check_prefix(file)):
+                    lmdfu.remove_prefix(file)
+                    sys.exit(1)
 
             else:
                 parser.print_help()
                 sys.exit(2)
 
-            if lmdfu_mode == LmdfuMode.DEL:
-                if check_suffix(file):
-                    logger.warning(
-                        "DFU suffix exist."
-                        " Remove suffix before using -T or use it with -D to delete suffix"
-                    )
-                    sys.exit(1)
-                else:
-                    if lmdfu.check_prefix(file):
-                        lmdfu.remove_prefix(file)
+            if lmdfu_mode == LmdfuMode.DEL and check_suffix(file):
+                logger.warning(
+                    "DFU suffix exist. "
+                    "Remove suffix before using -T or use it with -D to delete suffix")
+                sys.exit(1)
+
+            if lmdfu_mode == LmdfuMode.DEL and lmdfu.check_prefix(file):
+                lmdfu.remove_prefix(file)
 
         except Exception as error:
             logger.error(error)

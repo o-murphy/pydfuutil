@@ -16,6 +16,7 @@ from construct import Int8ul, Struct, Int16ul
 USB_DT_DFU = 0x21
 
 class bmAttributes(IntEnum):
+    """Enum of DFU_FUNC_DESCRIPTOR's bmAttributes"""
     USB_DFU_CAN_DOWNLOAD = 0x1
     USB_DFU_CAN_UPLOAD = 0x2
     USB_DFU_MANIFEST_TOL = 0x3

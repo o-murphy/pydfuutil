@@ -81,7 +81,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
         if command == Command.ERASE_PAGE:
             segment = find_segment(MEM_LAYOUT, address)
-            if not segment or not segment.memtype & DFUSE.ERASABLE:
+            if not segment or not segment.mem_type & DFUSE.ERASABLE:
                 raise IOError(f"Page at 0x{address:08x} cannot be erased")
 
             page_size = segment.pagesize
@@ -253,7 +253,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
                 raise IOError("Failed to parse memory layout")
 
             segment = find_segment(MEM_LAYOUT, parsed_args.address)
-            if not parsed_args.force and (not segment or not segment.memtype & DFUSE.READABLE):
+            if not parsed_args.force and (not segment or not segment.mem_type & DFUSE.READABLE):
                 raise IOError(f"Page at 0x{parsed_args.address:08x} is not readable")
 
             if not upload_limit:
@@ -367,7 +367,7 @@ def dnload_element(dif: dfu.DfuIf,
     ret = 0
     segment = find_segment(MEM_LAYOUT, dwElementAddress + dwElementSize - 1)
 
-    if not segment or not segment.memtype & DFUSE.WRITEABLE:
+    if not segment or not segment.mem_type & DFUSE.WRITEABLE:
         logger.error(
             f"Error: Last page at 0x{dwElementAddress + dwElementSize - 1:08x} is not writeable"
         )
@@ -380,7 +380,7 @@ def dnload_element(dif: dfu.DfuIf,
         chunk_size = min(xfer_size, dwElementSize - p)
 
         segment = find_segment(MEM_LAYOUT, address)
-        if not segment or not segment.memtype & DFUSE.WRITEABLE:
+        if not segment or not segment.mem_type & DFUSE.WRITEABLE:
             logger.error(f"Error: Page at 0x{address:08x} is not writeable")
             return -1
 
