@@ -53,7 +53,7 @@ pydfuutil -h
 python -m pydfuutil -h
 
 ####### usage:
-usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d VID:PID] [-p BUS-PORT] [-c CONFIG_NR] [-i INTF_NR] [-a ALT] [-t SIZE] [-U FILE] [-D FILE] [-R] [-s ADDRESS]
+usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d <deviceID>:<productID>] [-p <bus/port>] [-c <config>] [-i <intf_num>] [-a <alt>] [-t <size>] [-U <file>] [-D <file>] [-R] [-s <address>]
 
 Python implementation of DFU-Util tools
 
@@ -63,23 +63,24 @@ options:
   -v, --verbose         Print verbose debug statements
   -l, --list            List the currently attached DFU capable USB devices
   -e, --detach          Detach the currently attached DFU capable USB devices
-  -d VID:PID, --device VID:PID
+  -d <deviceID>:<productID>, --device <deviceID>:<productID>
                         Specify Vendor/Product ID of DFU device
-  -p BUS-PORT, --path BUS-PORT
+  -p <bus/port>, --path <bus/port>
                         Specify path to DFU device
-  -c CONFIG_NR, --cfg CONFIG_NR
+  -c <config>, --cfg <config>
                         Specify the Configuration of DFU device
-  -i INTF_NR, --intf INTF_NR
+  -i <interface>, --intf <interface>
                         Specify the DFU Interface number
-  -a ALT, --alt ALT     Specify the Altsetting of the DFU Interface
-  -t SIZE, --transfer-size SIZE
+  -a <alt>, --alt <alt>
+                        Specify the Altsetting of the DFU Interface
+  -t <size>, --transfer-size <size>
                         Specify the number of bytes per USB Transfer
-  -U FILE, --upload FILE
+  -U <file>, --upload <file>
                         Read firmware from device into <file>
-  -D FILE, --download FILE
+  -D <file>, --download <file>
                         Write firmware from <file> into device
   -R, --reset           Issue USB Reset signalling once we`re finished
-  -s ADDRESS, --dfuse-address ADDRESS
+  -s <address>, --dfuse-address <address>
                         ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
 ```
 
@@ -113,54 +114,18 @@ options:
 
 ```
 
-
-## Todos
-
-#### Modules to implement:
-
-- [ ] main
-  - [x] atoi()
-  - [ ] usb_path2devnum()
-  - [x] find_dfu_if()
-  - [x] _get_first_cb()
-  - [x] _get_first_dfu_if()
-  - [x] _check_match_cb()
-  - [x] get_matching_dfu_if()
-  - [x] _count_match_cb()
-  - [x] count_matching_dfu_if()
-  - [x] get_alt_name()
-  - [x] print_dfu_if()
-  - [x] list_dfu_interfaces()
-  - [x] alt_by_name()
-  - [x] _count_cb()
-  - [x] count_dfu_interfaces()
-  - [x] iterate_dfu_devices()
-  - [x] found_dfu_device()
-  - [x] get_first_dfu_device()
-  - [x] count_one_dfu_device()
-  - [x] count_dfu_devices()
-  - [x] parse_vendprod()
-  - [ ] resolve_device_path()
-  - [x] find_descriptor()
-  - [ ] usb_get_any_descriptor()
-  - [x] get_cached_extra_descriptor()
-  - [x] help_()
-  - [x] print_version()
-  - [ ] main()
-- [ ] dfu_load.PROGRESS_BAR -> rich.Progress
-
-
 #### Done:
 - [x] dfu
 - [x] dfu_file
 - [x] dfu_load
 - [x] portable
 - [x] quirks
-- [x] suffix
+- [x] suffix + cli entry point
 - [x] usb_dfu
 - [x] lmdfu
 - [x] dfuse_mem
-- [x] dfuse
+- [ ] dfuse (not fully supported yet)
+- [ ] dfu-util cli entry point (not fully supported yet)
 
 
 ## Getting help

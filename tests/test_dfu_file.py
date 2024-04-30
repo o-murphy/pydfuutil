@@ -1,3 +1,4 @@
+import os.path
 import unittest
 
 from pydfuutil.dfu_file import *
@@ -29,8 +30,8 @@ class TestDFUFile(unittest.TestCase):
 
     def setUp(self):
         # You may need to adjust these paths based on your actual implementation
-        self.sample_file_path = "sample_file.bin"
-        self.output_file_path = "output_file.bin"
+        self.sample_file_path = os.path.join(os.path.dirname(__file__), "sample_file.bin")
+        self.output_file_path = os.path.join(os.path.dirname(__file__), "output_file.bin")
 
     def test_crc32_byte(self):
         # You may need to adjust the expected result based on your specific CRC calculation

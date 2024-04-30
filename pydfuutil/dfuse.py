@@ -18,6 +18,8 @@ from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
 
 logger = get_logger(__name__)
+logger.warning("Module pydfuutil.dfuse aren't work as expected, "
+               "will reimplemented in future")
 
 VERBOSE = False
 MEM_LAYOUT: list = []
@@ -79,7 +81,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
         if command == Command.ERASE_PAGE:
             segment = find_segment(MEM_LAYOUT, address)
-            if not segment or not segment.memtype & DFUSE.ERASABLE:
+            if not segment or not segment.mem_type & DFUSE.ERASABLE:
                 raise IOError(f"Page at 0x{address:08x} cannot be erased")
 
             page_size = segment.pagesize
@@ -113,7 +115,8 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if download(dif, length, buf, 0) < 0:
             raise IOError("Error during special command download")
 
-        ret, dst = dfu.get_status(dif.dev, dif.interface)
+        # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
+        ret = int(dst := dif.get_status())
         if ret < 0:
             raise IOError("Error during special command get_status")
 
@@ -129,11 +132,12 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if command == Command.READ_UNPROTECT:
             return ret
 
-        ret, dst = dfu.get_status(dif.dev, dif.interface)
+        # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
+        ret = int(dst := dif.get_status())
         if ret < 0:
             logger.error(
-                f"state({dst.bState}) = {dfu.state_to_string(dst.bState)}, "
-                f"status({dst.bStatus}) = {dfu.status_to_string(dst.bStatus)}")
+                f"state({dst.bState}) = {dst.bState.to_string()}, "
+                f"status({dst.bStatus}) = {dst.bStatus.to_string()}")
             raise IOError("Error during second get_status")
 
         if dst.bStatus != dfu.Status.OK:
@@ -141,10 +145,12 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
         milli_sleep(dst.bwPollTimeout)
 
-        if dfu.abort(dif.dev, dif.interface) < 0:
+        # if dfu.abort(dif.dev, dif.interface) < 0:
+        if dif.abort() < 0:
             raise IOError("Error sending dfu abort request")
 
-        ret, dst = dfu.get_status(dif.dev, dif.interface)
+        # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
+        ret = int(dst := dif.get_status())
         if ret < 0:
             raise IOError("Error during abort get_status")
 
@@ -247,7 +253,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
                 raise IOError("Failed to parse memory layout")
 
             segment = find_segment(MEM_LAYOUT, parsed_args.address)
-            if not parsed_args.force and (not segment or not segment.memtype & DFUSE.READABLE):
+            if not parsed_args.force and (not segment or not segment.mem_type & DFUSE.READABLE):
                 raise IOError(f"Page at 0x{parsed_args.address:08x} is not readable")
 
             if not upload_limit:
@@ -312,7 +318,8 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     bytes_sent = ret
 
     while True:
-        ret, status = dfu.get_status(dif.dev, dif.interface)
+        # ret = int(status := dfu.get_status(dif.dev, dif.interface))
+        ret = int(status := dif.get_status())
         if ret < 0:
             logger.error("Error during download get_status")
             return ret
@@ -331,8 +338,8 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     if status.bStatus != dfu.Status.OK:
         logger.error("Download failed!")
         logger.error("state(%u) = %s, status(%u) = %s", status.bState,
-                     dfu.state_to_string(status.bState), status.bStatus,
-                     dfu.status_to_string(status.bStatus))
+                     status.bState.to_string(), status.bStatus,
+                     status.bStatus.to_string())
         return -1
 
     return bytes_sent
@@ -360,7 +367,7 @@ def dnload_element(dif: dfu.DfuIf,
     ret = 0
     segment = find_segment(MEM_LAYOUT, dwElementAddress + dwElementSize - 1)
 
-    if not segment or not segment.memtype & DFUSE.WRITEABLE:
+    if not segment or not segment.mem_type & DFUSE.WRITEABLE:
         logger.error(
             f"Error: Last page at 0x{dwElementAddress + dwElementSize - 1:08x} is not writeable"
         )
@@ -373,7 +380,7 @@ def dnload_element(dif: dfu.DfuIf,
         chunk_size = min(xfer_size, dwElementSize - p)
 
         segment = find_segment(MEM_LAYOUT, address)
-        if not segment or not segment.memtype & DFUSE.WRITEABLE:
+        if not segment or not segment.mem_type & DFUSE.WRITEABLE:
             logger.error(f"Error: Page at 0x{address:08x} is not writeable")
             return -1
 
@@ -563,7 +570,8 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
 
     if opts.leave:
         dnload_chunk(dif, b'', 0, 2)  # Zero-size
-        ret2, dst = dfu.get_status(dif.dev, dif.interface)
+        # ret2 = int(dst := dfu.get_status(dif.dev, dif.interface))
+        ret2 = int(dst := dif.get_status())
         if ret2 < 0:
             logger.error("Error during download get_status")
         if VERBOSE:
