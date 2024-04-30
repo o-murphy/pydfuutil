@@ -16,6 +16,7 @@ logger = get_logger("dfuse_mem")
 logger.warning("Module pydfuutil.dfuse_mem aren't work as expected, "
                "will reimplemented in future")
 
+
 class DFUSE(IntFlag):
     """DFUSE read/write flags"""
     READABLE = 0x1
@@ -41,14 +42,46 @@ class MemSegment:
     memtype: int = 0
     next: 'MemSegment' = field(default=None)
 
-    def __bytes__(self):
-        return memsegment.build(self.__dict__)
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'MemSegment':
+        return cls(
+            *data[:4],
+            next=MemSegment.from_bytes(data[4:])
+            if len(data) > 4 else None
+        )
 
+    def __bytes__(self) -> bytes:
+        data = bytes((
+            self.start,
+            self.end,
+            self.pagesize,
+            self.memtype
+        ))
+        if self.next:
+            data += bytes(self.next)
+        return data
+
+    def append(self, other: 'MemSegment') -> int:
+        if not self.next:
+            self.next = other
+        else:
+            self.next.append(other)
+        return 0
+
+    def find(self, address: int) -> ['MemSegment', None]:
+        if self.start <= address <= self.end:
+            return self
+        if self.next is not None:
+            return self.next.find(address)
+        return None
+
+    def free(self) -> None:
+        raise NotImplementedError("Use `del MemSegment()` to free resources")
 
 
 def add_segment(seqment_sequence: [MemSegment, None], segment: MemSegment) -> MemSegment:
     """
-    :param segment_list:
+    :param seqment_sequence:
     :param segment:
     :return: 0 if ok
     """
