@@ -7,9 +7,6 @@ following the ST DfuSe 1.1a specification.
 import re
 from dataclasses import dataclass, field
 from enum import IntFlag
-
-from construct import Struct, Int
-
 from pydfuutil.logger import get_logger
 
 logger = get_logger("dfuse_mem")
@@ -22,14 +19,6 @@ class DFUSE(IntFlag):
     READABLE = 0x1
     ERASABLE = 0x2
     WRITEABLE = 0x4
-
-
-memsegment = Struct(
-    start=Int,
-    end=Int,
-    pagesize=Int,
-    memtype=Int,
-)
 
 
 @dataclass
