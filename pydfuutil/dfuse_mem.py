@@ -7,6 +7,8 @@ following the ST DfuSe 1.1a specification.
 import re
 from dataclasses import dataclass, field
 from enum import IntFlag
+from typing import Iterator
+
 from pydfuutil.logger import get_logger
 
 logger = get_logger("dfuse_mem")
@@ -39,6 +41,23 @@ class MemSegment:
             if len(data) > 4 else None
         )
 
+    def __iter__(self) -> Iterator['MemSegment']:
+        current = self
+        while current is not None:
+            yield current
+            current = current.next
+
+    def __next__(self):
+        if self.next is not None:
+            return self.next
+        raise StopIteration
+
+    def __len__(self):
+        ret = 1
+        if self.next is not None:
+            ret += self.next.__len__()
+        return ret
+
     def __bytes__(self) -> bytes:
         data = bytes((
             self.start,
@@ -47,7 +66,7 @@ class MemSegment:
             self.memtype
         ))
         if self.next:
-            data += bytes(self.next)
+            data += self.next.__bytes__()
         return data
 
     def append(self, other: 'MemSegment') -> int:
@@ -79,17 +98,13 @@ def add_segment(seqment_sequence: [MemSegment, None], segment: MemSegment) -> Me
     if not seqment_sequence:
         # list can be empty on the first call
         return new_element
-    else:
-        # find the last element in the list
-        next_element = seqment_sequence
-        while next_element.next:
-            next_element = next_element.next
-        next_element.next = new_element
 
-        return seqment_sequence
+    # find the last element in the list
+    seqment_sequence.append(new_element)
+    return seqment_sequence
 
 
-def find_segment(segment_sequence: MemSegment, new_element: MemSegment) -> [MemSegment, None]:
+def find_segment(segment_sequence: MemSegment, address: int) -> [MemSegment, None]:
     """
     Find a memory segment in the list containing the given element.
 
@@ -97,11 +112,7 @@ def find_segment(segment_sequence: MemSegment, new_element: MemSegment) -> [MemS
     :param new_element: MemSegment instance to search for in the list.
     :return: MemSegment instance if found, None otherwise.
     """
-    while segment_sequence:
-        if segment_sequence.start == new_element.start and segment_sequence.end == new_element.end:
-            return segment_sequence
-        segment_sequence = segment_sequence.next
-    return None
+    return segment_sequence.find(address)
 
 
 def free_segment_list(segment_sequence: MemSegment) -> None:

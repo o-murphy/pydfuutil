@@ -16,6 +16,11 @@ class TestDfuSeMem(unittest.TestCase):
         mem_seq.append(seg)
         buf = bytes(mem_seq)
         self.assertEqual(buf, bytes(16))
+        self.assertEqual(len(mem_seq), 4)
+
+    def test_iter(self):
+        mem_seq = MemSegment.from_bytes(bytes(12))
+        self.assertEqual(len(tuple(mem_seq)), len(mem_seq))
 
     def test_find(self):
         mem_seq = MemSegment.from_bytes(bytes([1, 2, 0, 0, 10, 20, 0, 0, 100, 200, 0, 0]))
@@ -23,6 +28,7 @@ class TestDfuSeMem(unittest.TestCase):
                          mem_seq.from_bytes(bytes([10, 20, 0, 0, 100, 200, 0, 0])))
         self.assertEqual(mem_seq.find(150),
                          mem_seq.from_bytes(bytes([100, 200, 0, 0])))
+        self.assertEqual(mem_seq.find(300), None)
 
     def test_free(self):
         mem_seq = MemSegment.from_bytes(bytes(10))
@@ -63,14 +69,6 @@ class TestDfuSeMem(unittest.TestCase):
         self.assertNotEqual(seqment_sequence.next.next, None)
         self.assertEqual(seqment_sequence.next.end, 30)
         self.assertEqual(seqment_sequence.next.next.end, 20)
-
-    def test_find_segment(self):
-        seqment_sequence = MemSegment(0, 10, 4, 'data')
-        seqment_sequence.next = MemSegment(22, 30, 4, 'heap')
-        segment = MemSegment(12, 20, 4, 'code')
-        seqment_sequence = add_segment(seqment_sequence, segment)
-        found = find_segment(seqment_sequence, segment)
-        self.assertEqual(found, segment)
 
 
 if __name__ == '__main__':
