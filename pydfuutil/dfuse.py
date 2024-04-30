@@ -10,6 +10,7 @@ from enum import Enum
 
 import usb.util
 from construct import Int32ul
+import warnings
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
@@ -18,6 +19,8 @@ from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
 
 logger = get_logger(__name__)
+logger.warning("Module pydfuutil.dfuse aren't work as expected, "
+               "will reimplemented in future")
 
 VERBOSE = False
 MEM_LAYOUT: list = []

@@ -13,7 +13,8 @@ from construct import Struct, Int
 from pydfuutil.logger import get_logger
 
 logger = get_logger("dfuse_mem")
-
+logger.warning("Module pydfuutil.dfuse_mem aren't work as expected, "
+               "will reimplemented in future")
 
 class DFUSE(IntFlag):
     """DFUSE read/write flags"""
@@ -34,65 +35,66 @@ memsegment = Struct(
 class MemSegment:
     """Memory segment"""
 
-    start: int
-    end: int
-    pagesize: int
-    memtype: int
+    start: int = 0
+    end: int = 0
+    pagesize: int = 0
+    memtype: int = 0
     next: 'MemSegment' = field(default=None)
 
     def __bytes__(self):
         return memsegment.build(self.__dict__)
 
 
-def add_segment(segment_list: list[MemSegment], segment: MemSegment) -> int:
+
+def add_segment(seqment_sequence: [MemSegment, None], segment: MemSegment) -> MemSegment:
     """
     :param segment_list:
     :param segment:
     :return: 0 if ok
     """
-    # raise NotImplementedError("Feature not yet implemented")
     new_element = MemSegment(segment.start, segment.end, segment.pagesize, segment.memtype)
 
-    if not segment_list:
+    if not seqment_sequence:
         # list can be empty on the first call
-        segment_list.append(new_element)
+        return new_element
     else:
         # find the last element in the list
-        next_element = segment_list[0]
+        next_element = seqment_sequence
         while next_element.next:
             next_element = next_element.next
         next_element.next = new_element
 
-    return 0
+        return seqment_sequence
 
 
-def find_segment(elements: list[memsegment], new_element: memsegment) -> memsegment:
+def find_segment(segment_sequence: MemSegment, new_element: MemSegment) -> [MemSegment, None]:
     """
     Find a memory segment in the list containing the given element.
 
-    :param elements: List of MemSegment instances.
+    :param segment_sequence: List of MemSegment instances.
     :param new_element: MemSegment instance to search for in the list.
     :return: MemSegment instance if found, None otherwise.
     """
-    for element in elements:
-        if element.start == new_element.start and element.end == new_element.end:
-            return element
+    while segment_sequence:
+        if segment_sequence.start == new_element.start and segment_sequence.end == new_element.end:
+            return segment_sequence
+        segment_sequence = segment_sequence.next
     return None
 
 
-def free_segment_list(elements: list[memsegment]) -> None:
+def free_segment_list(segment_sequence: MemSegment) -> None:
     """
     Free the memory allocated for the list of memory segments.
 
     :param elements: List of MemSegment instances.
     """
-    del elements[:]
+    del segment_sequence
 
 
 # Parse memory map from interface descriptor string
 # encoded as per ST document UM0424 section 4.3.2.
 
-def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> memsegment:
+def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> MemSegment:
     """
     Parse memory map from interface descriptor string
     encoded as per ST document UM0424 section 4.3.2.

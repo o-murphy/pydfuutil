@@ -14,8 +14,10 @@ from typing import Any, Callable, Literal
 
 import usb.core
 
-from pydfuutil import __version__, __copyright__, dfuse, dfu_load
+from pydfuutil import __version__, __copyright__
 from pydfuutil import dfu
+# from pydfuutil import dfuse
+from pydfuutil import dfu_load
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
 from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
@@ -1071,7 +1073,10 @@ def main() -> None:
                     logger.info(f"{file.name}: File exists")
                     sys.exit(1)
 
+
                 if dfuse_device or dfuse_options:
+                    raise NotImplementedError("DfuSe devices aren't support yet")
+
                     if dfuse.do_upload(dif, transfer_size, file, dfuse_options) < 0:
                         sys.exit(1)
                 else:
