@@ -130,7 +130,7 @@ def check_prefix(file: DFUFile) -> int:
         logger.info("Check TI Stellaris prefix")
 
         # Allocate buffer for reading the prefix
-        data = bytearray([0] * 16)
+        data = bytearray(16)
 
         # Read prefix from the file
         ret = file.filep.readinto(data)

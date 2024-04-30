@@ -93,6 +93,7 @@ def do_upload(dif: dfu.DfuIf,
     return ret
 
 
+# pylint: disable=too-many-branches
 def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
     """
     :param dif: DfuIf instance

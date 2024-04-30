@@ -198,6 +198,10 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
     # The binds to direct dfu functions to get more pythonic
     # Use them better instead of direct
 
+    def detach(self, timeout: int) -> bytes:
+        """Binds self to dfu.detach()"""
+        return detach(self.dev, self.interface, timeout)
+
     def download(self, transaction: int, data_or_length: [bytes, int]) -> int:
         """Binds self to dfu.download()"""
         return download(self.dev, self.interface, transaction, data_or_length)
@@ -246,7 +250,7 @@ def verify_init() -> int:
     caller = inspect.stack()[0][3]
     if INVALID_DFU_TIMEOUT == TIMEOUT:
         if 0 != DEBUG_LEVEL:
-            raise ValueError(f'"{caller}": dfu system not property initialized.')
+            raise ValueError(f'"{caller}": dfu system not initialized properly.')
     return 0
 
 
