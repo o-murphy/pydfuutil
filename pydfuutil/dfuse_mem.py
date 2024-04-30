@@ -3,7 +3,7 @@ Helper functions for reading the memory map in a device
 following the ST DfuSe 1.1a specification.
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 """
-
+import logging
 import re
 from dataclasses import dataclass, field
 from enum import IntFlag
@@ -127,7 +127,7 @@ def free_segment_list(segment_sequence: MemSegment) -> None:
 # Parse memory map from interface descriptor string
 # encoded as per ST document UM0424 section 4.3.2.
 
-def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> MemSegment:
+def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemSegment, None]:
     """
     Parse memory map from interface descriptor string
     encoded as per ST document UM0424 section 4.3.2.
@@ -136,21 +136,27 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> MemSe
     :return: MemSegment instance
     """
 
-    segment_list = []
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
+    if isinstance(intf_desc, bytes):
+        intf_desc = intf_desc.decode('ascii')
+
+    segment_list: [MemSegment, None] = None
     count = 0
 
     while intf_desc:
         # Read name
         match = re.match(r"^([^/]+)/", intf_desc)
         if match is None:
+            print(intf_desc)
             logger.error("Error: Could not read name.")
             return None
 
         name = match.group(1)
         intf_desc = intf_desc[match.end():]
 
-        if verbose:
-            logger.info(f"DfuSe interface name: \"{name}\"")
+        logger.debug(f"DfuSe interface name: \"{name}\"")
 
         # Read address
         match = re.match(r"^0x([\da-fA-F]+)/", intf_desc)
@@ -198,17 +204,15 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> MemSe
                 logger.warning(f"No valid type for segment {count}")
                 continue
 
-            segment_list.append(
-                MemSegment(
-                    start=address,
-                    end=address + sectors * size - 1,
-                    pagesize=size,
-                    memtype=memtype & 7
-                )
-            )
+            segment_list = add_segment(segment_list, MemSegment(
+                start=address,
+                end=address + sectors * size - 1,
+                pagesize=size,
+                memtype=memtype & 7
+            ))
 
             if verbose:
-                logger.info(f"Memory segment at "
+                logger.debug(f"Memory segment at "
                             f"0x{address:08x} {sectors} x {size} = {sectors * size} "
                             f"({'r' if memtype & DFUSE.READABLE else ''}"
                             f"{'e' if memtype & DFUSE.ERASABLE else ''}"

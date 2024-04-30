@@ -1,5 +1,5 @@
 import unittest
-from pydfuutil.dfuse_mem import MemSegment, add_segment, find_segment
+from pydfuutil.dfuse_mem import MemSegment, add_segment, find_segment, parse_memory_layout
 
 
 # @unittest.skip("Not implemented")
@@ -65,6 +65,32 @@ class TestDfuSeMem(unittest.TestCase):
         self.assertNotEqual(seqment_sequence.next.next, None)
         self.assertEqual(seqment_sequence.next.end, 30)
         self.assertEqual(seqment_sequence.next.next.end, 20)
+
+    def test_parse_memory_layout(self):
+        # Test case 1: Valid input
+        intf_desc = "name/0x1000/1*1024B/data,1*2048B/code"
+        result = parse_memory_layout(intf_desc)
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, MemSegment)
+
+        # Test case 2: Empty input
+        result = parse_memory_layout("")
+        self.assertIsNone(result)
+
+        # Test case 3: Invalid input with missing name
+        intf_desc = "/0x1000/1*1024B/data"
+        result = parse_memory_layout(intf_desc)
+        self.assertIsNone(result)
+
+        # Test case 4: Invalid input with missing address
+        intf_desc = "name/1*1024B/data"
+        result = parse_memory_layout(intf_desc)
+        self.assertIsNone(result)
+
+        # Test case 5: Invalid input with missing segment details
+        intf_desc = "name/0x1000/"
+        result = parse_memory_layout(intf_desc)
+        self.assertIsNotNone(result)  # Should return None, as it's invalid
 
 
 if __name__ == '__main__':
