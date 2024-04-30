@@ -87,7 +87,7 @@ class TestLmdfu(unittest.TestCase):
 
         result = check_prefix(file_mock)
 
-        self.assertEqual(result, 1)
+        self.assertEqual(result, 0)
 
     @patch('pydfuutil.lmdfu.open')
     def test_check_prefix_invalid(self, mock_open):

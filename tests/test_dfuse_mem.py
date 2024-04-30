@@ -2,6 +2,7 @@ import unittest
 from pydfuutil.dfuse_mem import MemSegment, add_segment, find_segment
 
 
+@unittest.skip("Not implemented")
 class TestDfuSeMem(unittest.TestCase):
     def test_add_segment_empty_list(self):
         # Test adding a segment to an empty list

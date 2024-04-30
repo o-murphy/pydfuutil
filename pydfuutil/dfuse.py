@@ -10,7 +10,6 @@ from enum import Enum
 
 import usb.util
 from construct import Int32ul
-import warnings
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile

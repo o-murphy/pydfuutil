@@ -11,7 +11,7 @@ from enum import IntEnum
 
 import usb.util
 from construct import Int8ul, Struct, Int16ul
-# from construct import FlagsEnum, Byte
+
 
 USB_DT_DFU = 0x21
 
@@ -21,18 +21,10 @@ class bmAttributes(IntEnum):
     USB_DFU_MANIFEST_TOL = 0x3
     USB_DFU_WILL_DETACH = 0x4
 
-# bmAttributes = FlagsEnum(
-#     Byte,
-#     USB_DFU_CAN_DOWNLOAD=0x1,  # is support updates
-#     USB_DFU_CAN_UPLOAD=0x2,  # is prog warranty ok
-#     USB_DFU_MANIFEST_TOL=0x4,
-#     USB_DFU_WILL_DETACH=0x8,
-# )
 
 USB_DFU_FUNC_DESCRIPTOR = Struct(
     bLength=Int8ul,
     bDescriptorType=Int8ul,
-    # bmAttributes=bmAttributes,
     bmAttributes=Int8ul,
     wDetachTimeOut=Int16ul,
     wTransferSize=Int16ul,
