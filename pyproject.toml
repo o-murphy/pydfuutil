@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydfuutil"
-
+version = "0.0.2b3"
 authors = [
     { name="o-murphy", email="thehelixpg@gmail.com" },
 ]
@@ -32,7 +32,7 @@ classifiers = [
 ]
 dependencies = ['pyusb', 'libusb-package', 'rich', 'construct']
 
-dynamic = ["version"]
+#dynamic = ["version"]
 
 [project.urls]
 "Homepage" = "https://github.com/o-murphy/pydfuutil"

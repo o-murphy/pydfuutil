@@ -1,6 +1,11 @@
+import logging
 import unittest
 from unittest.mock import MagicMock, patch
 from pydfuutil.lmdfu import DFUFile, add_prefix, remove_prefix, check_prefix
+from pydfuutil.logger import logger
+
+logger.setLevel(logging.DEBUG)
+
 
 class TestLmdfu(unittest.TestCase):
     @patch('pydfuutil.lmdfu.open')

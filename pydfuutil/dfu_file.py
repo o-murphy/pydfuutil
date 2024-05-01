@@ -11,11 +11,11 @@ from construct import (Struct, Const, ByteSwapped, Default,
                        Int32ub, Int16ub, Int8sb,
                        ConstError, StreamError)
 
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 
 __all__ = ('DFUFile', 'parse_dfu_suffix', 'generate_dfu_suffix')
 
-logger = get_logger("dfu-file")
+_logger = logger.getChild(__name__.split('.')[-1])
 
 DFU_SUFFIX_LENGTH = 16
 
@@ -86,7 +86,7 @@ def crc32_byte(accum: int, delta: int):
 @dataclass
 class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     """Class to store DFU file data"""
-    name: str
+    name: [str, None]
     file_p: io.FileIO = field(default=None)
     size: int = field(default=0)
     dwCRC: int = field(default=0)
@@ -95,6 +95,14 @@ class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     idVendor: int = field(default=0xffff)  # wildcard value
     idProduct: int = field(default=0xffff)  # wildcard value
     bcdDevice: int = field(default=0xffff)  # wildcard value
+
+    def parse_dfu_suffix(self) -> int:
+        """Bind parse_dfu_suffix to DFUFile instance"""
+        return parse_dfu_suffix(self)
+
+    def generate_dfu_suffix(self) -> int:
+        """Bind generate_dfu_suffix to DFUFile instance"""
+        return generate_dfu_suffix(self)
 
 
 def parse_dfu_suffix(file: DFUFile) -> int:
@@ -113,7 +121,7 @@ def parse_dfu_suffix(file: DFUFile) -> int:
             file.file_p.seek(0)
 
             if file.size < DFU_SUFFIX_LENGTH:
-                logger.error("File too short for DFU suffix")
+                _logger.error("File too short for DFU suffix")
                 return 0
 
             firmware = bytearray(file.file_p.read(file.size))
@@ -127,25 +135,25 @@ def parse_dfu_suffix(file: DFUFile) -> int:
             ret = file.file_p.readinto(dfu_suffix)
 
             if ret < 0:
-                logger.error("Could not read DFU suffix")
+                _logger.error("Could not read DFU suffix")
                 return ret
             if ret < DFU_SUFFIX_LENGTH:
-                logger.error("Could not read whole DFU suffix")
+                _logger.error("Could not read whole DFU suffix")
                 return -1
 
             suffix = _suffix.parse(dfu_suffix)
             file.dwCRC = suffix.dwCRC
 
             if file.dwCRC != crc:
-                logger.error("DFU CRC does not match")
+                _logger.error("DFU CRC does not match")
                 return 0
 
             file.bcdDFU = suffix.bcdDFU
-            logger.info(f"Dfu suffix version {hex(file.bcdDFU)}")
+            _logger.info(f"Dfu suffix version {hex(file.bcdDFU)}")
 
             file.suffix_len = dfu_suffix[11]
             if file.suffix_len < DFU_SUFFIX_LENGTH:
-                logger.error(f"Unsupported DFU suffix length {file.suffix_len}")
+                _logger.error(f"Unsupported DFU suffix length {file.suffix_len}")
                 return 0
 
             file.idVendor = suffix.idVendor
@@ -153,13 +161,13 @@ def parse_dfu_suffix(file: DFUFile) -> int:
             file.bcdDevice = suffix.bcdDevice
 
     except StreamError as e:
-        logger.error(f"Could not read whole DFU suffix, {e}")
+        _logger.error(f"Could not read whole DFU suffix, {e}")
         ret = -1
     except ConstError as e:
-        logger.error(f"No valid DFU suffix signature, {e}")
+        _logger.error(f"No valid DFU suffix signature, {e}")
         ret = 0
     except Exception as e:
-        logger.exception(e)
+        _logger.exception(e)
         ret = -1
     return ret
 
@@ -209,7 +217,7 @@ def generate_dfu_suffix(file: DFUFile) -> int:
             ret = file_p.write(dfu_suffix)
 
     except Exception as e:
-        logger.exception(e)
+        _logger.exception(e)
         ret = -1
 
     return ret

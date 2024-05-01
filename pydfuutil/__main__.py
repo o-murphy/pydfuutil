@@ -13,31 +13,33 @@ from enum import IntFlag
 from typing import Any, Callable, Literal
 
 import usb.core
+import importlib.metadata
 
-from pydfuutil import __version__, __copyright__
 from pydfuutil import dfu
 from pydfuutil import dfuse
 from pydfuutil import dfu_load
-from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
-from pydfuutil.logger import get_logger
+from pydfuutil import dfu_file
+from pydfuutil import quirks
+from pydfuutil import usb_dfu
 from pydfuutil.portable import milli_sleep
-from pydfuutil.quirks import set_quirks, QUIRK_POLLTIMEOUT, QUIRK_FORCE_DFU11
-from pydfuutil.usb_dfu import USB_DT_DFU, BmAttributes, UsbDfuFuncDescriptor
+from pydfuutil.logger import logger
 
 try:
     import libusb_package
     from usb.backend import libusb1
     libusb1.get_backend(libusb_package.find_library)
-except ImportError:
+finally:
     pass
 
-logger = get_logger("pydfuutil")
-logger.setLevel(logging.INFO)
-usb_logger = logging.getLogger('usb')
+try:
+    __version__ = importlib.metadata.version("pydfuutil")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = 'UNKNOWN'
 
+
+usb_logger = logging.getLogger('usb')
 MAX_DESC_STR_LEN = 253
 HAVE_GETPAGESIZE = not (sys.platform == 'win32')
-VERBOSE = False
 
 
 def atoi(s: str) -> int:
@@ -481,8 +483,7 @@ def usb_get_any_descriptor(dev: usb.core.Device,
     # Search through the configuration descriptor list
     ret = find_descriptor(cbuf, desc_type, desc_index, resbuf)
     if ret > 1:
-        if VERBOSE:
-            logger.info("Found descriptor in complete configuration descriptor list")
+        logger.debug("Found descriptor in complete configuration descriptor list")
         return ret
 
     # Finally try to retrieve it requesting the device directly
@@ -532,16 +533,14 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
         if ret > 1:
             break
 
-    if ret < 2 and VERBOSE:
-        logger.info("Did not find cached descriptor")
+    if ret < 2:
+        logger.debug("Did not find cached descriptor")
 
     return ret
 
 
 VERSION = (f"{__version__}\n\n"
-           f"('Copyright 2005-2008 Weston Schmidt, Harald Welte and OpenMoko Inc.')\n"
-           f"{__copyright__}\n"
-           f"This program is Free Software and has ABSOLUTELY NO WARRANTY')\n")
+           f"2023 Yaroshenko Dmytro (https://github.com/o-murphy)\n")
 
 
 class Mode(IntFlag):
@@ -570,13 +569,10 @@ def int_(value: [int, (bytes, bytearray)], order: Literal["little", "big"] = 'li
 
 
 def main() -> None:
-    # Todo: implement
-
-    global VERBOSE
 
     # Create argument parser
     parser = argparse.ArgumentParser(
-        prog="pydfuutil",
+        prog=f"pydfuutil v{__version__}",
         description="Python implementation of DFU-Util tools"
     )
 
@@ -614,9 +610,9 @@ def main() -> None:
 
     # Parse arguments
     args = parser.parse_args()
-
+    verbose = False
     dif: dfu.DfuIf = dfu.DfuIf()
-    file = DFUFile(None)
+    file = dfu_file.DFUFile(None)
     mode = Mode.NONE
     device_id_filter = None
     alt_name = None
@@ -627,11 +623,11 @@ def main() -> None:
 
     # func_dfu_rt = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
     # func_dfu = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
-    func_dfu_rt = UsbDfuFuncDescriptor()
-    func_dfu = UsbDfuFuncDescriptor()
+    func_dfu_rt = usb_dfu.FuncDescriptor()
+    func_dfu = usb_dfu.FuncDescriptor()
 
     if args.verbose:
-        VERBOSE = True
+        verbose = True
         logger.setLevel(logging.DEBUG)
         usb_logger.setLevel(logging.DEBUG)
 
@@ -686,8 +682,6 @@ def main() -> None:
 
     if args.dfuse_address:
         dfuse_options = args.dfuse_address
-
-    print(VERSION)
 
     if mode == Mode.NONE:
         logger.error("You need to specify one of -D or -U\n\n")
@@ -748,14 +742,14 @@ def main() -> None:
 
     logger.info(f"ID 0x{_rt_dif.vendor:04X}:0x{_rt_dif.product:04X}")
 
-    quirks = set_quirks(_rt_dif.vendor, _rt_dif.product, _rt_dif.bcdDevice)
+    _quirks = quirks.set_quirks(_rt_dif.vendor, _rt_dif.product, _rt_dif.bcdDevice)
 
     # Obtain run-time DFU functional descriptor without asking device
     # E.g. Free runner does not like to be requested at this point
 
     ret = get_cached_extra_descriptor(
         _rt_dif.dev, _rt_dif.configuration, _rt_dif.interface,
-        USB_DT_DFU, 0,
+        usb_dfu.USB_DT_DFU, 0,
         cpu_to_le16(func_dfu_rt.bcdDFUVersion)
     )
     ret = int_(ret)
@@ -783,7 +777,7 @@ def main() -> None:
         logger.info(f"{_log_msg}state = {status_.bState.to_string()}, "
                     f"status = {status_.bStatus}")
 
-        if not quirks & QUIRK_POLLTIMEOUT:
+        if not _quirks & quirks.QUIRK_POLLTIMEOUT:
             milli_sleep(status_.bwPollTimeout)
         return status_
 
@@ -816,7 +810,7 @@ def main() -> None:
                 logger.error("error detaching")
                 sys.exit(1)
 
-            if func_dfu_rt.bmAttributes & BmAttributes.USB_DFU_WILL_DETACH:
+            if func_dfu_rt.bmAttributes & usb_dfu.BmAttributes.USB_DFU_WILL_DETACH:
                 logger.info("Device will detach and reattach...")
             else:
                 logger.info("Resetting USB...\n")
@@ -968,7 +962,7 @@ def main() -> None:
         if status.bStatus != dfu.Status.OK:
             logger.error(f"{status.bStatus}")
             sys.exit(1)
-        if not quirks & QUIRK_POLLTIMEOUT:
+        if not _quirks & quirks.QUIRK_POLLTIMEOUT:
             milli_sleep(status.bwPollTimeout)
 
     logger.debug(f"State: {status.bState.to_string()}, "
@@ -979,14 +973,14 @@ def main() -> None:
 
     ret = get_cached_extra_descriptor(
         dif.dev, dif.configuration, dif.interface,
-        USB_DT_DFU, 0, cpu_to_le16(func_dfu.bcdDFUVersion)
+        usb_dfu.USB_DT_DFU, 0, cpu_to_le16(func_dfu.bcdDFUVersion)
     )
     ret = int_(ret)
 
     if ret < 7:
         logger.error("obtaining cached DFU functional descriptor")
         ret = usb_get_any_descriptor(
-            dif.dev, USB_DT_DFU, 0,
+            dif.dev, usb_dfu.USB_DT_DFU, 0,
             cpu_to_le16(func_dfu_rt.bcdDFUVersion)
         )
         ret = int_(ret)
@@ -1002,7 +996,7 @@ def main() -> None:
         logger.warning("Warning: Transfer size can not be detected")
         func_dfu.wTransferSize = 0
 
-    if quirks & QUIRK_FORCE_DFU11:
+    if _quirks & quirks.QUIRK_FORCE_DFU11:
         func_dfu.bcdDFUVersion = 0x0110
 
     logger.info(f"DFU mode device DFU version  0x{func_dfu.bcdDFUVersion:04X}")
@@ -1062,7 +1056,8 @@ def main() -> None:
                     sys.exit(1)
 
                 # Parse DFU suffix
-                ret = parse_dfu_suffix(file)
+                # ret = dfu_file.parse_dfu_suffix(file)
+                ret = file.parse_dfu_suffix()
                 if ret < 0:
                     sys.exit(1)
                 elif ret == 0:
@@ -1086,7 +1081,7 @@ def main() -> None:
                     if dfuse.do_dnload(dif, transfer_size, file, dfuse_options) < 0:
                         sys.exit(1)
                 else:
-                    if dfu_load.do_dnload(dif, transfer_size, file, quirks, VERBOSE) < 0:
+                    if dfu_load.do_dnload(dif, transfer_size, file, _quirks, verbose) < 0:
                         sys.exit(1)
 
         except OSError as e:

@@ -8,7 +8,7 @@ https://www.ti.com/general/docs/lit/getliterature.tsp?literatureNumber=spma003&f
 """
 
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix, generate_dfu_suffix
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 
 __all__ = ('dfu_prefix',
            'add_prefix',
@@ -17,7 +17,7 @@ __all__ = ('dfu_prefix',
            'parse_dfu_suffix',
            'generate_dfu_suffix')
 
-logger = get_logger("lmdfu")
+_logger = logger.getChild(__name__.split('.')[-1])
 
 # dfu_prefix payload length excludes prefix and suffix
 
@@ -71,11 +71,11 @@ def add_prefix(file: DFUFile, address: int) -> int:
         # Write file content after the TI Stellaris DFU prefix
         file.file_p.write(data)
 
-        logger.info("TI Stellaris DFU prefix added.")
+        _logger.info("TI Stellaris DFU prefix added.")
 
         return 0
     except Exception as e:
-        logger.error(f"Error: {e}")
+        _logger.error(f"Error: {e}")
         return -1
 
 
@@ -88,7 +88,7 @@ def remove_prefix(file: DFUFile) -> int:
     """
 
     try:
-        logger.info("Remove TI Stellaris prefix")
+        _logger.info("Remove TI Stellaris prefix")
 
         # Get file length
         file.file_p.seek(0, 2)
@@ -100,7 +100,7 @@ def remove_prefix(file: DFUFile) -> int:
 
         # Check if the file has enough data to contain the prefix
         if length < 16:
-            logger.error("Error: File does not contain a valid prefix.")
+            _logger.error("Error: File does not contain a valid prefix.")
             return -1
 
         # Truncate the file
@@ -110,11 +110,11 @@ def remove_prefix(file: DFUFile) -> int:
         # Write data without the TI Stellaris prefix
         file.file_p.write(data[16:])
 
-        logger.info("TI Stellaris prefix removed")
+        _logger.info("TI Stellaris prefix removed")
         return 0
 
     except Exception as e:
-        logger.error(f"Error: {e}")
+        _logger.error(f"Error: {e}")
         return -1
 
 
@@ -127,7 +127,7 @@ def check_prefix(file: DFUFile) -> int:
     """
 
     try:
-        logger.info("Check TI Stellaris prefix")
+        _logger.info("Check TI Stellaris prefix")
 
         # Allocate buffer for reading the prefix
         data = bytearray(16)
@@ -135,19 +135,19 @@ def check_prefix(file: DFUFile) -> int:
         # Read prefix from the file
         ret = file.file_p.readinto(data)
         if ret < 16:
-            logger.error("Error: Could not read prefix")
+            _logger.error("Error: Could not read prefix")
             return -1
 
         # Check if it's a valid TI Stellaris DFU prefix
         if data[0] != 0x01 or data[1] != 0x00:
-            logger.info("Not a valid TI Stellaris DFU prefix")
+            _logger.info("Not a valid TI Stellaris DFU prefix")
             ret = 0
         else:
-            logger.info("Possible TI Stellaris DFU prefix with the following properties:")
+            _logger.info("Possible TI Stellaris DFU prefix with the following properties:")
             address = 1024 * (data[3] << 8 | data[2])
             payload_length = data[4] | data[5] << 8 | data[6] << 16 | data[7] << 24
-            logger.info(f"Address:        0x{address:08X}")
-            logger.info(f"Payload length: {payload_length}")
+            _logger.info(f"Address:        0x{address:08X}")
+            _logger.info(f"Payload length: {payload_length}")
 
         # Rewind the file
         file.file_p.seek(0)
@@ -155,5 +155,5 @@ def check_prefix(file: DFUFile) -> int:
         return ret
 
     except Exception as e:
-        logger.error(f"Error: {e}")
+        _logger.error(f"Error: {e}")
         return -1

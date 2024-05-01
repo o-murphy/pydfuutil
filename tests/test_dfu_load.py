@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from pydfuutil.dfu_load import *
+from pydfuutil import dfu
+from pydfuutil.dfu_load import DFUFile, do_upload, do_dnload
 
 
 class TestDFULoader(unittest.TestCase):
@@ -33,7 +34,7 @@ class TestDFULoader(unittest.TestCase):
 
         file = DFUFile(name='test_file', file_p=Mock(), size=xfer_size, suffix_len=0)
         quirks = 0
-        verbose = True
+        verbose = False
 
         # Mock file_p.readinto to return the length of the data read
         with patch.object(file.file_p, 'readinto', return_value=xfer_size) as mock_readinto:

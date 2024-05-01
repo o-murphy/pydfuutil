@@ -4,14 +4,17 @@ low-level DFU message sending routines (part of dfu-programmer).
 """
 
 import inspect
+import logging
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
 
 import usb.util
 
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 
-logger = get_logger(__name__)
+
+_logger = logger.getChild(__name__.split('.')[-1])
+_logger.setLevel(logging.DEBUG)
 
 
 class State(IntEnum):
@@ -265,7 +268,7 @@ def debug(level: int) -> None:
     # pylint: disable=global-statement
     global DEBUG_LEVEL
     DEBUG_LEVEL = level
-    logger.setLevel(level)
+    _logger.setLevel(level)
 
 
 def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
@@ -288,7 +291,7 @@ def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     :return: returns error code
     """
     verify_init()
-    logger.debug('DETACH...')
+    _logger.debug('DETACH...')
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT
                       | usb.util.CTRL_TYPE_CLASS
@@ -299,7 +302,7 @@ def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
         data_or_wLength=None,
         timeout=TIMEOUT,
     )
-    logger.debug(f'DETACH {result >= 0}')
+    _logger.debug(f'DETACH {result >= 0}')
     return result
 
 
@@ -326,7 +329,7 @@ def download(device: usb.core.Device,
     :return: downloaded data or error code in bytes
     """
     verify_init()
-    logger.debug('DFU_DOWNLOAD...')
+    _logger.debug('DFU_DOWNLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT
@@ -339,7 +342,7 @@ def download(device: usb.core.Device,
         timeout=TIMEOUT,
     )
 
-    logger.debug(f'DFU_DOWNLOAD {result >= 0}')
+    _logger.debug(f'DFU_DOWNLOAD {result >= 0}')
     return result
 
 
@@ -366,7 +369,7 @@ def upload(device: usb.core.Device,
     :return: uploaded data or error code in bytes
     """
     verify_init()
-    logger.debug('DFU_UPLOAD...')
+    _logger.debug('UPLOAD...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN
@@ -379,7 +382,7 @@ def upload(device: usb.core.Device,
         timeout=TIMEOUT,
     )
 
-    logger.debug(f'DFU_UPLOAD {len(result) >= 0}')
+    _logger.debug(f'UPLOAD {len(result) >= 0}')
 
     return result.tobytes()
 
@@ -400,7 +403,7 @@ def get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
     :return: error code and _STATUS [Container, dict] object
     """
     verify_init()
-    logger.debug('DFU_GET_STATUS...')
+    _logger.debug('DFU_GET_STATUS...')
 
     length = 6
     result = device.ctrl_transfer(
@@ -416,8 +419,8 @@ def get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
 
     if len(result) == length:
         status = StatusRetVal.from_bytes(result.tobytes())
-        logger.debug(f'DFU_GET_STATUS {len(result) == 6}')
-        logger.debug(f'CURRENT STATE {status.bState.to_string()}')
+        _logger.debug(f'GET_STATUS {len(result) == 6}')
+        _logger.debug(f'CURRENT STATE {status.bState.to_string()}')
         return status
     return StatusRetVal.from_bytes(result)
 
@@ -437,7 +440,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
     :return: error code
     """
     verify_init()
-    logger.debug('DFU_CLEAR_STATUS...')
+    _logger.debug('CLEAR_STATUS...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT
@@ -449,7 +452,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
         data_or_wLength=None,
         timeout=TIMEOUT,
     )
-    logger.debug(f'DFU_CLEAR_STATUS {result >= 0}')
+    _logger.debug(f'CLEAR_STATUS {result >= 0}')
 
     return result
 
@@ -507,7 +510,7 @@ def abort(device: usb.core.Device, interface: int) -> int:
     :return: error code
     """
     verify_init()
-    logger.debug('ABORT...')
+    _logger.debug('ABORT...')
 
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT
@@ -520,7 +523,7 @@ def abort(device: usb.core.Device, interface: int) -> int:
         timeout=TIMEOUT,
     )
 
-    logger.debug(f'ABORT {result >= 0}')
+    _logger.debug(f'ABORT {result >= 0}')
 
     return result
 

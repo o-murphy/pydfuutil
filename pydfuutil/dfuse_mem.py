@@ -9,9 +9,9 @@ from dataclasses import dataclass, field
 from enum import IntFlag
 from typing import Iterator
 
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 
-logger = get_logger("dfuse_mem")
+_logger = logger.getChild(__name__.split('.')[-1])
 
 
 class DFUSE(IntFlag):
@@ -158,7 +158,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
     :return: MemSegment instance
     """
 
-    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    _logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     if isinstance(intf_desc, bytes):
         intf_desc = intf_desc.decode('ascii')
@@ -169,10 +169,10 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
 
     match = re.match(r'@([^/]+)', intf_desc)
     if match is None:
-        logger.error(f"Could not read name, name={match}")
+        _logger.error(f"Could not read name, name={match}")
         return None
     name = match.group(1)
-    logger.info(f"DfuSe interface name: {name}")
+    _logger.info(f"DfuSe interface name: {name}")
 
     intf_desc = intf_desc[match.end():]
 
@@ -187,7 +187,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
             _sectors, _size, multiplier, type_string = match.groups()
             sectors, size = int(_sectors), int(_size)
 
-            logger.debug(f"{sectors=}, {size=}, {multiplier=}, {type_string=}")
+            _logger.debug(f"{sectors=}, {size=}, {multiplier=}, {type_string=}")
 
             intf_desc = intf_desc[match.end():]
             count += 1
@@ -201,16 +201,16 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
                 size *= 1024 * 1024
             elif multiplier in ('a', 'b', 'c', 'd', 'e', 'f', 'g'):
                 if not mem_type:
-                    logger.warning(f"Non-valid multiplier {multiplier}, "
+                    _logger.warning(f"Non-valid multiplier {multiplier}, "
                                    "interpreted as type identifier instead")
                     mem_type = multiplier
 
             # fallthrough if mem_type was already set
             else:
-                logger.warning(f"Non-valid multiplier {multiplier} assuming bytes")
+                _logger.warning(f"Non-valid multiplier {multiplier} assuming bytes")
 
             if not mem_type:
-                logger.warning(f"No valid type for segment {count}")
+                _logger.warning(f"No valid type for segment {count}")
 
             segment_stack = add_segment(
                 segment_stack,
@@ -222,7 +222,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
                 )
             )
 
-            logger.debug(f"Memory segment at "
+            _logger.debug(f"Memory segment at "
                          f"0x{address:08x} {sectors} x {size} = {sectors * size} "
                          f"({'r' if mem_type & DFUSE.READABLE else ''}"
                          f"{'e' if mem_type & DFUSE.ERASABLE else ''}"
@@ -230,9 +230,9 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
 
             address += sectors * size
 
-        logger.debug(f"Parsed details of {count} segments")
+        _logger.debug(f"Parsed details of {count} segments")
 
     if address is None:
-        logger.error(f"Could not read address, {address=}")
+        _logger.error(f"Could not read address, {address=}")
 
     return segment_stack

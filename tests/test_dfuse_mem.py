@@ -1,5 +1,5 @@
 import unittest
-from pydfuutil.dfuse_mem import MemSegment, add_segment, find_segment, parse_memory_layout
+from pydfuutil.dfuse_mem import MemSegment, add_segment, parse_memory_layout
 
 
 class TestDfuSeMem(unittest.TestCase):
@@ -68,7 +68,7 @@ class TestDfuSeMem(unittest.TestCase):
     def test_parse_memory_layout(self):
         with self.subTest("Test case 1: Valid input"):
             intf_desc = "@Internal Flash/0x08000000/04*016Kg,01*064Kg,01*128Kg"
-            result = parse_memory_layout(intf_desc, True)
+            result = parse_memory_layout(intf_desc)
             self.assertIsNotNone(result)
             self.assertIsInstance(result, MemSegment)
             self.assertEqual(len(result), 3)
@@ -79,17 +79,17 @@ class TestDfuSeMem(unittest.TestCase):
 
         with self.subTest("Test case 3: Invalid input with missing name"):
             intf_desc = "/0x1000/1*1024B/04*016Kg"
-            result = parse_memory_layout(intf_desc, True)
+            result = parse_memory_layout(intf_desc)
             self.assertIsNone(result)
 
         with self.subTest("Test case 4: Invalid input with missing address"):
             intf_desc = "@Internal Flash/1*1024B/"
-            result = parse_memory_layout(intf_desc, True)
+            result = parse_memory_layout(intf_desc)
             self.assertIsNone(result)
 
         with self.subTest("Test case 5: Invalid input with missing segment details"):
             intf_desc = "@Internal Flash/0x08000000/"
-            result = parse_memory_layout(intf_desc, True)
+            result = parse_memory_layout(intf_desc)
             self.assertIsNone(result)  # Should return None, as it's invalid
 
 

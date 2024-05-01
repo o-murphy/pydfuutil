@@ -7,11 +7,11 @@ from rich import progress
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.quirks import QUIRK_POLLTIMEOUT, DEFAULT_POLLTIMEOUT
 
-logger = get_logger(__name__)
+_logger = logger.getChild(__name__.split('.')[-1])
 
 
 _progress_bar = progress.Progress(
@@ -39,8 +39,8 @@ def do_upload(dif: dfu.DfuIf,
     :return: uploaded bytes or error code
     """
 
-    logger.info(f"bytes_per_hash={xfer_size}")
-    logger.info("Copying data from DFU device to PC")
+    _logger.info(f"bytes_per_hash={xfer_size}")
+    _logger.info("Copying data from DFU device to PC")
 
     upload_task = _progress_bar.add_task(
         '[magenta1]Starting upload',
@@ -62,7 +62,7 @@ def do_upload(dif: dfu.DfuIf,
             write_rc = file.file_p.write(rc)
 
             if write_rc < len(rc):
-                logger.error(f'Short file write: {write_rc}')
+                _logger.error(f'Short file write: {write_rc}')
                 ret = total_bytes
                 break
 
@@ -80,7 +80,7 @@ def do_upload(dif: dfu.DfuIf,
     _progress_bar.stop()
     _progress_bar.remove_task(upload_task)
 
-    logger.debug(f"Received a total of {total_bytes} bytes")
+    _logger.debug(f"Received a total of {total_bytes} bytes")
     return ret
 
 
@@ -95,7 +95,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
     :return:
     """
 
-    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    _logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     bytes_sent = 0
     buf = bytearray(xfer_size)
@@ -103,10 +103,10 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
     bytes_per_hash = (file.size - file.suffix_len) // PROGRESS_BAR_WIDTH
     if bytes_per_hash == 0:
         bytes_per_hash = 1
-    logger.info(f"bytes_per_hash={bytes_per_hash}")
+    _logger.info(f"bytes_per_hash={bytes_per_hash}")
 
-    logger.info("Copying data from PC to DFU device")
-    logger.info("Starting download: ")
+    _logger.info("Copying data from PC to DFU device")
+    _logger.info("Starting download: ")
     print("[", end="")
 
     try:
@@ -152,14 +152,14 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
             raise IOError("Error sending completion packet")
 
         print("]")
-        logger.info("finished!")
-        logger.debug(f"Sent a total of {bytes_sent} bytes")
+        _logger.info("finished!")
+        _logger.debug(f"Sent a total of {bytes_sent} bytes")
 
         # Transition to MANIFEST_SYNC state
         # if int(status := dfu.get_status(dif.dev, dif.interface)) < 0:
         if int(status := dif.get_status()) < 0:
             raise IOError("Unable to read DFU status")
-        logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
+        _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                     f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
         if not quirks & QUIRK_POLLTIMEOUT:
@@ -176,10 +176,10 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
                   f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
         if status.bState == dfu.State.DFU_IDLE:
-            logger.info("Done!")
+            _logger.info("Done!")
 
     except IOError as err:
-        logger.error(err)
+        _logger.error(err)
         return -1
 
     return bytes_sent

@@ -26,7 +26,8 @@ class BmAttributes(IntEnum):
 
 
 @dataclass
-class UsbDfuFuncDescriptor:
+class FuncDescriptor:
+    """USB_DFU_FUNC_DESCRIPTOR's'"""
     bLength: int = 0
     bDescriptorType: int = 0
     bmAttributes: BmAttributes = 0

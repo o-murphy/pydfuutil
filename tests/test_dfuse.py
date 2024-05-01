@@ -171,6 +171,7 @@ class TestDoUpload(unittest.TestCase):
         mock_parse_options.side_effect = ValueError("No options provided")
         self.assertEqual(dfuse.do_upload(self.dfu_if, self.xfer_size, self.file, self.dfuse_options), -1)
 
+
 class TestDnloadElement(unittest.TestCase):
 
     def setUp(self):
@@ -188,31 +189,38 @@ class TestDnloadElement(unittest.TestCase):
         self.xfer_size = 512
 
         self.dfu_if.get_status.side_effect = [
-            dfu.StatusRetVal(bState=dfu.State.DFU_DOWNLOAD_BUSY, bStatus=dfu.Status.OK),
-            dfu.StatusRetVal(bState=dfu.State.DFU_IDLE, bStatus=dfu.Status.OK),
-            dfu.StatusRetVal(bState=dfu.State.DFU_IDLE, bStatus=dfu.Status.OK),
-        ] * (self.dw_element_size // self.xfer_size)
+                                                 dfu.StatusRetVal(bState=dfu.State.DFU_DOWNLOAD_BUSY,
+                                                                  bStatus=dfu.Status.OK),
+                                                 dfu.StatusRetVal(bState=dfu.State.DFU_IDLE, bStatus=dfu.Status.OK),
+                                                 dfu.StatusRetVal(bState=dfu.State.DFU_IDLE, bStatus=dfu.Status.OK),
+                                             ] * (self.dw_element_size // self.xfer_size)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
     @patch('pydfuutil.dfuse.dnload_chunk')
     def test_dnload_element_success(self, mock_dnload_chunk, mock_find_segment):
         mock_find_segment.return_value = Mock(mem_type=dfuse_mem.DFUSE.WRITEABLE)
         mock_dnload_chunk.return_value = 512
-        self.assertEqual(dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size), 512)
+        self.assertEqual(
+            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size),
+            512)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
     @patch('pydfuutil.dfuse.dnload_chunk')
     def test_dnload_element_segment_not_found(self, mock_dnload_chunk, mock_find_segment):
         mock_find_segment.return_value = None
         mock_dnload_chunk.return_value = -1
-        self.assertEqual(dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size), -1)
+        self.assertEqual(
+            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size),
+            -1)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
     @patch('pydfuutil.dfuse.dnload_chunk')
     def test_dnload_element_segment_not_writeable(self, mock_dnload_chunk, mock_find_segment):
         mock_find_segment.return_value = Mock(mem_type=0)
         mock_dnload_chunk.return_value = -1
-        self.assertEqual(dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size), -1)
+        self.assertEqual(
+            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size),
+            -1)
 
 
 class TestDoBinDnload(unittest.TestCase):
@@ -228,7 +236,8 @@ class TestDoBinDnload(unittest.TestCase):
     @patch('pydfuutil.dfuse.dnload_element')
     def test_do_bin_dnload_success(self, mock_dnload_element):
         mock_dnload_element.return_value = 0
-        self.assertEqual(dfuse.do_bin_dnload(self.dfu_if, self.xfer_size, self.file, self.start_address), self.file.size)
+        self.assertEqual(dfuse.do_bin_dnload(self.dfu_if, self.xfer_size, self.file, self.start_address),
+                         self.file.size)
 
     @patch('pydfuutil.dfuse.dnload_element')
     def test_do_bin_dnload_failure(self, mock_dnload_element):
