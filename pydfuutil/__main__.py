@@ -16,7 +16,7 @@ import usb.core
 
 from pydfuutil import __version__, __copyright__
 from pydfuutil import dfu
-# from pydfuutil import dfuse
+from pydfuutil import dfuse
 from pydfuutil import dfu_load
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
 from pydfuutil.logger import get_logger
@@ -561,34 +561,6 @@ def le16_to_cpu(data):
     return int.from_bytes(data, byteorder='little')
 
 
-# class IntOrBytes:
-#     def __init__(self, value):
-#         if isinstance(value, int):
-#             self._value = value
-#         elif isinstance(value, bytes):
-#             self._value = int.from_bytes(value, byteorder='big', signed=True)
-#         else:
-#             raise TypeError("Value must be int or bytes")
-#
-#     def __lt__(self, other):
-#         if isinstance(other, IntOrBytes):
-#             return self._value < other._value
-#         if isinstance(other, int):
-#             return self._value < other
-#         raise TypeError("Comparison with unsupported type")
-#
-#     def __eq__(self, other):
-#         if isinstance(other, IntOrBytes):
-#             return self._value == other._value
-#         elif isinstance(other, int):
-#             return self._value == other
-#         else:
-#             raise TypeError("Comparison with unsupported type")
-#
-#     def __repr__(self):
-#         return f"IntOrBytes({self._value})"
-
-
 def int_(value: [int, (bytes, bytearray)], order: Literal["little", "big"] = 'little'):
     if isinstance(value, int):
         return value
@@ -1071,8 +1043,6 @@ def main() -> None:
 
 
                 if dfuse_device or dfuse_options:
-                    raise NotImplementedError("DfuSe devices aren't support yet")
-
                     if dfuse.do_upload(dif, transfer_size, file, dfuse_options) < 0:
                         sys.exit(1)
                 else:
@@ -1113,8 +1083,6 @@ def main() -> None:
 
                 # Perform download based on conditions
                 if dfuse_device or dfuse_options or file.bcdDFU == 0x011a:
-                    raise NotImplementedError("DfuSe devices aren't support yet")
-
                     if dfuse.do_dnload(dif, transfer_size, file, dfuse_options) < 0:
                         sys.exit(1)
                 else:

@@ -17,8 +17,6 @@ from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
 
 logger = get_logger(__name__)
-logger.warning("Module pydfuutil.dfuse aren't work as expected, "
-               "will reimplemented in future")
 
 VERBOSE = False
 MEM_LAYOUT: [MemSegment, None] = None
@@ -443,7 +441,7 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
     dfu_prefix = file.file_p.read(11)
     read_bytes = len(dfu_prefix)
 
-    if dfu_prefix != b'DfuSe\x01':
+    if b'DfuSe\x01' not in dfu_prefix:
         logger.error("No valid DfuSe signature")
         return -errno.EINVAL
 
@@ -460,7 +458,6 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
             return -errno.EINVAL
 
         bAlternateSetting = target_prefix[6]
-        # dwNbElements = Int32ul.parse(target_prefix[266:270])
         dwNbElements = int.from_bytes(target_prefix[266:270], byteorder='little')
         size = int.from_bytes(target_prefix[270:274], byteorder='little')
         logger.info(
@@ -527,6 +524,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
         if not MEM_LAYOUT:
             raise IOError("Failed to parse memory layout")
 
+        print(opts.unprotect)
         if opts.unprotect:
             if not opts.force:
                 raise PermissionError(
@@ -558,6 +556,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
                          ", (for raw binary download, use the --dfuse-address option)")
             return -1
         ret = do_dfuse_dnload(dif, xfer_size, file)
+        print(ret)
 
     # free_segment_list(MEM_LAYOUT)
     MEM_LAYOUT = None
