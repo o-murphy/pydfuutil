@@ -80,6 +80,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
         if command == Command.ERASE_PAGE:
             segment = find_segment(MEM_LAYOUT, address)
+            print(segment)
             if not segment or not segment.mem_type & DFUSE.ERASABLE:
                 raise IOError(f"Page at 0x{address:08x} cannot be erased")
 
@@ -114,7 +115,6 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if download(dif, buf, 0) < 0:
             raise IOError("Error during special command download")
 
-        # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
         ret = int(dst := dif.get_status())
         if ret < 0:
             raise IOError("Error during special command get_status")
@@ -131,7 +131,6 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if command == Command.READ_UNPROTECT:
             return ret
 
-        # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
         ret = int(dst := dif.get_status())
         if ret < 0:
             logger.error(
@@ -144,7 +143,6 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
         milli_sleep(dst.bwPollTimeout)
 
-        # if dfu.abort(dif.dev, dif.interface) < 0:
         if dif.abort() < 0:
             raise IOError("Error sending dfu abort request")
 
