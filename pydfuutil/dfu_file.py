@@ -86,7 +86,6 @@ def crc32_byte(accum: int, delta: int):
 @dataclass
 class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     """Class to store DFU file data"""
-
     name: str
     filep: io.FileIO = field(default=None)
     size: int = field(default=0)

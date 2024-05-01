@@ -6,14 +6,16 @@ Protocol definitions for USB DFU
 This ought to be compliant to the USB DFU Spec 1.0 as available from
 https://www.usb.org/developers/devclass_docs/usbdfu10.pdf
 """
-
+from dataclasses import dataclass
 from enum import IntEnum
 
 import usb.util
-from construct import Int8ul, Struct, Int16ul
 
 
 USB_DT_DFU = 0x21
+USB_DT_DFU_SIZE = 9
+USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
+
 
 class bmAttributes(IntEnum):
     """Enum of DFU_FUNC_DESCRIPTOR's bmAttributes"""
@@ -23,18 +25,15 @@ class bmAttributes(IntEnum):
     USB_DFU_WILL_DETACH = 0x4
 
 
-USB_DFU_FUNC_DESCRIPTOR = Struct(
-    bLength=Int8ul,
-    bDescriptorType=Int8ul,
-    bmAttributes=Int8ul,
-    wDetachTimeOut=Int16ul,
-    wTransferSize=Int16ul,
-    bcdDFUVersion=Int16ul,
-)
+@dataclass
+class UsbDfuFuncDescriptor:
+    bLength: int = 0
+    bDescriptorType: int = 0
+    bmAttributes: bmAttributes = 0
+    wDetachTimeOut: int = 0
+    wTransferSize: int = 0
+    bcdDFUVersion: int = 0
 
-USB_DT_DFU_SIZE = 9
-
-USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
 
 # DFU class-specific requests (Section 3, DFU Rev 1.1)

@@ -25,7 +25,7 @@ class TestDFULoader(unittest.TestCase):
     def test_dfu_load_do_dnload(self):
 
         xfer_size = 1024
-        result = dfu.StatusData(dfu.Status.OK, 100, dfu.State.DFU_DOWNLOAD_IDLE, 0)
+        result = dfu.StatusRetVal(dfu.Status.OK, 100, dfu.State.DFU_DOWNLOAD_IDLE, 0)
 
         dif = Mock()
         dif.download.return_value = xfer_size

@@ -53,13 +53,6 @@ def do_upload(dif: dfu.DfuIf,
     buf = bytearray(xfer_size)
 
     while True:
-        # rc = dfu.upload(
-        #     device=dif.dev,
-        #     interface=dif.interface,
-        #     transaction=transaction,
-        #     data_or_length=buf
-        # )
-
         rc = dif.upload(transaction, buf)
 
         if len(rc) < 0:
@@ -82,7 +75,6 @@ def do_upload(dif: dfu.DfuIf,
             break
 
         transaction += 1
-        # _progress_bar.update(upload_task, advance=xfer_size)
         _progress_bar.update(upload_task, advance=xfer_size, description='[magenta1]Uploading...')
 
     _progress_bar.update(upload_task, description='[yellow4]Upload finished!')

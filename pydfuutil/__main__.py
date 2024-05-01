@@ -22,7 +22,7 @@ from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
 from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.quirks import set_quirks, QUIRK_POLLTIMEOUT, QUIRK_FORCE_DFU11
-from pydfuutil.usb_dfu import USB_DT_DFU, bmAttributes, USB_DFU_FUNC_DESCRIPTOR
+from pydfuutil.usb_dfu import USB_DT_DFU, bmAttributes, UsbDfuFuncDescriptor
 
 try:
     import libusb_package
@@ -653,8 +653,10 @@ def main() -> None:
     dfuse_options = None
     final_reset = 0
 
-    func_dfu_rt = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
-    func_dfu = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
+    # func_dfu_rt = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
+    # func_dfu = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
+    func_dfu_rt = UsbDfuFuncDescriptor()
+    func_dfu = UsbDfuFuncDescriptor()
 
     if args.verbose:
         VERBOSE = True
@@ -781,8 +783,8 @@ def main() -> None:
 
     ret = get_cached_extra_descriptor(
         _rt_dif.dev, _rt_dif.configuration, _rt_dif.interface,
-        # USB_DT_DFU, 0, le16_to_cpu(func_dfu_rt.bcdDFUVersion)
-        USB_DT_DFU, 0, USB_DFU_FUNC_DESCRIPTOR.bcdDFUVersion.build(func_dfu_rt.bcdDFUVersion)
+        USB_DT_DFU, 0,
+        cpu_to_le16(func_dfu_rt.bcdDFUVersion)
     )
     ret = int_(ret)
     if ret == 7:
@@ -803,9 +805,6 @@ def main() -> None:
     def check_status():
         logger.debug('Status again')
         _log_msg = "Determining device status: "
-        # ret = int(status_ := dfu.get_status(_rt_dif.dev, _rt_dif.interface))
-        # ret = int(status_ := dif.get_status())
-        # if ret < 0:
         if int(status_ := dif.get_status()) < 0:
             logger.error(f"{_log_msg}error get_status")
             sys.exit(1)
@@ -841,7 +840,6 @@ def main() -> None:
             logger.info("Device really in Runtime Mode, send DFU "
                         "detach request...")
 
-            # if IntOrBytes(dfu.detach(_rt_dif.dev, _rt_dif.interface, 1000)) < 0:
             if int_(_rt_dif.detach(1000)) < 0:
                 logger.error("error detaching")
                 sys.exit(1)
@@ -979,7 +977,6 @@ def main() -> None:
 
         elif status.bState == (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_UPLOAD_IDLE):
             logger.warning("aborting previous incomplete transfer")
-            # if dfu.abort(dif.dev, dif.interface) < 0:
             if dif.abort() < 0:
                 logger.error("can't send DFU_ABORT")
                 sys.exit(1)
@@ -992,9 +989,9 @@ def main() -> None:
 
     if status.bStatus != dfu.Status.OK:
         logger.warning(f"DFU Status: {status.bStatus.to_string()}")
+
         # Clear our status & try again.
         dfu.clear_status(dif.dev, dif.interface)
-        # _ = int(status := dfu.get_status(dif.dev, dif.interface))
         _ = int(status := dif.get_status())
         if status.bStatus != dfu.Status.OK:
             logger.error(f"{status.bStatus}")
@@ -1010,7 +1007,7 @@ def main() -> None:
 
     ret = get_cached_extra_descriptor(
         dif.dev, dif.configuration, dif.interface,
-        USB_DT_DFU, 0, USB_DFU_FUNC_DESCRIPTOR.bcdDFUVersion.build(func_dfu.bcdDFUVersion)
+        USB_DT_DFU, 0, cpu_to_le16(func_dfu.bcdDFUVersion)
     )
     ret = int_(ret)
 
@@ -1018,7 +1015,8 @@ def main() -> None:
         logger.error("obtaining cached DFU functional descriptor")
         ret = usb_get_any_descriptor(
             dif.dev, USB_DT_DFU, 0,
-            USB_DFU_FUNC_DESCRIPTOR.bcdDFUVersion.build(func_dfu_rt.bcdDFUVersion))
+            cpu_to_le16(func_dfu_rt.bcdDFUVersion)
+        )
         ret = int_(ret)
 
     if ret == 7:
@@ -1115,6 +1113,8 @@ def main() -> None:
 
                 # Perform download based on conditions
                 if dfuse_device or dfuse_options or file.bcdDFU == 0x011a:
+                    raise NotImplementedError("DfuSe devices aren't support yet")
+
                     if dfuse.do_dnload(dif, transfer_size, file, dfuse_options) < 0:
                         sys.exit(1)
                 else:

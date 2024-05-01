@@ -124,7 +124,7 @@ class Mode(IntFlag):
 
 
 @dataclass(frozen=True)
-class StatusData:
+class StatusRetVal:
     """
     Converts dfu_get_status result bytes to applicable dataclass
     """
@@ -136,7 +136,7 @@ class StatusData:
 
     @classmethod
     def from_bytes(cls, data: bytes):
-        """Creates StatusData instance from bytes sequence"""
+        """Creates StatusRetVal instance from bytes sequence"""
         if len(data) >= 6:
             bStatus = (Status(data[0])
                        if data[0] in Status.__members__.values()
@@ -214,7 +214,7 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
         """Binds self to dfu.abort()"""
         return abort(self.dev, self.interface)
 
-    def get_status(self) -> StatusData:
+    def get_status(self) -> StatusRetVal:
         """Binds self to dfu.get_status()"""
         return get_status(self.dev, self.interface)
 
@@ -382,7 +382,7 @@ def upload(device: usb.core.Device,
     return result.tobytes()
 
 
-def get_status(device: usb.core.Device, interface: int) -> StatusData:
+def get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
     """
      *  GETSTATUS Request (DFU Spec 1.0, Section 6.1.2)
      *
@@ -413,11 +413,11 @@ def get_status(device: usb.core.Device, interface: int) -> StatusData:
     )
 
     if len(result) == length:
-        status = StatusData.from_bytes(result.tobytes())
+        status = StatusRetVal.from_bytes(result.tobytes())
         logger.debug(f'DFU_GET_STATUS {len(result) == 6}')
         logger.debug(f'CURRENT STATE {status.bState.to_string()}')
         return status
-    return StatusData.from_bytes(result)
+    return StatusRetVal.from_bytes(result)
 
 
 def clear_status(device: usb.core.Device, interface: int) -> int:
