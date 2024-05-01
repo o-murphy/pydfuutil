@@ -17,8 +17,8 @@ USB_DT_DFU_SIZE = 9
 USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
 
-class bmAttributes(IntEnum):
-    """Enum of DFU_FUNC_DESCRIPTOR's bmAttributes"""
+class BmAttributes(IntEnum):
+    """Enum of DFU_FUNC_DESCRIPTOR's BmAttributes"""
     USB_DFU_CAN_DOWNLOAD = 0x1
     USB_DFU_CAN_UPLOAD = 0x2
     USB_DFU_MANIFEST_TOL = 0x3
@@ -29,7 +29,7 @@ class bmAttributes(IntEnum):
 class UsbDfuFuncDescriptor:
     bLength: int = 0
     bDescriptorType: int = 0
-    bmAttributes: bmAttributes = 0
+    bmAttributes: BmAttributes = 0
     wDetachTimeOut: int = 0
     wTransferSize: int = 0
     bcdDFUVersion: int = 0

@@ -22,7 +22,7 @@ from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
 from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.quirks import set_quirks, QUIRK_POLLTIMEOUT, QUIRK_FORCE_DFU11
-from pydfuutil.usb_dfu import USB_DT_DFU, bmAttributes, UsbDfuFuncDescriptor
+from pydfuutil.usb_dfu import USB_DT_DFU, BmAttributes, UsbDfuFuncDescriptor
 
 try:
     import libusb_package
@@ -844,7 +844,7 @@ def main() -> None:
                 logger.error("error detaching")
                 sys.exit(1)
 
-            if func_dfu_rt.bmAttributes & bmAttributes.USB_DFU_WILL_DETACH:
+            if func_dfu_rt.bmAttributes & BmAttributes.USB_DFU_WILL_DETACH:
                 logger.info("Device will detach and reattach...")
             else:
                 logger.info("Resetting USB...\n")
@@ -1064,7 +1064,7 @@ def main() -> None:
     if mode == Mode.UPLOAD:
         # open for "exclusive" writing in a portable way
         try:
-            with open(file.name, "ab") as file.filep:
+            with open(file.name, "ab") as file.file_p:
                 if os.path.getsize(file.name) != 0:
                     logger.info(f"{file.name}: File exists")
                     sys.exit(1)

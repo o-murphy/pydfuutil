@@ -13,7 +13,6 @@ from pydfuutil.quirks import QUIRK_POLLTIMEOUT, DEFAULT_POLLTIMEOUT
 
 logger = get_logger(__name__)
 
-# VERBOSE: bool = False  # useless?
 
 _progress_bar = progress.Progress(
     progress.TextColumn("[progress.description]{task.description}"),
@@ -60,7 +59,7 @@ def do_upload(dif: dfu.DfuIf,
             break
 
         if file:
-            write_rc = file.filep.write(rc)
+            write_rc = file.file_p.write(rc)
 
             if write_rc < len(rc):
                 logger.error(f'Short file write: {write_rc}')
@@ -101,7 +100,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
     bytes_sent = 0
     buf = bytearray(xfer_size)
 
-    bytes_per_hash = (file.size - file.suffixlen) // PROGRESS_BAR_WIDTH
+    bytes_per_hash = (file.size - file.suffix_len) // PROGRESS_BAR_WIDTH
     if bytes_per_hash == 0:
         bytes_per_hash = 1
     logger.info(f"bytes_per_hash={bytes_per_hash}")
@@ -111,12 +110,12 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
     print("[", end="")
 
     try:
-        while bytes_sent < file.size - file.suffixlen:
+        while bytes_sent < file.size - file.suffix_len:
             # FIXME: no idea what's there
-            # bytes_left = file.size - file.suffixlen - bytes_sent
+            # bytes_left = file.size - file.suffix_len - bytes_sent
             # chunk_size = min(bytes_left, xfer_size)
 
-            if (ret := file.filep.readinto(buf)) < 0:  # Handle read error
+            if (ret := file.file_p.readinto(buf)) < 0:  # Handle read error
                 raise IOError(f"Error reading file: {file.name}")
 
             # ret = dfu.download(dif.dev, dif.interface, ret, buf[:ret] if ret else None)

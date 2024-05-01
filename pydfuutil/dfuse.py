@@ -12,7 +12,7 @@ import usb.util
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
-from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, free_segment_list
+from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
 from pydfuutil.logger import get_logger
 from pydfuutil.portable import milli_sleep
 
@@ -21,7 +21,7 @@ logger.warning("Module pydfuutil.dfuse aren't work as expected, "
                "will reimplemented in future")
 
 VERBOSE = False
-MEM_LAYOUT: list = []
+MEM_LAYOUT: [MemSegment, None] = None
 
 TIMEOUT = 5000
 
@@ -111,7 +111,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         for i in range(0, 4):
             buf[i + 1] = (address >> (8 * i)) & 0xFF
 
-        if download(dif, length, buf, 0) < 0:
+        if download(dif, buf, 0) < 0:
             raise IOError("Error during special command download")
 
         # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
@@ -164,12 +164,11 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
     return ret
 
 
-def upload(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
+def upload(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     """
     UPLOAD request for DfuSe 1.1a
 
     :param dif: The USB device handle
-    :param length: The length of the data to upload
     :param data: The data buffer to store the uploaded data
     :param transaction: The transaction ID for the upload
     :return: The status of the control transfer
@@ -191,12 +190,11 @@ def upload(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
     return status
 
 
-def download(dif: dfu.DfuIf, length: int, data: bytes, transaction: int) -> int:
+def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     """
     DNLOAD request for DfuSe 1.1a
 
     :param dif: The DFU interface object.
-    :param length: The length of the data to download.
     :param data: The data buffer to download.
     :param transaction: The transaction ID for the download.
     :return: The status of the control transfer.
@@ -246,7 +244,6 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
             raise ValueError("No options provided")
 
         if parsed_args.address:
-            # MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
             MEM_LAYOUT = parse_memory_layout(dif.alt_name)  # HOTFIX
             if not MEM_LAYOUT:
                 raise IOError("Failed to parse memory layout")
@@ -275,12 +272,12 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
     while True:
         if upload_limit - total_bytes < xfer_size:
             xfer_size = upload_limit - total_bytes
-        rc = upload(dif, xfer_size, buf, transaction)
+        rc = upload(dif, buf, transaction)
         if rc < 0:
             logger.error("Error during upload")
             ret = rc
             break
-        write_rc = file.filep.write(buf[:rc])
+        write_rc = file.file_p.write(buf[:rc])
         if write_rc < rc:
             logger.error(f"Short file write: {rc}")
             ret = -1
@@ -308,7 +305,7 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     :return: Number of bytes sent or error code
     """
 
-    ret = download(dif, size, data if size else None, transaction)
+    ret = download(dif, data if size else None, transaction)
 
     if ret < 0:
         logger.error("Error during download")
@@ -317,7 +314,6 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     bytes_sent = ret
 
     while True:
-        # ret = int(status := dfu.get_status(dif.dev, dif.interface))
         ret = int(status := dif.get_status())
         if ret < 0:
             logger.error("Error during download get_status")
@@ -348,35 +344,34 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
 # returns 0 on success, otherwise -EINVAL
 # pylint: disable=invalid-name
 def dnload_element(dif: dfu.DfuIf,
-                   dwElementAddress: int,
-                   dwElementSize: int,
+                   dw_element_address: int,
+                   dw_element_size: int,
                    data: bytes,
                    xfer_size: int) -> int:
     """
     Download an element in DFU.
 
     :param dif: DfuIf object representing the DFU interface
-    :param dwElementAddress: Element address
-    :param dwElementSize: Size of the element
+    :param dw_element_address: Element address
+    :param dw_element_size: Size of the element
     :param data: Data to be downloaded
     :param xfer_size: Transfer size
     :return: 0 if successful, error code otherwise
     """
 
     ret = 0
-    segment = find_segment(MEM_LAYOUT, dwElementAddress + dwElementSize - 1)
+    segment = find_segment(MEM_LAYOUT, dw_element_address + dw_element_size - 1)
 
     if not segment or not segment.mem_type & DFUSE.WRITEABLE:
         logger.error(
-            f"Error: Last page at 0x{dwElementAddress + dwElementSize - 1:08x} is not writeable"
+            f"Error: Last page at 0x{dw_element_address + dw_element_size - 1:08x} is not writeable"
         )
         return -1
 
     p = 0
-    while p < dwElementSize:
-        # page_size = segment.pagesize  # useless?
-        address = dwElementAddress + p
-        chunk_size = min(xfer_size, dwElementSize - p)
+    while p < dw_element_size:
+        address = dw_element_address + p
+        chunk_size = min(xfer_size, dw_element_size - p)
 
         segment = find_segment(MEM_LAYOUT, address)
         if not segment or not segment.mem_type & DFUSE.WRITEABLE:
@@ -423,7 +418,7 @@ def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: 
 
     logger.info(f"Downloading to address = 0x{dwElementAddress:08x}, size = {dwElementSize}")
 
-    data = file.filep.read()
+    data = file.file_p.read()
     read_bytes = len(data)
 
     ret = dnload_element(dif, dwElementAddress, dwElementSize, data, xfer_size)
@@ -447,19 +442,19 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
     :param file: DFUFile object containing the DfuSe file
     :return: Number of bytes read or error code
     """
-    dfuprefix = file.filep.read(11)
-    read_bytes = len(dfuprefix)
+    dfu_prefix = file.file_p.read(11)
+    read_bytes = len(dfu_prefix)
 
-    if dfuprefix != b'DfuSe\x01':
+    if dfu_prefix != b'DfuSe\x01':
         logger.error("No valid DfuSe signature")
         return -errno.EINVAL
 
-    bTargets = dfuprefix[10]
+    bTargets = dfu_prefix[10]
     logger.info(f"File contains {bTargets} DFU images")
 
     for image in range(1, bTargets + 1):
         logger.info(f"Parsing DFU image {image}")
-        target_prefix = file.filep.read(274)
+        target_prefix = file.file_p.read(274)
         read_bytes += len(target_prefix)
 
         if target_prefix[:6] != b'Target':
@@ -467,10 +462,12 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
             return -errno.EINVAL
 
         bAlternateSetting = target_prefix[6]
-        dwNbElements = Int32ul.parse(target_prefix[266:270])
+        # dwNbElements = Int32ul.parse(target_prefix[266:270])
+        dwNbElements = int.from_bytes(target_prefix[266:270], byteorder='little')
+        size = int.from_bytes(target_prefix[270:274], byteorder='little')
         logger.info(
             f"Image for alternate setting {bAlternateSetting}, "
-            f"({dwNbElements} elements, total size = {Int32ul.parse(target_prefix[270:274])})")
+            f"({dwNbElements} elements, total size = {size})")
 
         if bAlternateSetting != dif.altsetting:
             logger.warning("Image does not match current alternate setting.")
@@ -479,16 +476,16 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
 
         for element in range(1, dwNbElements + 1):
             logger.info(f"Parsing element {element}")
-            elementheader = file.filep.read(8)
-            dwElementAddress, dwElementSize = Int32ul[2].parse(elementheader)
+            element_header = file.file_p.read(8)
+            dwElementAddress, dwElementSize, *_ = element_header
             logger.info(f"Address = 0x{dwElementAddress:08x}, Size = {dwElementSize}")
 
             # Sanity check
-            if read_bytes + dwElementSize + file.suffixlen > file.size:
+            if read_bytes + dwElementSize + file.suffix_len > file.size:
                 logger.error("File too small for element size")
                 return -errno.EINVAL
 
-            data = file.filep.read(dwElementSize)
+            data = file.file_p.read(dwElementSize)
             read_bytes += len(data)
 
             if bAlternateSetting == dif.altsetting:
@@ -497,8 +494,8 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
                     return ret
 
     # Read through the whole file for bookkeeping
-    file.filep.read(file.suffixlen)
-    read_bytes += file.suffixlen
+    file.file_p.read(file.suffix_len)
+    read_bytes += file.suffix_len
 
     if read_bytes != file.size:
         logger.warning(f"Read {read_bytes} bytes, file size {file.size}")
@@ -528,7 +525,6 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
 
         opts = parse_options(dfuse_options)
 
-        # MEM_LAYOUT = parse_memory_layout(dif.alt_name.decode())
         MEM_LAYOUT = parse_memory_layout(dif.alt_name)  # HOTFIX
         if not MEM_LAYOUT:
             raise IOError("Failed to parse memory layout")
@@ -565,7 +561,8 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
             return -1
         ret = do_dfuse_dnload(dif, xfer_size, file)
 
-    free_segment_list(MEM_LAYOUT)
+    # free_segment_list(MEM_LAYOUT)
+    MEM_LAYOUT = None
 
     if opts.leave:
         dnload_chunk(dif, b'', 0, 2)  # Zero-size

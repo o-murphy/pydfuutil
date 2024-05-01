@@ -65,7 +65,7 @@ def check_suffix(file: DFUFile) -> int:
         print(f"Product ID:\t0x{file.idProduct:04X}")
         print(f"Vendor ID:\t0x{file.idVendor:04X}")
         print(f"BCD DFU:\t0x{file.bcdDFU:04X}")
-        print(f"Length:\t\t{file.suffixlen}")
+        print(f"Length:\t\t{file.suffix_len}")
         print(f"CRC:\t\t0x{file.dwCRC:08X}")
     return ret
 
@@ -81,7 +81,7 @@ def remove_suffix(file: DFUFile) -> int:
     if hasattr(os, 'ftruncate'):
         try:
             with open(file.name, 'r+', encoding='utf-8') as f:
-                f.truncate(file.size - file.suffixlen)
+                f.truncate(file.size - file.suffix_len)
             logger.info("DFU suffix removed")
         except OSError as e:
             logger.error(f"Error truncating file: {e}")
@@ -109,7 +109,7 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
     logger.info("New DFU suffix added.")
 
 
-def _get_argparser():
+def _get_arg_parser():
     """Get custom argument parser"""
 
     class CustomHelpFormatter(argparse.HelpFormatter):
@@ -159,8 +159,6 @@ def _get_argparser():
     parser.add_argument('-d', '--did', action='store', metavar="<deviceID>",
                         required=False,
                         type=lambda x: int(x, 16), help='Add device ID into DFU suffix in <file>')
-    # parser.add_argument('-S', '--spec', action='store', metavar="<specID>",
-    # required=False, help='Add DFU specification ID into DFU suffix in <file>')
     parser.add_argument('-s', '--stellaris-address', dest='lmdfu_flash_address',
                         metavar="<address>", type=int, help='Specify lmdfu address for LMDFU_ADD')
     parser.add_argument('-T', '--stellaris', dest='lmdfu_mode', action='store_const',
@@ -183,7 +181,7 @@ def get_args(parser):
 
 def main() -> None:
     """main executable"""
-    parser = _get_argparser()
+    parser = _get_arg_parser()
     args = get_args(parser)
 
     lmdfu_mode = LmdfuMode.NONE
@@ -193,7 +191,7 @@ def main() -> None:
     empty = 0xffff
 
     file = DFUFile(args.file.name)
-    file.filep, mode = args.file, args.mode
+    file.file_p, mode = args.file, args.mode
 
     pid = args.pid if args.pid else empty
     vid = args.vid if args.vid else empty

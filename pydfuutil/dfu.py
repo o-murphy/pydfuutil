@@ -28,6 +28,8 @@ class State(IntEnum):
     DFU_UPLOAD_IDLE = 0x09
     DFU_ERROR = 0x0a
 
+    UNKNOWN_ERROR = -1
+
     def to_string(self):
         """
         :return: State.self name by State Enum
@@ -242,7 +244,7 @@ def init(timeout: int) -> None:
 
 def verify_init() -> int:
     """
-    Verifies setted TIMEOUT and DEBUG_LEVEL
+    Verifies provided TIMEOUT and DEBUG_LEVEL
     NOTE: (function: typing.Callable) not needed cause python can get it from stack
     :raise ValueError with caller function name
     :return: 0
@@ -452,7 +454,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
     return result
 
 
-def get_state(device: usb.core.Device, interface: int) -> State:
+def get_state(device: usb.core.Device, interface: int) -> [State, int]:
     """
      *  GETSTATE Request (DFU Spec 1.0, Section 6.1.5)
      *
@@ -484,7 +486,7 @@ def get_state(device: usb.core.Device, interface: int) -> State:
     )
     value = result.tobytes()[0] < 1
     if value < 1:
-        return -1
+        return State(-1)
     if value in State.__members__.values():
         value = State(value)
     return value

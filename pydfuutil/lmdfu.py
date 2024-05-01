@@ -45,12 +45,12 @@ def add_prefix(file: DFUFile, address: int) -> int:
 
     try:
         # Get file length
-        file.filep.seek(0, 2)
-        length = file.filep.tell()
-        file.filep.seek(0, 0)
+        file.file_p.seek(0, 2)
+        length = file.file_p.tell()
+        file.file_p.seek(0, 0)
 
         # Read file content
-        data = file.filep.read()
+        data = file.file_p.read()
 
         # Allocate buffer
         lmdfu_dfu_prefix_buf = bytearray([0] * 16)
@@ -65,11 +65,11 @@ def add_prefix(file: DFUFile, address: int) -> int:
         lmdfu_dfu_prefix_buf[7] = (length >> 24) & 0xff
 
         # Write TI Stellaris DFU prefix to the file
-        file.filep.seek(0)
-        file.filep.write(lmdfu_dfu_prefix_buf)
+        file.file_p.seek(0)
+        file.file_p.write(lmdfu_dfu_prefix_buf)
 
         # Write file content after the TI Stellaris DFU prefix
-        file.filep.write(data)
+        file.file_p.write(data)
 
         logger.info("TI Stellaris DFU prefix added.")
 
@@ -91,12 +91,12 @@ def remove_prefix(file: DFUFile) -> int:
         logger.info("Remove TI Stellaris prefix")
 
         # Get file length
-        file.filep.seek(0, 2)
-        length = file.filep.tell()
-        file.filep.seek(0, 0)
+        file.file_p.seek(0, 2)
+        length = file.file_p.tell()
+        file.file_p.seek(0, 0)
 
         # Read file content
-        data = file.filep.read()
+        data = file.file_p.read()
 
         # Check if the file has enough data to contain the prefix
         if length < 16:
@@ -104,11 +104,11 @@ def remove_prefix(file: DFUFile) -> int:
             return -1
 
         # Truncate the file
-        file.filep.truncate(0)
-        file.filep.seek(0)
+        file.file_p.truncate(0)
+        file.file_p.seek(0)
 
         # Write data without the TI Stellaris prefix
-        file.filep.write(data[16:])
+        file.file_p.write(data[16:])
 
         logger.info("TI Stellaris prefix removed")
         return 0
@@ -133,7 +133,7 @@ def check_prefix(file: DFUFile) -> int:
         data = bytearray(16)
 
         # Read prefix from the file
-        ret = file.filep.readinto(data)
+        ret = file.file_p.readinto(data)
         if ret < 16:
             logger.error("Error: Could not read prefix")
             return -1
@@ -150,7 +150,7 @@ def check_prefix(file: DFUFile) -> int:
             logger.info(f"Payload length: {payload_length}")
 
         # Rewind the file
-        file.filep.seek(0)
+        file.file_p.seek(0)
 
         return ret
 
