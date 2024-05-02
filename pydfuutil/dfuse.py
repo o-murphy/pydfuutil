@@ -378,8 +378,6 @@ def dnload_element(dif: dfu.DfuIf,
             _logger.info(f"Download from image offset {p:08x} "
                         f"to memory {address:08x}-{address + chunk_size - 1:08x}"
                         f", size {chunk_size}")
-        else:
-            _logger.info(".")
 
         special_command(dif, address, Command.SET_ADDRESS)
 

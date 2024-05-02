@@ -8,21 +8,20 @@ except ImportError:
     try:
         from pip._vendor.rich import progress as RichProgress
     except ImportError:
-        try:
-            from tqdm import tqdm as TqdmProgress
-        except ImportError:
-            pass
+        pass
+
+try:
+    from tqdm import tqdm as TqdmProgress
+except ImportError:
+    pass
 
 
-def find_backend():
-    if RichProgress is not None:
-        return RichBackend
-    if TqdmProgress is not None:
-        return TqdmBackend
-    return AsciiBackend
+import logging
+_logger = logging.getLogger('progress')
+_logger.setLevel(logging.INFO)
 
 
-class ProgressBackend:
+class AbstractProgressBackend:
     def __init__(self):
         pass
 
@@ -35,12 +34,18 @@ class ProgressBackend:
     def update(self, description=None, advance=None, completed=None):
         pass
 
+    def fail(self):
+        pass
+
     def stop(self):
         pass
 
 
-class AsciiBackend(ProgressBackend):
-    BAR_WIDTH = 50
+class NoProgressBarBackend(AbstractProgressBackend):
+    pass
+
+class AsciiBackendAbstract(AbstractProgressBackend):
+    BAR_WIDTH = 30
     REDIRECT_STD = True
 
     def __init__(self):
@@ -50,21 +55,27 @@ class AsciiBackend(ProgressBackend):
         self._rate = None
 
     def _print(self, symbol: str):
-        sys.stdout.write(symbol) if self.REDIRECT_STD else print(symbol, end="")
+        if self.REDIRECT_STD:
+            sys.stdout.write(symbol)
+            sys.stdout.flush()
+        else:
+            print(symbol, end="", flush=True)
 
     def start(self):
-        self._value = 0
+        pass
 
     def start_task(self, description=None, total=None):
+        self._value = 0
         self._total = total
-        self._rate = self._total // self.BAR_WIDTH
-        self._print("[")
+        self._rate = self._total / self.BAR_WIDTH
+        self._print(f"{description} [")
 
     def update(self, description=None, advance=None, completed=None):
         if advance:
             self._value += advance
-            if self._value % self._rate != 0:
-                self._print("#")
+            if self._rate != 0 and self._value % self._rate != 0:
+                # self._print("#")
+                self._print("━")
         if completed:
             if completed < self._value:
                 raise ValueError(f"The progress can't run backward! "
@@ -72,10 +83,21 @@ class AsciiBackend(ProgressBackend):
             self._value = completed
             self._print("#" * (completed - self._value) // self._rate)
         if self._total == self._value and (advance or completed):
-            self._print("]\n")
+            self._print(f"] Complete!\n")
+
+    def fail(self):
+        self._print("] Failed!\n")
+
+    def stop(self):
+        pass
 
 
-class TqdmBackend(ProgressBackend):
+
+
+class TqdmBackendAbstract(AbstractProgressBackend):
+    BAR_FORMAT = ("{desc} {bar:20} {percentage:3.0f}% "
+                  "{remaining} {n_fmt}/{total_fmt} bytes {rate_fmt}")
+
     def __init__(self):
         super().__init__()
         self._progress = None
@@ -86,7 +108,14 @@ class TqdmBackend(ProgressBackend):
 
     def start_task(self, description=None, total=None):
         self._value = 0
-        self._progress = TqdmProgress(total=total, desc=description)
+        self._progress = TqdmProgress(
+            total=total,
+            unit=' bytes',
+            desc=description,
+            bar_format=TqdmBackendAbstract.BAR_FORMAT,
+            colour="magenta",
+            ascii=' ━',
+        )
 
     def update(self, description=None, advance=None, completed=None):
         if description:
@@ -95,13 +124,21 @@ class TqdmBackend(ProgressBackend):
             self._progress.update(advance)
         if completed:
             self._progress.n = completed
+        # if self._progress.total == self._value and (advance or completed):
+        #     self._progress.colour = "green"
+        #     self._progress.description = description
         self._progress.refresh()
+
+    def fail(self):
+        # self._progress.colour = "red"
+        # self._progress.refresh()
+        pass
 
     def stop(self):
         self._progress = None
 
 
-class RichBackend(ProgressBackend):
+class RichBackendAbstract(AbstractProgressBackend):
 
     def __init__(self):
         super().__init__()
@@ -109,6 +146,9 @@ class RichBackend(ProgressBackend):
         self._task_id = None
 
     def start(self):
+        pass
+
+    def _prepare(self):
         self._progress = RichProgress.Progress(
             RichProgress.TextColumn(
                 "[progress.description]{task.description}"),
@@ -121,6 +161,7 @@ class RichBackend(ProgressBackend):
         self._progress.start()
 
     def start_task(self, *, description=None, total=None):
+        self._prepare()
         kwargs = {}
         if description is not None:
             kwargs["description"] = f"[#F92672]{description}"
@@ -144,20 +185,43 @@ class RichBackend(ProgressBackend):
             self._progress.update(self._task_id,
                                   description=f"[#729C1F]{desc}")
 
+    def fail(self):
+        t = self._progress.tasks[self._task_id]
+        desc = t.description.split(']')[-1]
+        self._progress.update(self._task_id,
+                              description=f"[red]{desc}")
+
     def stop(self):
-        self._progress.remove_task(self._task_id)
+        # # uncomment to hide bar after complete
+        # self._progress.remove_task(self._task_id)
         self._progress.stop()
         self._progress = None
 
 
-class DfuProgress:
+def find_backend():
+    if RichProgress is not None:
+        return RichBackendAbstract
+    if TqdmProgress is not None:
+        return TqdmBackendAbstract
+    return AsciiBackendAbstract
+
+
+class Progress:
+    __DEFAULT_BACKEND = find_backend()
+
     def __init__(self, backend=None):
         if backend is None:
-            backend = find_backend()
+            backend = Progress.__DEFAULT_BACKEND
         self._backend = backend()
 
-    def start(self, **kwargs):
-        self._backend.start(**kwargs)
+    @classmethod
+    def set_default_backend(cls, backend: type[AbstractProgressBackend]):
+        if not issubclass(backend, AbstractProgressBackend):
+            raise TypeError("Invalid backend")
+        cls.__DEFAULT_BACKEND = backend
+
+    def start(self):
+        self._backend.start()
 
     def start_task(self, *, description=None, total=None):
         self._backend.start_task(description=description, total=total)
@@ -168,53 +232,30 @@ class DfuProgress:
     def stop(self):
         self._backend.stop()
 
+    def fail(self):
+        self._backend.fail()
+
     def __enter__(self):
         self.start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
-            print(exc_type, exc_value, traceback.tb_lineno)
+            self.fail()
+            raise exc_type(exc_value)
+            # print(exc_type, exc_value, traceback.tb_lineno)
             # raise Exception(exc_type, exc_value, traceback)
         self.stop()
         return True
 
 
-from time import sleep
-
-# i = 100
-#
-#
-# with DfuProgress(TqdmBackend) as prog:
-#     prog.start_task(description="count", total=i)
-#     while i >= 1:
-#         sleep(0.1)
-#         prog.update(advance=1)
-#         i -= 1
-#
-# i = 100
-#
-# with DfuProgress(RichBackend) as prog:
-#     prog.start_task(description="count", total=i)
-#     while i >= 1:
-#         sleep(0.1)
-#         prog.update(advance=1)
-#         i -= 1
-
-# i = 100
-#
-# with DfuProgress(AsciiBackend) as prog:
-#     prog.start_task(description="count", total=i)
-#     while i >= 1:
-#         sleep(0.1)
-#         prog.update(advance=1)
-#         i -= 1
-
-# i = 100
-#
-# with DfuProgress() as prog:
-#     prog.start_task(description="count", total=i)
-#     while i >= 1:
-#         sleep(0.1)
-#         prog.update(advance=1)
-#         i -= 1
+__all__ = (
+    'Progress',
+    'AsciiBackendAbstract',
+    'RichBackendAbstract',
+    'TqdmBackendAbstract',
+    'RichProgress',
+    'TqdmProgress',
+    'AbstractProgressBackend',
+    'NoProgressBarBackend'
+)
