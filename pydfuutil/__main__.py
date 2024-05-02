@@ -13,8 +13,6 @@ from enum import Enum
 from typing import Any, Callable, Literal
 import importlib.metadata
 
-import usb.core
-
 from pydfuutil import dfu
 from pydfuutil import dfuse
 from pydfuutil import dfu_load
@@ -23,6 +21,8 @@ from pydfuutil import quirks
 from pydfuutil import usb_dfu
 from pydfuutil.portable import milli_sleep
 from pydfuutil.logger import logger
+
+import usb.core
 
 try:
     import libusb_package
@@ -39,7 +39,7 @@ except importlib.metadata.PackageNotFoundError:
 
 usb_logger = logging.getLogger('usb')
 MAX_DESC_STR_LEN = 253
-HAVE_GETPAGESIZE = sys.platform != 'win32'
+HAVE_GET_PAGESIZE = sys.platform != 'win32'
 
 
 def atoi(s: str) -> int:
@@ -225,7 +225,7 @@ def print_dfu_if(dfu_if: dfu.DfuIf, v: Any) -> int:
 
     name: str = get_alt_name(dfu_if)
     if name is None:
-        name = b"UNDEFINED"
+        name = "UNDEFINED"
 
     logger.info(f"Found {'DFU' if dfu_if.flags & dfu.Mode.IFF_DFU else 'Runtime'}: "
                 f"[{dfu_if.vendor:04x}:{dfu_if.product:04x}] devnum={dfu_if.devnum}, "
@@ -239,7 +239,6 @@ def list_dfu_interfaces(ctx: list[usb.core.Device]) -> int:
     """
     Walk the device tree and print out DFU devices.
 
-    :param dif: dfu.DfuIf
     :param ctx: libusb context
     :return: 0 on success.
     """
@@ -263,7 +262,8 @@ def alt_by_name(dfu_if: dfu.DfuIf, v: bytes) -> int:
         return 0
     if name != v:
         return 0
-    # Return altsetting+1 so that we can use return value 0 to indicate not found"
+    # Return altsetting+1 so that we can
+    # use return value 0 to indicate not found
     return dfu_if.altsetting + 1
 
 
@@ -291,8 +291,6 @@ def iterate_dfu_devices(ctx: list[usb.core.Device], dif: dfu.DfuIf) -> list[usb.
 
     :param ctx: The USB context.
     :param dif: The DFU interface.
-    :param action: The action to perform for each device.
-    :param user: Additional user-defined data.
     :return: 0 on success, or an error code.
     """
     retval = []
@@ -325,7 +323,7 @@ def found_dfu_device(dev: usb.core.Device, dif: dfu.DfuIf) -> int:
     return 1
 
 
-def parse_vendprod(string: str) -> tuple[int, int]:
+def parse_vid_pid(string: str) -> tuple[int, int]:
     """
     Parse a string containing vendor and product IDs in hexadecimal format.
 
@@ -368,7 +366,7 @@ def resolve_device_path(dif: dfu.DfuIf) -> int:
 
 
 def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
-                    res_buf: bytearray) -> int:
+                    res_buf: bytes) -> int:
     """
     Look for a descriptor in a concatenated descriptor list
     Will return desc_index'th match of given descriptor type
@@ -377,12 +375,12 @@ def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
     :param desc_type: The type of descriptor to search for.
     :param desc_index: The index of the descriptor to find.
     :param res_buf: The buffer to store the found descriptor.
-    :param res_size: The maximum size of the result buffer.
     :return: length of found descriptor, limited to res_size
     """
 
     p: int = 0
     hit: int = 0
+    res_buf = bytearray(res_buf)
 
     while p + 1 < len(desc_list):
         desc_len = int(desc_list[p])
@@ -409,39 +407,39 @@ def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
 def usb_get_any_descriptor(dev: usb.core.Device,
                            desc_type: int,
                            desc_index: int,
-                           resbuf: bytearray) -> int:
+                           res_buf: bytes) -> int:
     """
     Look for a descriptor in the active configuration.
     Will also find extra descriptors which
     are normally not returned by the standard libusb_get_descriptor().
 
-    :param dev_handle: The device handle.
+    :param dev: The device handle.
     :param desc_type: The descriptor type.
     :param desc_index: The descriptor index.
-    :param resbuf: The buffer to store the descriptor.
-    :param res_len: The maximum length of the descriptor buffer.
+    :param res_buf: The buffer to store the descriptor.
     :return: The length of the found descriptor.
     """
 
+    res_buf = bytearray(res_buf)
     # Get the total length of the configuration descriptors
     config = dev.get_active_configuration()
-    conflen = config.wTotalLength
+    conf_len = config.wTotalLength
 
     # Suck in the configuration descriptor list from device
 
-    cbuf = usb.control.get_descriptor(dev, usb.DT_CONFIG_SIZE, usb.DT_CONFIG, 0).tobytes()
+    c_buf = usb.control.get_descriptor(dev, usb.DT_CONFIG_SIZE, usb.DT_CONFIG, 0).tobytes()
 
-    # cbuf = dev.ctrl_transfer(usb.util.ENDPOINT_IN, usb.util.GET_DESCRIPTOR,
+    # c_buf = dev.ctrl_transfer(usb.util.ENDPOINT_IN, usb.util.GET_DESCRIPTOR,
     #                          (usb.util.DESC_TYPE_CONFIG << 8) | 0, 0, conflen)
 
-    if len(cbuf) < conflen:
+    if len(c_buf) < conf_len:
         logger.warning(
-            f"failed to retrieve complete configuration descriptor, got {len(cbuf)}/{conflen}"
+            f"failed to retrieve complete configuration descriptor, got {len(c_buf)}/{conf_len}"
         )
-        conflen = len(cbuf)
+        conf_len = len(c_buf)
 
     # Search through the configuration descriptor list
-    ret = find_descriptor(cbuf, desc_type, desc_index, resbuf)
+    ret = find_descriptor(c_buf, desc_type, desc_index, res_buf)
     if ret > 1:
         logger.debug("Found descriptor in complete configuration descriptor list")
         return ret
@@ -459,7 +457,7 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
                                 intf: int,
                                 desc_type: int,
                                 desc_index: int,
-                                resbuf: bytearray) -> int:
+                                resbuf: bytes) -> int:
     """
     Get cached extra descriptor from libusb for an interface.
 
@@ -469,7 +467,6 @@ def get_cached_extra_descriptor(dev: usb.core.Device,
     :param desc_type: The descriptor type.
     :param desc_index: The descriptor index.
     :param resbuf: The buffer to store the descriptor.
-    :param res_len: The maximum length of the descriptor buffer.
     :return: The length of the found descriptor.
     """
     cfg = dev.configurations()[bConfValue - 1]
@@ -658,7 +655,7 @@ def main(argv) -> None:
         sys.exit(2)
 
     if device_id_filter:
-        dif.vendor, dif.product = parse_vendprod(device_id_filter)
+        dif.vendor, dif.product = parse_vid_pid(device_id_filter)
         logger.info(f"Filter on VID = 0x{dif.vendor:04X} PID = 0x{dif.product:04X}\n")
         if dif.vendor:
             dif.flags |= dfu.Mode.IFF_VENDOR
@@ -981,7 +978,7 @@ def main(argv) -> None:
         sys.exit(1)
 
     # autotools lie when cross-compiling for Windows using mingw32/64
-    if HAVE_GETPAGESIZE:
+    if HAVE_GET_PAGESIZE:
         # limitation of Linux usbdevio
         page_size = os.sysconf(os.sysconf_names['SC_PAGE_SIZE'])
         if transfer_size > page_size:
@@ -1019,8 +1016,8 @@ def main(argv) -> None:
     elif mode == Mode.DOWNLOAD:
         try:
             # Open file for reading in binary mode
-            with open(file.name, "rb") as filep:
-                if not filep:
+            with open(file.name, "rb") as file_p:
+                if not file_p:
                     logger.error(f"Error: Failed to open {file.name}")
                     sys.exit(1)
 
@@ -1070,6 +1067,7 @@ def main(argv) -> None:
             dif.dev.reset()
         except usb.core.USBError as e:
             logger.error("error resetting after download")
+            logger.debug(e)
 
     usb.util.release_interface(dif.dev, dif.interface)
     usb.util.dispose_resources(dif.dev)
