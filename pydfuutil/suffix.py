@@ -187,7 +187,9 @@ def get_args(parser, argv):
 
 def main(argv) -> None:
     """main executable"""
-    argv.pop(0)
+    if argv[0] == __file__:
+        argv.pop(0)
+
     parser = _get_arg_parser()
     args = get_args(parser, argv)
 
