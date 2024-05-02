@@ -63,7 +63,7 @@ class AsciiBackend(ProgressBackend):
     def update(self, description=None, advance=None, completed=None):
         if advance:
             self._value += advance
-            if self._value % self._rate == 1:
+            if self._value % self._rate != 0:
                 self._print("#")
         if completed:
             if completed < self._value:
@@ -71,7 +71,7 @@ class AsciiBackend(ProgressBackend):
                                  f"{completed} < {self._value}")
             self._value = completed
             self._print("#" * (completed - self._value) // self._rate)
-        if self._total == self._value:
+        if self._total == self._value and (advance or completed):
             self._print("]\n")
 
 
@@ -145,8 +145,8 @@ class RichBackend(ProgressBackend):
                                   description=f"[#729C1F]{desc}")
 
     def stop(self):
-        self._progress.stop()
         self._progress.remove_task(self._task_id)
+        self._progress.stop()
         self._progress = None
 
 
@@ -210,12 +210,11 @@ from time import sleep
 #         prog.update(advance=1)
 #         i -= 1
 
-
-i = 100
-
-with DfuProgress() as prog:
-    prog.start_task(description="count", total=i)
-    while i >= 1:
-        sleep(0.1)
-        prog.update(advance=1)
-        i -= 1
+# i = 100
+#
+# with DfuProgress() as prog:
+#     prog.start_task(description="count", total=i)
+#     while i >= 1:
+#         sleep(0.1)
+#         prog.update(advance=1)
+#         i -= 1

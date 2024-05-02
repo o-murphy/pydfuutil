@@ -10,7 +10,7 @@ class TestDFULoader(unittest.TestCase):
     def test_dfu_load_do_upload(self):
         xfer_size = 256
         file = DFUFile(name='test_file', file_p=Mock())  # Provide a mock file object
-        total_size = 1024
+        total_size = 4096
 
         dif = Mock()
         dif.upload.return_value = bytes(xfer_size)
