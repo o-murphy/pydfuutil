@@ -15,7 +15,7 @@ from pydfuutil.logger import logger
 
 __all__ = ('DFUFile', 'parse_dfu_suffix', 'generate_dfu_suffix')
 
-_logger = logger.getChild(__name__.split('.')[-1])
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 DFU_SUFFIX_LENGTH = 16
 

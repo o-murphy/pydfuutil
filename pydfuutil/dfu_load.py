@@ -10,7 +10,7 @@ from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
 from pydfuutil.quirks import QUIRK_POLLTIMEOUT, DEFAULT_POLLTIMEOUT
 
-_logger = logger.getChild(__name__.split('.')[-1])
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 
 def do_upload(dif: dfu.DfuIf,
@@ -98,7 +98,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
             )
 
             while bytes_sent < file.size - file.suffix_len:
-                # FIXME: no idea what's there
+                # Note: no idea what's there
                 # bytes_left = file.size - file.suffix_len - bytes_sent
                 # chunk_size = min(bytes_left, xfer_size)
 

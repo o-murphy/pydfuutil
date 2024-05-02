@@ -11,9 +11,9 @@ import re
 import sys
 from enum import IntFlag
 from typing import Any, Callable, Literal
+import importlib.metadata
 
 import usb.core
-import importlib.metadata
 
 from pydfuutil import dfu
 from pydfuutil import dfuse
@@ -27,6 +27,7 @@ from pydfuutil.logger import logger
 try:
     import libusb_package
     from usb.backend import libusb1
+
     libusb1.get_backend(libusb_package.find_library)
 finally:
     pass
@@ -36,10 +37,9 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = 'UNKNOWN'
 
-
 usb_logger = logging.getLogger('usb')
 MAX_DESC_STR_LEN = 253
-HAVE_GETPAGESIZE = not (sys.platform == 'win32')
+HAVE_GETPAGESIZE = sys.platform != 'win32'
 
 
 def atoi(s: str) -> int:
@@ -53,8 +53,7 @@ def atoi(s: str) -> int:
     if match:
         result = int(match.group(1))
         return result
-    else:
-        return 0
+    return 0
 
 
 def usb_path2devnum(path: str) -> int:
@@ -62,8 +61,7 @@ def usb_path2devnum(path: str) -> int:
     parts = path.split('.')
     if len(parts) == 2:
         return int(parts[0]), int(parts[1])
-    else:
-        return 0
+    return 0
 
 
 def find_dfu_if(dev: usb.core.Device,
@@ -568,8 +566,7 @@ def int_(value: [int, (bytes, bytearray)], order: Literal["little", "big"] = 'li
     raise TypeError("Unsupported type")
 
 
-def main() -> None:
-
+def main(argv) -> None:
     # Create argument parser
     parser = argparse.ArgumentParser(
         prog=f"pydfuutil v{__version__}",
@@ -609,7 +606,8 @@ def main() -> None:
                              "Not applicable for DfuSe file (.dfu) downloads")
 
     # Parse arguments
-    args = parser.parse_args()
+    argv.pop(0)
+    args = parser.parse_args(argv)
     verbose = False
     dif: dfu.DfuIf = dfu.DfuIf()
     file = dfu_file.DFUFile(None)
@@ -797,7 +795,7 @@ def main() -> None:
         try:
             _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
         except usb.core.USBError:
-            logger.error(f"Cannot set alt interface zero")
+            logger.error("Cannot set alt interface zero")
             sys.exit(1)
 
         status = check_status()
@@ -1035,7 +1033,6 @@ def main() -> None:
                     logger.info(f"{file.name}: File exists")
                     sys.exit(1)
 
-
                 if dfuse_device or dfuse_options:
                     if dfuse.do_upload(dif, transfer_size, file, dfuse_options) < 0:
                         sys.exit(1)
@@ -1108,4 +1105,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)

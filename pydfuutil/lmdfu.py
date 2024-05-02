@@ -17,7 +17,7 @@ __all__ = ('dfu_prefix',
            'parse_dfu_suffix',
            'generate_dfu_suffix')
 
-_logger = logger.getChild(__name__.split('.')[-1])
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 # dfu_prefix payload length excludes prefix and suffix
 

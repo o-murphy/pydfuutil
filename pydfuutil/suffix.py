@@ -6,13 +6,19 @@ import argparse
 import os
 import sys
 from enum import IntEnum
+import importlib.metadata
 
-from pydfuutil import __version__, __copyright__
+from pydfuutil import __copyright__
 from pydfuutil import lmdfu
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
 from pydfuutil.logger import logger
 
-_logger = logger.getChild(__name__.split('.')[-1])
+try:
+    __version__ = importlib.metadata.version("pydfuutil")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = 'UNKNOWN'
+
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 
 class Mode(IntEnum):
@@ -136,18 +142,18 @@ def _get_arg_parser():
 
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument('-c', '--check', metavar="<file>",
+    group.add_argument('-c', '--check',
                        const=Mode.CHECK, dest='mode', action='store_const',
                        help='Check DFU suffix of <file>')
-    group.add_argument('-a', '--add', metavar="<file>",
+    group.add_argument('-a', '--add',
                        const=Mode.ADD, dest='mode', action='store_const',
                        help='Add DFU suffix to <file>')
-    group.add_argument('-D', '--delete', metavar="<file>",
+    group.add_argument('-D', '--delete',
                        const=Mode.DEL, dest='mode', action='store_const',
                        help='Delete DFU suffix from <file>')
 
     parser.add_argument('file', action='store', metavar='<file>',
-                        type=argparse.FileType('r+b'),
+                        type=argparse.FileType('r+b'), default=None,
                         help="Target filename")
 
     parser.add_argument('-p', '--pid', action='store', metavar="<productID>",
@@ -167,22 +173,23 @@ def _get_arg_parser():
     return parser
 
 
-def get_args(parser):
+def get_args(parser, argv):
     """parse command line arguments"""
     print_version()
     try:
-        args = parser.parse_args()
-    except Exception as err:
+        args = parser.parse_args(argv)
+    except argparse.ArgumentError as err:
         parser.print_help()
         _logger.error(err)
         sys.exit(1)
     return args
 
 
-def main() -> None:
+def main(argv) -> None:
     """main executable"""
+    argv.pop(0)
     parser = _get_arg_parser()
-    args = get_args(parser)
+    args = get_args(parser, argv)
 
     lmdfu_mode = LmdfuMode.NONE
     lmdfu_flash_address: int = 0
@@ -224,7 +231,7 @@ def main() -> None:
                 add_suffix(file, pid, vid, did)
 
             elif mode == Mode.CHECK:
-                # FIXME: could open read-only here
+                # Note: could open read-only here
                 check_suffix(file)
                 if lmdfu_mode == LmdfuMode.CHECK:
                     lmdfu.check_prefix(file)
@@ -257,4 +264,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)

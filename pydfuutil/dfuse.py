@@ -16,7 +16,7 @@ from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSeg
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
-_logger = logger.getChild(__name__.split('.')[-1])
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 VERBOSE = False
 MEM_LAYOUT: [MemSegment, None] = None
@@ -70,7 +70,6 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
     """
     buf = bytearray(5)
 
-    length: int
     ret: int
     dst: [dict, None]
 
@@ -78,7 +77,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
         if command == Command.ERASE_PAGE:
             segment = find_segment(MEM_LAYOUT, address)
-            print(segment)
+
             if not segment or not segment.mem_type & DFUSE.ERASABLE:
                 raise IOError(f"Page at 0x{address:08x} cannot be erased")
 
@@ -87,8 +86,8 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
                 _logger.info(
                     f"Erasing page size {page_size} at address 0x{address:08x}, "
                     f"page starting at 0x{address & ~(page_size - 1):08x}")
-            buf[0], length = 0x41, 5  # Erase command
-            # last_erased = address  # useless?
+            buf[0], length = 0x41, 5  # Note: Unused variable 'length'
+            # last_erased = address  # Note: useless?
         elif command == Command.SET_ADDRESS:
             if VERBOSE > 2:
                 _logger.debug(f"Setting address pointer to 0x{address:08x}")
@@ -144,7 +143,6 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         if dif.abort() < 0:
             raise IOError("Error sending dfu abort request")
 
-        # ret = int(dst := dfu.get_status(dif.dev, dif.interface))
         ret = int(dst := dif.get_status())
         if ret < 0:
             raise IOError("Error during abort get_status")
@@ -260,14 +258,13 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
             _logger.info("Limiting default upload to %i bytes", upload_limit)
 
         _logger.info(f"bytes_per_hash={xfer_size}")
-        print("Starting upload: [")
+        print("Starting upload: [")  # TODO: Progress
     except (ValueError, IOError) as err:
         _logger.error(err)
         return -1
 
     while True:
-        if upload_limit - total_bytes < xfer_size:
-            xfer_size = upload_limit - total_bytes
+        xfer_size = min(xfer_size, upload_limit - total_bytes)
         rc = upload(dif, buf, transaction)
         if rc < 0:
             _logger.error("Error during upload")
@@ -522,7 +519,6 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
         if not MEM_LAYOUT:
             raise IOError("Failed to parse memory layout")
 
-        print(opts.unprotect)
         if opts.unprotect:
             if not opts.force:
                 raise PermissionError(
@@ -554,7 +550,6 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
                          ", (for raw binary download, use the --dfuse-address option)")
             return -1
         ret = do_dfuse_dnload(dif, xfer_size, file)
-        print(ret)
 
     # free_segment_list(MEM_LAYOUT)
     MEM_LAYOUT = None

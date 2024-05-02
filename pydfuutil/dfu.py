@@ -13,7 +13,7 @@ import usb.util
 from pydfuutil.logger import logger
 
 
-_logger = logger.getChild(__name__.split('.')[-1])
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 _logger.setLevel(logging.DEBUG)
 
 

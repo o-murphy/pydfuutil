@@ -25,6 +25,7 @@ class BmAttributes(IntEnum):
     USB_DFU_WILL_DETACH = 0x4
 
 
+# pylint: disable=invalid-name
 @dataclass
 class FuncDescriptor:
     """USB_DFU_FUNC_DESCRIPTOR's'"""
