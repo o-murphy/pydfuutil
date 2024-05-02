@@ -24,21 +24,21 @@ class TestDfuProgress(unittest.TestCase):
                 i -= 1
             prog.update(description=f"{name} OK")
 
-    @unittest.skipIf(not TqdmProgress,
+    @unittest.skipIf(not TQDM_PROGRESS,
                      "package not installed ImportError/UnboundLocalError/AttributeError")
     def test_tqdm(self):
-        self._loop(TqdmBackendAbstract)
+        self._loop(TqdmBackend)
 
-    @unittest.skipIf(not RichProgress,
+    @unittest.skipIf(not RICH_PROGRESS,
                      "package not installed ImportError/UnboundLocalError/AttributeError")
     def test_rich(self):
-        self._loop(RichBackendAbstract)
+        self._loop(RichBackend)
 
     def test_no_progress(self):
         self._loop(NoProgressBarBackend)
 
     def test_ascii(self):
-        self._loop(AsciiBackendAbstract)
+        self._loop(AsciiBackend)
 
     @unittest.skip("rich.errors.LiveError: Only one live display may be active at once")
     def test_autodetect(self):

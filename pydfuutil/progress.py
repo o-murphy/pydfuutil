@@ -1,37 +1,76 @@
-import sys
+"""Progress bar utilities"""
 
-TqdmProgress = None
-RichProgress = None
+
+import sys
+from abc import ABC, abstractmethod
+
 try:
-    from rich import progress as RichProgress
+    from rich import progress as RICH_PROGRESS
 except ImportError:
     try:
-        from pip._vendor.rich import progress as RichProgress
+        from pip._vendor.rich import progress as RICH_PROGRESS
     except ImportError:
-        pass
+        RICH_PROGRESS = None
 
 try:
-    from tqdm import tqdm as TqdmProgress
+    from tqdm import tqdm as TQDM_PROGRESS
 except ImportError:
-    pass
-
+    TQDM_PROGRESS = None
 
 import logging
+
 _logger = logging.getLogger('progress')
 _logger.setLevel(logging.INFO)
 
 
-class AbstractProgressBackend:
+class AbstractProgressBackend(ABC):
+    """Abstract class for progress bar backends"""
+
     def __init__(self):
-        pass
+        ...
+
+    @abstractmethod
+    def start(self):
+        """
+        Progress backend initialisation
+        """
+
+    @abstractmethod
+    def start_task(self, *, description: str = None, total: int = None):
+        """
+        Start progress task
+        :param description:
+        :param total:
+        """
+
+    @abstractmethod
+    def update(self, *, description: str = None, advance: int = None, completed: int = None):
+        """
+        Update progress task
+        :param description:
+        :param advance:
+        :param completed:
+        """
+
+    @abstractmethod
+    def fail(self):
+        """Runs on Progress.__exit__ if ctx raises exception"""
+
+    @abstractmethod
+    def stop(self):
+        """Stop progressbar backend"""
+
+
+class NoProgressBarBackend(AbstractProgressBackend):
+    """progress bar backend that does nothing"""
 
     def start(self):
         pass
 
-    def start_task(self, description=None, total=None):
+    def start_task(self, *, description: str = None, total: int = None):
         pass
 
-    def update(self, description=None, advance=None, completed=None):
+    def update(self, *, description: str = None, advance: int = None, completed: int = None):
         pass
 
     def fail(self):
@@ -41,10 +80,9 @@ class AbstractProgressBackend:
         pass
 
 
-class NoProgressBarBackend(AbstractProgressBackend):
-    pass
+class AsciiBackend(AbstractProgressBackend):
+    """ASCII based progress bar backend"""
 
-class AsciiBackendAbstract(AbstractProgressBackend):
     BAR_WIDTH = 30
     REDIRECT_STD = True
 
@@ -64,13 +102,13 @@ class AsciiBackendAbstract(AbstractProgressBackend):
     def start(self):
         pass
 
-    def start_task(self, description=None, total=None):
+    def start_task(self, *, description: str = None, total: int = None):
         self._value = 0
         self._total = total
         self._rate = self._total / self.BAR_WIDTH
         self._print(f"{description} [")
 
-    def update(self, description=None, advance=None, completed=None):
+    def update(self, *, description: str = None, advance: int = None, completed: int = None):
         if advance:
             self._value += advance
             if self._rate != 0 and self._value % self._rate != 0:
@@ -83,7 +121,7 @@ class AsciiBackendAbstract(AbstractProgressBackend):
             self._value = completed
             self._print("#" * (completed - self._value) // self._rate)
         if self._total == self._value and (advance or completed):
-            self._print(f"] Complete!\n")
+            self._print("] Complete!\n")
 
     def fail(self):
         self._print("] Failed!\n")
@@ -92,9 +130,9 @@ class AsciiBackendAbstract(AbstractProgressBackend):
         pass
 
 
+class TqdmBackend(AbstractProgressBackend):
+    """tqdm based progress bar backend"""
 
-
-class TqdmBackendAbstract(AbstractProgressBackend):
     BAR_FORMAT = ("{desc} {bar:20} {percentage:3.0f}% "
                   "{remaining} {n_fmt}/{total_fmt} bytes {rate_fmt}")
 
@@ -106,18 +144,18 @@ class TqdmBackendAbstract(AbstractProgressBackend):
     def start(self):
         pass
 
-    def start_task(self, description=None, total=None):
+    def start_task(self, *, description: str = None, total: int = None):
         self._value = 0
-        self._progress = TqdmProgress(
+        self._progress = TQDM_PROGRESS(
             total=total,
             unit=' bytes',
             desc=description,
-            bar_format=TqdmBackendAbstract.BAR_FORMAT,
+            bar_format=TqdmBackend.BAR_FORMAT,
             colour="magenta",
             ascii=' ━',
         )
 
-    def update(self, description=None, advance=None, completed=None):
+    def update(self, *, description: str = None, advance: int = None, completed: int = None):
         if description:
             self._progress.description = description
         if advance:
@@ -138,29 +176,30 @@ class TqdmBackendAbstract(AbstractProgressBackend):
         self._progress = None
 
 
-class RichBackendAbstract(AbstractProgressBackend):
+class RichBackend(AbstractProgressBackend):
+    """Rich.progress based progress bar backend"""
 
     def __init__(self):
         super().__init__()
-        self._progress: [RichProgress.Progress, None] = None
+        self._progress: [RICH_PROGRESS.Progress, None] = None
         self._task_id = None
 
     def start(self):
         pass
 
     def _prepare(self):
-        self._progress = RichProgress.Progress(
-            RichProgress.TextColumn(
+        self._progress = RICH_PROGRESS.Progress(
+            RICH_PROGRESS.TextColumn(
                 "[progress.description]{task.description}"),
-            RichProgress.BarColumn(20),
-            RichProgress.TaskProgressColumn(),
-            RichProgress.TimeRemainingColumn(),
-            RichProgress.DownloadColumn(),
-            RichProgress.TransferSpeedColumn(),
+            RICH_PROGRESS.BarColumn(20),
+            RICH_PROGRESS.TaskProgressColumn(),
+            RICH_PROGRESS.TimeRemainingColumn(),
+            RICH_PROGRESS.DownloadColumn(),
+            RICH_PROGRESS.TransferSpeedColumn(),
         )
         self._progress.start()
 
-    def start_task(self, *, description=None, total=None):
+    def start_task(self, *, description: str = None, total: int = None):
         self._prepare()
         kwargs = {}
         if description is not None:
@@ -169,7 +208,7 @@ class RichBackendAbstract(AbstractProgressBackend):
             kwargs["total"] = total
         self._task_id = self._progress.add_task(start=True, **kwargs)
 
-    def update(self, *, description=None, advance=None, completed=None):
+    def update(self, *, description: str = None, advance: int = None, completed: int = None):
         kwargs = {}
         if description is not None:
             # kwargs["description"] = f"[rgb(249,38,114)]{description}"
@@ -199,14 +238,20 @@ class RichBackendAbstract(AbstractProgressBackend):
 
 
 def find_backend():
-    if RichProgress is not None:
-        return RichBackendAbstract
-    if TqdmProgress is not None:
-        return TqdmBackendAbstract
-    return AsciiBackendAbstract
+    """searching for an available backend"""
+    if RICH_PROGRESS is not None:
+        return RichBackend
+    if TQDM_PROGRESS is not None:
+        return TqdmBackend
+    return AsciiBackend
 
 
 class Progress:
+    """
+    High leveled progress bar class
+    Use this as a context
+    """
+
     __DEFAULT_BACKEND = find_backend()
 
     def __init__(self, backend=None):
@@ -216,23 +261,46 @@ class Progress:
 
     @classmethod
     def set_default_backend(cls, backend: type[AbstractProgressBackend]):
+        """
+        Sets the default progressbar backend
+        :param backend:
+        :return:
+        """
         if not issubclass(backend, AbstractProgressBackend):
             raise TypeError("Invalid backend")
         cls.__DEFAULT_BACKEND = backend
 
     def start(self):
+        """
+        Progress backend initialisation
+        """
         self._backend.start()
 
-    def start_task(self, *, description=None, total=None):
+    def start_task(self, *, description: str = None, total: int = None):
+        """
+        Start progress task
+        :param description:
+        :param total:
+        """
         self._backend.start_task(description=description, total=total)
 
-    def update(self, *, description=None, advance=None, completed=None):
+    def update(self, *, description: str = None, advance: int = None, completed: int = None):
+        """
+        Update progress task
+        :param description:
+        :param advance:
+        :param completed:
+        """
         self._backend.update(description=description, advance=advance, completed=completed)
 
     def stop(self):
+        """Stop progressbar backend"""
         self._backend.stop()
 
     def fail(self):
+        """
+        Runs on progress __exit__ if ctx raises exception
+        """
         self._backend.fail()
 
     def __enter__(self):
@@ -251,11 +319,12 @@ class Progress:
 
 __all__ = (
     'Progress',
-    'AsciiBackendAbstract',
-    'RichBackendAbstract',
-    'TqdmBackendAbstract',
-    'RichProgress',
-    'TqdmProgress',
+    'AsciiBackend',
+    'RichBackend',
+    'TqdmBackend',
+    'RICH_PROGRESS',
+    'TQDM_PROGRESS',
     'AbstractProgressBackend',
-    'NoProgressBarBackend'
+    'NoProgressBarBackend',
+    'find_backend'
 )
