@@ -1,5 +1,10 @@
+import logging
 import unittest
 from pydfuutil.quirks import *
+from pydfuutil.logger import logger
+
+logger.setLevel(logging.DEBUG)
+
 
 class TestSetQuirks(unittest.TestCase):
 

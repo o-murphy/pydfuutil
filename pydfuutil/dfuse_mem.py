@@ -9,9 +9,9 @@ from dataclasses import dataclass, field
 from enum import IntFlag
 from typing import Iterator
 
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 
-logger = get_logger("dfuse_mem")
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 
 class DFUSE(IntFlag):
@@ -23,7 +23,14 @@ class DFUSE(IntFlag):
 
 @dataclass
 class MemSegment:
-    """Memory segment"""
+    """
+    Memory segment
+
+    We're using `segment_stack`
+    instead of `segment_list`
+    to prevent misunderstanding
+    with python's `list` type
+    """
 
     start: int = 0
     end: int = 0
@@ -90,7 +97,7 @@ class MemSegment:
 
     def find(self, address: int) -> ['MemSegment', None]:
         """
-        Find a memory segment in the list containing the given element.
+        Find a memory segment in the stack containing the given element.
         :param address: MemSegment address for in the stack.
         """
         if self.start <= address <= self.end:
@@ -99,45 +106,44 @@ class MemSegment:
             return self.next.find(address)
         return None
 
-    def free(self) -> None:
-        """Useless cause of garbage collector"""
-        raise NotImplementedError("Useless cause of garbage collector")
+    # def free(self) -> None:
+    #     """Useless cause of garbage collector"""
+    #     raise NotImplementedError("Useless cause of garbage collector")
 
 
-def add_segment(seqment_sequence: [MemSegment, None], segment: MemSegment) -> MemSegment:
+def add_segment(segment_stack: [MemSegment, None], segment: MemSegment) -> MemSegment:
     """
-    :param seqment_sequence:
+    :param segment_stack:
     :param segment:
     :return: 0 if ok
     """
     new_element = MemSegment(segment.start, segment.end, segment.pagesize, segment.mem_type)
 
-    if not seqment_sequence:
-        # list can be empty on the first call
+    if not segment_stack:
+        # stack can be empty on the first call
         return new_element
 
-    # find the last element in the list
-    seqment_sequence.append(new_element)
-    return seqment_sequence
+    # find the last element in the stack
+    segment_stack.append(new_element)
+    return segment_stack
 
 
-def find_segment(segment_stack: MemSegment, address: int) -> [MemSegment, None]:
+def find_segment(segment_stack: [MemSegment, None], address: int) -> [MemSegment, None]:
     """
-    Find a memory segment in the list containing the given element.
+    Find a memory segment in the stack containing the given element.
 
     :param segment_stack: List of MemSegment instances.
     :param address: MemSegment address for in the stack.
     :return: MemSegment instance if found, None otherwise.
     """
+    if not segment_stack:
+        return None
     return segment_stack.find(address)
 
 
-def free_segment_list(segment_stack: MemSegment) -> None:
-    """
-    Free the memory allocated for the list of memory segments.
-    :param segment_stack: List of MemSegment instances.
-    """
-    del segment_stack
+# def free_segment_list(segment_stack: MemSegment) -> None:
+#     """Useless cause of garbage collector"""
+#     raise NotImplementedError("Useless cause of garbage collector")
 
 
 # Parse memory map from interface descriptor string
@@ -152,21 +158,21 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
     :return: MemSegment instance
     """
 
-    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    _logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     if isinstance(intf_desc, bytes):
         intf_desc = intf_desc.decode('ascii')
 
     count: int = 0
-    segment_list: [MemSegment, None] = None
+    segment_stack: [MemSegment, None] = None
     address: [int, None] = None
 
     match = re.match(r'@([^/]+)', intf_desc)
     if match is None:
-        logger.error(f"Could not read name, name={match}")
+        _logger.error(f"Could not read name, name={match}")
         return None
     name = match.group(1)
-    logger.info(f"DfuSe interface name: {name}")
+    _logger.info(f"DfuSe interface name: {name}")
 
     intf_desc = intf_desc[match.end():]
 
@@ -181,7 +187,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
             _sectors, _size, multiplier, type_string = match.groups()
             sectors, size = int(_sectors), int(_size)
 
-            logger.debug(f"{sectors=}, {size=}, {multiplier=}, {type_string=}")
+            _logger.debug(f"{sectors=}, {size=}, {multiplier=}, {type_string=}")
 
             intf_desc = intf_desc[match.end():]
             count += 1
@@ -195,19 +201,19 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
                 size *= 1024 * 1024
             elif multiplier in ('a', 'b', 'c', 'd', 'e', 'f', 'g'):
                 if not mem_type:
-                    logger.warning(f"Non-valid multiplier {multiplier}, "
+                    _logger.warning(f"Non-valid multiplier {multiplier}, "
                                    "interpreted as type identifier instead")
                     mem_type = multiplier
 
-            # fallthrough if memtype was already set
+            # fallthrough if mem_type was already set
             else:
-                logger.warning(f"Non-valid multiplier {multiplier} assuming bytes")
+                _logger.warning(f"Non-valid multiplier {multiplier} assuming bytes")
 
             if not mem_type:
-                logger.warning(f"No valid type for segment {count}")
+                _logger.warning(f"No valid type for segment {count}")
 
-            segment_list = add_segment(
-                segment_list,
+            segment_stack = add_segment(
+                segment_stack,
                 MemSegment(
                     address,
                     address + sectors * size - 1,
@@ -216,7 +222,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
                 )
             )
 
-            logger.debug(f"Memory segment at "
+            _logger.debug(f"Memory segment at "
                          f"0x{address:08x} {sectors} x {size} = {sectors * size} "
                          f"({'r' if mem_type & DFUSE.READABLE else ''}"
                          f"{'e' if mem_type & DFUSE.ERASABLE else ''}"
@@ -224,9 +230,9 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
 
             address += sectors * size
 
-        logger.debug(f"Parsed details of {count} segments")
+        _logger.debug(f"Parsed details of {count} segments")
 
     if address is None:
-        logger.error(f"Could not read address, {address=}")
+        _logger.error(f"Could not read address, {address=}")
 
-    return segment_list
+    return segment_stack

@@ -6,13 +6,19 @@ import argparse
 import os
 import sys
 from enum import IntEnum
+import importlib.metadata
 
-from pydfuutil import __version__, __copyright__
+from pydfuutil import __copyright__
 from pydfuutil import lmdfu
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
-from pydfuutil.logger import get_logger
+from pydfuutil.logger import logger
 
-logger = get_logger("dfu-suffix")
+try:
+    __version__ = importlib.metadata.version("pydfuutil")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = 'UNKNOWN'
+
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 
 class Mode(IntEnum):
@@ -65,7 +71,7 @@ def check_suffix(file: DFUFile) -> int:
         print(f"Product ID:\t0x{file.idProduct:04X}")
         print(f"Vendor ID:\t0x{file.idVendor:04X}")
         print(f"BCD DFU:\t0x{file.bcdDFU:04X}")
-        print(f"Length:\t\t{file.suffixlen}")
+        print(f"Length:\t\t{file.suffix_len}")
         print(f"CRC:\t\t0x{file.dwCRC:08X}")
     return ret
 
@@ -81,13 +87,13 @@ def remove_suffix(file: DFUFile) -> int:
     if hasattr(os, 'ftruncate'):
         try:
             with open(file.name, 'r+', encoding='utf-8') as f:
-                f.truncate(file.size - file.suffixlen)
-            logger.info("DFU suffix removed")
+                f.truncate(file.size - file.suffix_len)
+            _logger.info("DFU suffix removed")
         except OSError as e:
-            logger.error(f"Error truncating file: {e}")
+            _logger.error(f"Error truncating file: {e}")
             sys.exit(1)
     else:
-        logger.error("Suffix removal not implemented on this platform")
+        _logger.error("Suffix removal not implemented on this platform")
     return 1
 
 
@@ -104,12 +110,12 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
         try:
             raise OSError("generate")
         except OSError as e:
-            logger.error(e)
+            _logger.error(e)
             sys.exit(1)
-    logger.info("New DFU suffix added.")
+    _logger.info("New DFU suffix added.")
 
 
-def _get_argparser():
+def _get_arg_parser():
     """Get custom argument parser"""
 
     class CustomHelpFormatter(argparse.HelpFormatter):
@@ -136,18 +142,18 @@ def _get_argparser():
 
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument('-c', '--check', metavar="<file>",
+    group.add_argument('-c', '--check',
                        const=Mode.CHECK, dest='mode', action='store_const',
                        help='Check DFU suffix of <file>')
-    group.add_argument('-a', '--add', metavar="<file>",
+    group.add_argument('-a', '--add',
                        const=Mode.ADD, dest='mode', action='store_const',
                        help='Add DFU suffix to <file>')
-    group.add_argument('-D', '--delete', metavar="<file>",
+    group.add_argument('-D', '--delete',
                        const=Mode.DEL, dest='mode', action='store_const',
                        help='Delete DFU suffix from <file>')
 
     parser.add_argument('file', action='store', metavar='<file>',
-                        type=argparse.FileType('r+b'),
+                        type=argparse.FileType('r+b'), default=None,
                         help="Target filename")
 
     parser.add_argument('-p', '--pid', action='store', metavar="<productID>",
@@ -159,8 +165,6 @@ def _get_argparser():
     parser.add_argument('-d', '--did', action='store', metavar="<deviceID>",
                         required=False,
                         type=lambda x: int(x, 16), help='Add device ID into DFU suffix in <file>')
-    # parser.add_argument('-S', '--spec', action='store', metavar="<specID>",
-    # required=False, help='Add DFU specification ID into DFU suffix in <file>')
     parser.add_argument('-s', '--stellaris-address', dest='lmdfu_flash_address',
                         metavar="<address>", type=int, help='Specify lmdfu address for LMDFU_ADD')
     parser.add_argument('-T', '--stellaris', dest='lmdfu_mode', action='store_const',
@@ -169,22 +173,25 @@ def _get_argparser():
     return parser
 
 
-def get_args(parser):
+def get_args(parser, argv):
     """parse command line arguments"""
     print_version()
     try:
-        args = parser.parse_args()
-    except Exception as err:
+        args = parser.parse_args(argv)
+    except argparse.ArgumentError as err:
         parser.print_help()
-        logger.error(err)
+        _logger.error(err)
         sys.exit(1)
     return args
 
 
-def main() -> None:
+def main(argv) -> None:
     """main executable"""
-    parser = _get_argparser()
-    args = get_args(parser)
+    if argv[0] == __file__:
+        argv.pop(0)
+
+    parser = _get_arg_parser()
+    args = get_args(parser, argv)
 
     lmdfu_mode = LmdfuMode.NONE
     lmdfu_flash_address: int = 0
@@ -193,7 +200,7 @@ def main() -> None:
     empty = 0xffff
 
     file = DFUFile(args.file.name)
-    file.filep, mode = args.file, args.mode
+    file.file_p, mode = args.file, args.mode
 
     pid = args.pid if args.pid else empty
     vid = args.vid if args.vid else empty
@@ -215,18 +222,18 @@ def main() -> None:
                 if check_suffix(file):
                     if lmdfu_prefix:
                         lmdfu.check_prefix(file)
-                    logger.warning("Please remove existing DFU suffix before adding a new one.")
+                    _logger.warning("Please remove existing DFU suffix before adding a new one.")
                     sys.exit(1)
 
                 if lmdfu_mode == LmdfuMode.ADD:
                     if lmdfu.check_prefix(file):
-                        logger.info("Adding new anyway")
+                        _logger.info("Adding new anyway")
                     lmdfu.add_prefix(file, lmdfu_flash_address)
 
                 add_suffix(file, pid, vid, did)
 
             elif mode == Mode.CHECK:
-                # FIXME: could open read-only here
+                # Note: could open read-only here
                 check_suffix(file)
                 if lmdfu_mode == LmdfuMode.CHECK:
                     lmdfu.check_prefix(file)
@@ -243,7 +250,7 @@ def main() -> None:
                 sys.exit(2)
 
             if lmdfu_mode == LmdfuMode.DEL and check_suffix(file):
-                logger.warning(
+                _logger.warning(
                     "DFU suffix exist. "
                     "Remove suffix before using -T or use it with -D to delete suffix")
                 sys.exit(1)
@@ -252,11 +259,11 @@ def main() -> None:
                 lmdfu.remove_prefix(file)
 
         except Exception as error:
-            logger.error(error)
+            _logger.error(error)
             sys.exit(1)
 
     sys.exit(0)
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
