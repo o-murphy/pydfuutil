@@ -109,6 +109,7 @@ class AsciiBackend(AbstractProgressBackend):
     def start_task(self, *, description: str = None, total: int = None):
         self._value = 0
         self._total = total
+        self._fail = False
         if self._total:
             self._rate = self._total / self.BAR_WIDTH
         self._print(f"{description} [")
@@ -138,7 +139,7 @@ class AsciiBackend(AbstractProgressBackend):
         self._print("] Failed!\n")
 
     def stop(self):
-        if not self._total:
+        if not self._total and not self._fail:
             self._print("] Complete!\n")
 
 

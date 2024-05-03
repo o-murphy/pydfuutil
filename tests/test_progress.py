@@ -30,18 +30,7 @@ class TestDfuProgress(unittest.TestCase):
         self._loop(TqdmBackend, 10)
 
         with self.subTest("indeterminate"):
-            total = None
-            i = 100
-            with Progress(TqdmBackend) as prog:
-                name = TqdmBackend.__name__
-
-                prog.start_task(description=f"{name}",
-                                total=total)
-                while i >= 1:
-                    sleep(0.1)
-                    prog.update(advance=1)
-                    i -= 1
-                prog.update(description=f"{name} OK")
+            self._loop(TqdmBackend, None)
 
     @unittest.skipIf(not RICH_PROGRESS,
                      "package not installed ImportError/UnboundLocalError/AttributeError")
