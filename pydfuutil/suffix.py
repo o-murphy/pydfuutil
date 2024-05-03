@@ -3,10 +3,10 @@
 """
 
 import argparse
+import importlib.metadata
 import os
 import sys
 from enum import IntEnum
-import importlib.metadata
 
 from pydfuutil import __copyright__
 from pydfuutil import lmdfu
@@ -37,27 +37,8 @@ class LmdfuMode(IntEnum):
     CHECK = 0x4
 
 
-def print_version() -> None:
-    """
-    Prints dfu-suffix version to console
-    """
-    print(f'pydfuutil-suffix " {__version__} "\n')
-    print(f'{__copyright__[0]}\n'
-          'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
-
-
-OPTS = (
-    ("help", 0, 0, 'h'),
-    ("version", 0, 0, 'V'),
-    ("delete", 1, 0, 'D'),
-    ("pid", 1, 0, 'p'),
-    ("vid", 1, 0, 'v'),
-    ("did", 1, 0, 'd'),
-    ("check", 1, 0, 'c'),
-    ("add", 1, 0, 'a'),
-    ("stellaris-address", 1, 0, 's'),
-    ("stellaris", 0, 0, 'T'),
-)
+VERSION = (f'pydfuutil-suffix " {__version__} "\n {__copyright__[0]}\n'
+           f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
 
 
 def check_suffix(file: DFUFile) -> int:
@@ -127,17 +108,13 @@ def _get_arg_parser():
             super().add_argument(action)
 
     parser = argparse.ArgumentParser(
-        prog='dfu-suffix',
-        # description="",
-        # epilog='Text at the bottom of help',
-        # conflict_handler='resolve',
+        prog=f'pydfuutil-suffix v{__version__}',
         exit_on_error=False,
-        # add_help=True,
         formatter_class=CustomHelpFormatter
     )
 
     parser.add_argument('-V', '--version', action='version',
-                        version=f'{parser.prog} " v{__version__} "',
+                        version=VERSION,
                         help='Print the version number')
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -175,8 +152,8 @@ def _get_arg_parser():
 
 def get_args(parser, argv):
     """parse command line arguments"""
-    print_version()
     try:
+        print(parser.prog)
         args = parser.parse_args(argv)
     except argparse.ArgumentError as err:
         parser.print_help()
@@ -187,7 +164,7 @@ def get_args(parser, argv):
 
 def main(argv) -> None:
     """main executable"""
-    if argv[0] == __file__:
+    if len(argv) > 0 and argv[0] == __file__:
         argv.pop(0)
 
     parser = _get_arg_parser()

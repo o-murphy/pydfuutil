@@ -382,7 +382,7 @@ def get_device_path(dev: usb.core.Device) -> str:
     device_path = f"{bus_number}-{port_numbers.pop(0)}"
     for port in port_numbers:
         device_path += f".{port}"
-    print(dev)
+
     # Append configuration and interface numbers
     cfg = dev.get_active_configuration()
     device_path += f":{cfg.bConfigurationValue}.{cfg[(0,0)].bInterfaceNumber}"
@@ -390,7 +390,7 @@ def get_device_path(dev: usb.core.Device) -> str:
     return device_path
 
 
-# TODO: maybe useless if pyusb uses
+# FIXME: maybe useless if pyusb uses?
 def resolve_device_path(dif: dfu.DfuIf) -> int:
     """
     :param dif: DfuIf instance
@@ -624,8 +624,9 @@ def main(argv) -> None:
                              "for raw file download or upload. "
                              "Not applicable for DfuSe file (.dfu) downloads")
 
+    print(parser.prog)
     # Parse arguments
-    if argv[0] == __file__:
+    if len(argv) > 0 and argv[0] == __file__:
         argv.pop(0)
     args = parser.parse_args(argv)
     verbose = False
@@ -800,11 +801,11 @@ def main(argv) -> None:
             milli_sleep(status_.bwPollTimeout)
         return status_
 
-    while not _rt_dif.flags & dfu.Mode.IFF_DFU:
+    if not _rt_dif.flags & dfu.Mode.IFF_DFU:
         # In the 'first round' during runtime mode, there can only be one
         # DFU Interface descriptor according to the DFU Spec.
 
-        # TODO: check if the selected device really has only one
+        # Note: future warning: check if the selected device really has only one
 
         logger.info("Claiming USB DFU Runtime Interface...")
         try:
@@ -838,7 +839,6 @@ def main(argv) -> None:
                 except usb.core.USBError:
                     logger.error("error resetting after detach")
             milli_sleep(2000)
-            break  # TODO: wtf? break there?
         elif status.bState == dfu.State.DFU_ERROR:
             logger.error("dfuERROR, clearing status")
             if dfu.clear_status(_rt_dif.dev, _rt_dif.interface) < 0:
@@ -846,7 +846,6 @@ def main(argv) -> None:
                 sys.exit(1)
         else:
             logger.info("Runtime device already in DFU state ?!?")
-            break
 
         usb.util.release_interface(_rt_dif.dev, _rt_dif.interface)
         usb.util.dispose_resources(_rt_dif.dev)

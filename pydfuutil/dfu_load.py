@@ -125,8 +125,8 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
 
                 if status.bStatus != dfu.Status.OK:
                     logger.error("Transfer failed!")
-                    print(f"state({status.bState}) = {status.bState.to_string()}, "
-                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
+                    logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
+                                f"status({status.bStatus}) = {status.bStatus.to_string()}")
                     raise IOError("Downloading failed!")
 
                 progress.update(description="Downloading...", advance=xfer_size)

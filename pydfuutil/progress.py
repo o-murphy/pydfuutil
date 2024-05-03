@@ -4,6 +4,8 @@
 import sys
 from abc import ABC, abstractmethod
 
+
+
 try:
     from rich import progress as RICH_PROGRESS
 except ImportError:
@@ -17,7 +19,9 @@ try:
 except ImportError:
     TQDM_PROGRESS = None
 
+
 import logging
+
 
 _logger = logging.getLogger('progress')
 _logger.setLevel(logging.INFO)
@@ -105,29 +109,37 @@ class AsciiBackend(AbstractProgressBackend):
     def start_task(self, *, description: str = None, total: int = None):
         self._value = 0
         self._total = total
-        self._rate = self._total / self.BAR_WIDTH
+        if self._total:
+            self._rate = self._total / self.BAR_WIDTH
         self._print(f"{description} [")
 
     def update(self, *, description: str = None, advance: int = None, completed: int = None):
-        if advance:
-            self._value += advance
-            if self._rate != 0 and self._value % self._rate != 0:
-                # self._print("#")
-                self._print("━")
-        if completed:
-            if completed < self._value:
-                raise ValueError(f"The progress can't run backward! "
-                                 f"{completed} < {self._value}")
-            self._value = completed
-            self._print("#" * (completed - self._value) // self._rate)
-        if self._total == self._value and (advance or completed):
-            self._print("] Complete!\n")
+        if self._total:
+
+            if advance:
+                self._value += advance
+                if self._rate != 0 and advance % self._rate != 0:
+                    self._print("━" * int(advance / self._rate))
+            if completed:
+                if completed < self._value:
+                    raise ValueError(f"The progress can't run backward! "
+                                     f"{completed} < {self._value}")
+                prev_value = self._value
+                self._value = completed
+                if (delta := (self._value - prev_value)) > 0:
+                    if delta % self._rate != 0:
+                        self._print("━" * int(delta / self._rate))
+            if self._total <= self._value and (advance or completed):
+                self._print("] Complete!\n")
+        else:
+            self._print("━")
 
     def fail(self):
         self._print("] Failed!\n")
 
     def stop(self):
-        pass
+        if not self._total:
+            self._print("] Complete!\n")
 
 
 class TqdmBackend(AbstractProgressBackend):
@@ -135,6 +147,8 @@ class TqdmBackend(AbstractProgressBackend):
 
     BAR_FORMAT = ("{desc} {bar:20} {percentage:3.0f}% "
                   "{remaining} {n_fmt}/{total_fmt} bytes {rate_fmt}")
+    BAR_FORMAT_INF = "{desc} {n_fmt}/{total_fmt} bytes {rate_fmt}"
+    SPINNER = ["|", "/", "-", chr(92)]
 
     def __init__(self):
         super().__init__()
@@ -146,25 +160,43 @@ class TqdmBackend(AbstractProgressBackend):
 
     def start_task(self, *, description: str = None, total: int = None):
         self._value = 0
-        self._progress = TQDM_PROGRESS(
-            total=total,
-            unit=' bytes',
-            desc=description,
-            bar_format=TqdmBackend.BAR_FORMAT,
-            colour="magenta",
-            ascii=' ━',
-        )
+        if total:
+            self._progress = TQDM_PROGRESS(
+                total=total,
+                unit=' bytes',
+                desc=description,
+                bar_format=TqdmBackend.BAR_FORMAT,
+                # colour="magenta",
+                ascii=' ━',
+            )
+        else:
+            self._progress = TQDM_PROGRESS(
+                total=float('inf'),
+                unit=' bytes',
+                desc=f"{description} {self._spin}",
+                bar_format=TqdmBackend.BAR_FORMAT_INF,
+            )
+
+    @staticmethod
+    def _spin(self):
+        TqdmBackend.SPINNER.append(TqdmBackend.SPINNER.pop(0))
+        return TqdmBackend.SPINNER[0]
 
     def update(self, *, description: str = None, advance: int = None, completed: int = None):
         if description:
-            self._progress.description = description
-        if advance:
-            self._progress.update(advance)
-        if completed:
-            self._progress.n = completed
-        # if self._progress.total == self._value and (advance or completed):
-        #     self._progress.colour = "green"
-        #     self._progress.description = description
+            self._progress.desc = description
+        if self._progress.total:
+            if advance:
+                self._progress.update(advance)
+            if completed:
+                self._progress.n = completed
+            if self._progress.total == self._value and (advance or completed):
+                # self._progress.colour = "green"
+                self._progress.description = description
+        else:
+            description = self._progress.desc[:-len(TqdmBackend.SPINNER[0])+1]
+            TqdmBackend.SPINNER.append(TqdmBackend.SPINNER.pop(0))
+            self._progress.desc = f"{description} {TqdmBackend.SPINNER[0]}"
         self._progress.refresh()
 
     def fail(self):
@@ -219,7 +251,7 @@ class RichBackend(AbstractProgressBackend):
             kwargs["completed"] = completed
         self._progress.update(self._task_id, **kwargs)
         t = self._progress.tasks[self._task_id]
-        if t.completed == t.total:
+        if t.total is not None and t.completed >= t.total:
             desc = t.description.split(']')[-1]
             self._progress.update(self._task_id,
                                   description=f"[#729C1F]{desc}")
@@ -311,8 +343,6 @@ class Progress:
         if exc_type:
             self.fail()
             raise exc_type(exc_value)
-            # print(exc_type, exc_value, traceback.tb_lineno)
-            # raise Exception(exc_type, exc_value, traceback)
         self.stop()
         return True
 
