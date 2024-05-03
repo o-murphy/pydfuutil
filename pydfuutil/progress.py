@@ -147,8 +147,7 @@ class TqdmBackend(AbstractProgressBackend):
 
     BAR_FORMAT = ("{desc} {bar:20} {percentage:3.0f}% "
                   "{remaining} {n_fmt}/{total_fmt} bytes {rate_fmt}")
-    BAR_FORMAT_INF = "{desc} {n_fmt}/{total_fmt} bytes {rate_fmt}"
-    SPINNER = ["|", "/", "-", chr(92)]
+    BAR_FORMAT_INF = "{desc} {postfix} {n_fmt}/{total_fmt} bytes {rate_fmt}"
 
     def __init__(self):
         super().__init__()
@@ -166,37 +165,51 @@ class TqdmBackend(AbstractProgressBackend):
                 unit=' bytes',
                 desc=description,
                 bar_format=TqdmBackend.BAR_FORMAT,
-                # colour="magenta",
                 ascii=' ━',
             )
         else:
             self._progress = TQDM_PROGRESS(
                 total=float('inf'),
                 unit=' bytes',
-                desc=f"{description} {self._spin}",
+                desc=description,
                 bar_format=TqdmBackend.BAR_FORMAT_INF,
+                postfix=""
             )
+            self._spinner_state = [0, True]
 
-    @staticmethod
-    def _spin(self):
-        TqdmBackend.SPINNER.append(TqdmBackend.SPINNER.pop(0))
-        return TqdmBackend.SPINNER[0]
+    def _spin(self, complete=False):
+        if complete:
+            self._progress.postfix = "━" * 20
+            return
+        value, is_forward = self._spinner_state
+
+        symbol = "=▶" if value % 2 == 1 else "▶="
+        self._progress.postfix = symbol * 10
+        self._spinner_state[0] += 1
+
+        # if value == 20:
+        #     self._spinner_state = [0, not is_forward]
+        # if is_forward:
+        #     self._progress.postfix = "━" * value + " " * (20 - value + 5)
+        #     self._spinner_state[0] += 1
+        # else:
+        #     self._progress.postfix = " " * value + "━" * (20 - value + 5)
+        #     self._spinner_state[0] += 1
 
     def update(self, *, description: str = None, advance: int = None, completed: int = None):
         if description:
             self._progress.desc = description
+
+        if advance:
+            self._progress.update(advance)
+        if completed:
+            self._progress.n = completed
+
         if self._progress.total:
-            if advance:
-                self._progress.update(advance)
-            if completed:
-                self._progress.n = completed
             if self._progress.total == self._value and (advance or completed):
-                # self._progress.colour = "green"
-                self._progress.description = description
+                self._progress.desc = description
         else:
-            description = self._progress.desc[:-len(TqdmBackend.SPINNER[0])+1]
-            TqdmBackend.SPINNER.append(TqdmBackend.SPINNER.pop(0))
-            self._progress.desc = f"{description} {TqdmBackend.SPINNER[0]}"
+            self._spin()
         self._progress.refresh()
 
     def fail(self):
@@ -205,6 +218,8 @@ class TqdmBackend(AbstractProgressBackend):
         pass
 
     def stop(self):
+        if not self._progress.total:
+            self._spin(complete=True)
         self._progress = None
 
 
