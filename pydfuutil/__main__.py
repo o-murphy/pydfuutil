@@ -73,9 +73,43 @@ def usb_path2devnum(path: str) -> int:
     return devnum
 
 
-def find_dfu_if(dev: usb.core.Device,
-                handler: Callable[[dfu.DfuIf, Any], Any] = None,
-                v: Any = None) -> int:
+
+def find_dfu_if1(dev: usb.core.Device) -> list[dfu.DfuIf]:
+    """
+    Find DFU interface for a given USB device.
+
+    :param dev: The USB device.
+    :param handler: Callback function to handle the found DFU interface.
+    :param v: Additional user-defined data for the callback function.
+    :return: 0 if no DFU interface is found, or the result of the handler function.
+    """
+
+    configs = dev.configurations()  # .desc
+
+    for cfg in configs:
+        for intf in cfg:
+            if intf.bInterfaceClass == 0xfe and intf.bInterfaceSubClass == 1:
+                dfu_if = dfu.DfuIf(
+                    vendor=dev.idVendor,
+                    product=dev.idProduct,
+                    bcdDevice=dev.bcdDevice,
+                    configuration=cfg.bConfigurationValue,
+                    interface=intf.bInterfaceNumber,
+                    altsetting=intf.bAlternateSetting,
+                    alt_name="",
+                    bus=dev.bus,
+                    devnum=dev.address,
+                    path=dev.address,
+                    flags=0,
+                    count=0,
+                    dev=dev
+                )
+                yield dfu_if
+
+
+def find_dfu_if0(dev: usb.core.Device,
+                 handler: Callable[[dfu.DfuIf, Any], Any] = None,
+                 v: Any = None) -> int:
     """
     Find DFU interface for a given USB device.
 
@@ -111,7 +145,6 @@ def find_dfu_if(dev: usb.core.Device,
                     rc = handler(dfu_if, v)
                     if rc != 0:
                         return rc
-
     return 0
 
 
@@ -137,7 +170,7 @@ def _get_first_dfu_if(dif: dfu.DfuIf) -> int:
     :param dif: The DFU interface struct.
     :return: 0 if no DFU interface is found, 1 otherwise.
     """
-    return find_dfu_if(dif.dev, _get_first_cb, dif)
+    return find_dfu_if0(dif.dev, _get_first_cb, dif)
 
 
 def _check_match_cb(dif: dfu.DfuIf, v: dfu.DfuIf) -> int:
@@ -162,7 +195,7 @@ def get_matching_dfu_if(dif: dfu.DfuIf) -> int:
     :param dif: The DFU interface struct.
     :return: 0 if no matching interface/altsetting is found, 1 otherwise.
     """
-    return find_dfu_if(dif.dev, _check_match_cb, dif)
+    return find_dfu_if0(dif.dev, _check_match_cb, dif)
 
 
 def _count_match_cb(dif: dfu.DfuIf, v: dfu.DfuIf) -> int:
@@ -189,7 +222,7 @@ def count_matching_dfu_if(dif: dfu.DfuIf) -> int:
     :return: The number of matching DFU interfaces/altsettings.
     """
     dif.count = 0
-    find_dfu_if(dif.dev, _count_match_cb, dif)
+    find_dfu_if0(dif.dev, _count_match_cb, dif)
     return dif.count
 
 
@@ -222,19 +255,28 @@ def get_alt_name(dfu_if: dfu.DfuIf) -> [int, str]:
     return -1
 
 
-def get_port_number(dev: usb.core.Device):
-    """get device port number"""
-    port_number = 0
-    while dev:
-        port_number += 1
-        try:
-            dev = dev.get_parent()
-        except usb.core.USBError:
-            break
-    return port_number
+def print_dfu_if0(dfu_if: dfu.DfuIf, v: Any) -> int:
+    """
+    Print DFU interface information.
+
+    :param dfu_if: The DFU interface struct.
+    :param v: Unused (can be any value).
+    :return: Always returns 0.
+    """
+    # FIXME: DEPRECATED
+    name: str = get_alt_name(dfu_if)
+    if name is None:
+        name = "UNDEFINED"
+    logger.info(f"Found {'DFU' if dfu_if.flags & dfu.Mode.IFF_DFU else 'Runtime'}: "
+                f"[{dfu_if.vendor:04x}:{dfu_if.product:04x}] devnum={dfu_if.devnum}, "
+                f"cfg={dfu_if.configuration}, intf={dfu_if.interface}, "
+                f"alt={dfu_if.altsetting}, name=\"{name}\"")
+    if sys.platform != "win32":
+        logger.debug(get_device_path(dfu_if.dev))
+    return 0
 
 
-def print_dfu_if(dfu_if: dfu.DfuIf, v: Any) -> int:
+def print_dfu_if1(dfu_if: dfu.DfuIf) -> int:
     """
     Print DFU interface information.
 
@@ -263,7 +305,11 @@ def list_dfu_interfaces(ctx: list[usb.core.Device]) -> int:
     """
 
     for dev in ctx:
-        find_dfu_if(dev, print_dfu_if, None)
+        # find_dfu_if(dev, print_dfu_if, None)
+
+        for dfu_if in find_dfu_if1(dev):
+            print_dfu_if1(dfu_if)
+
         usb.util.dispose_resources(dev)
     return 0
 
@@ -293,15 +339,15 @@ def count_dfu_interfaces(dev: usb.core.Device) -> int:
     :param dev: The USB device.
     :return: The number of DFU interfaces found.
     """
-    num_found: int = 0
-
-    def count_cb(dif, v):
-        nonlocal num_found
-        num_found += v
-        return 0
-
-    find_dfu_if(dev, count_cb, 1)
-    return num_found
+    # FIXME: DEPRECATED
+    # num_found: int = 0
+    # def count_cb(dif, v):
+    #     nonlocal num_found
+    #     num_found += v
+    #     return 0
+    # find_dfu_if(dev, count_cb, 1)
+    # return 0
+    return len(list(find_dfu_if1(dev)))
 
 
 def iterate_dfu_devices(ctx: list[usb.core.Device], dif: dfu.DfuIf) -> list[usb.core.Device]:
@@ -345,7 +391,6 @@ def found_dfu_device(dev: usb.core.Device, dif: dfu.DfuIf) -> int:
 def parse_vid_pid(string: str) -> tuple[int, int]:
     """
     Parse a string containing vendor and product IDs in hexadecimal format.
-
     :param string: The string containing vendor and product IDs separated by ':'.
     :return: A tuple containing the vendor and product IDs.
     """
@@ -750,6 +795,7 @@ def main(argv) -> None:
 
     _rt_dif: dfu.DfuIf = None
 
+    # FIXME: DEPRECATED
     def get_first_dfu_if(dif_: dfu.DfuIf, v: Any = None):
         nonlocal _rt_dif
         _rt_dif = dif_
@@ -757,7 +803,10 @@ def main(argv) -> None:
             logger.error("Cannot open device")
             sys.exit(1)
 
-    find_dfu_if(dev, get_first_dfu_if)
+    find_dfu_if0(dev, get_first_dfu_if)
+
+
+
     logger.debug(_rt_dif)
 
     logger.info(f"ID 0x{_rt_dif.vendor:04X}:0x{_rt_dif.product:04X}")
@@ -881,7 +930,7 @@ def main(argv) -> None:
             logger.error("Cannot open device")
             sys.exit(1)
 
-    find_dfu_if(dev, get_first_detached_dfu_if)
+    find_dfu_if0(dev, get_first_detached_dfu_if)
     logger.debug(dif)
 
     logger.info("Opening DFU USB Device...")
@@ -893,7 +942,7 @@ def main(argv) -> None:
     logger.debug('Dfu state...')
 
     if alt_name:
-        if not (n := find_dfu_if(dif.dev, alt_by_name, alt_name)):
+        if not (n := find_dfu_if0(dif.dev, alt_by_name, alt_name)):
             logger.error(f"No such Alternate Setting: {alt_name}")
             sys.exit(1)
         if n < 0:
@@ -916,7 +965,8 @@ def main(argv) -> None:
         logger.error("Can't find the matching DFU interface/altsetting")
         sys.exit(1)
 
-    print_dfu_if(dif, None)
+    # print_dfu_if(dif, None)  # FIXME: DEPRECATED
+    print_dfu_if1(dif, None)
     if (active_alt_name := get_alt_name(dif)) and len(active_alt_name) > 0:
         dif.alt_name = active_alt_name
     else:

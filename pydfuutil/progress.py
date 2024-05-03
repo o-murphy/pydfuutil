@@ -95,6 +95,7 @@ class AsciiBackend(AbstractProgressBackend):
         self._value = None
         self._total = None
         self._rate = None
+        self._fail = None
 
     def _print(self, symbol: str):
         if self.REDIRECT_STD:
@@ -127,7 +128,7 @@ class AsciiBackend(AbstractProgressBackend):
                                      f"{completed} < {self._value}")
                 prev_value = self._value
                 self._value = completed
-                if (delta := (self._value - prev_value)) > 0:
+                if (delta := self._value - prev_value) > 0:
                     if delta % self._rate != 0:
                         self._print("━" * int(delta / self._rate))
             if self._total <= self._value and (advance or completed):
@@ -154,6 +155,7 @@ class TqdmBackend(AbstractProgressBackend):
         super().__init__()
         self._progress = None
         self._value = None
+        self._spinner_state = None
 
     def start(self):
         pass
@@ -176,26 +178,16 @@ class TqdmBackend(AbstractProgressBackend):
                 bar_format=TqdmBackend.BAR_FORMAT_INF,
                 postfix=""
             )
-            self._spinner_state = [0, True]
+            self._spinner_state = 0
 
     def _spin(self, complete=False):
         if complete:
             self._progress.postfix = "━" * 20
             return
-        value, is_forward = self._spinner_state
 
-        symbol = "=▶" if value % 2 == 1 else "▶="
+        symbol = "=▶" if self._spinner_state % 2 == 1 else "▶="
         self._progress.postfix = symbol * 10
-        self._spinner_state[0] += 1
-
-        # if value == 20:
-        #     self._spinner_state = [0, not is_forward]
-        # if is_forward:
-        #     self._progress.postfix = "━" * value + " " * (20 - value + 5)
-        #     self._spinner_state[0] += 1
-        # else:
-        #     self._progress.postfix = " " * value + "━" * (20 - value + 5)
-        #     self._spinner_state[0] += 1
+        self._spinner_state += 1
 
     def update(self, *, description: str = None, advance: int = None, completed: int = None):
         if description:
