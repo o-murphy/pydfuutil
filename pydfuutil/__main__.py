@@ -5,24 +5,24 @@ Based on existing code of dfu-programmer-0.4
 """
 import argparse
 import errno
+import importlib.metadata
 import logging
 import os
 import re
 import sys
 from enum import Enum
 from typing import Any, Callable, Literal
-import importlib.metadata
-
-from pydfuutil import dfu
-from pydfuutil import dfuse
-from pydfuutil import dfu_load
-from pydfuutil import dfu_file
-from pydfuutil import quirks
-from pydfuutil import usb_dfu
-from pydfuutil.portable import milli_sleep
-from pydfuutil.logger import logger
 
 import usb.core
+
+from pydfuutil import dfu
+from pydfuutil import dfu_file
+from pydfuutil import dfu_load
+from pydfuutil import dfuse
+from pydfuutil import quirks
+from pydfuutil import usb_dfu
+from pydfuutil.logger import logger
+from pydfuutil.portable import milli_sleep
 
 try:
     import libusb_package
@@ -58,11 +58,19 @@ def atoi(s: str) -> int:
 
 def usb_path2devnum(path: str) -> int:
     """parse the dev bus/port"""
-    # TODO: wrong implementation
-    parts = path.split('.')
-    if len(parts) == 2:
-        return int(parts[0]), int(parts[1])
-    return 0
+
+    parts = path.split('-')
+    # bus_number = int(parts[0])
+    port_numbers, config_interface = parts[1].split(':')
+    port_numbers = list(map(int, port_numbers.split('.')))
+    # config, interface = map(int, config_interface.split('.'))
+
+    devnum = 0
+    for port in port_numbers:
+        devnum <<= 4
+        devnum += port
+
+    return devnum
 
 
 def find_dfu_if(dev: usb.core.Device,
@@ -214,6 +222,18 @@ def get_alt_name(dfu_if: dfu.DfuIf) -> [int, str]:
     return -1
 
 
+def get_port_number(dev: usb.core.Device):
+    """get device port number"""
+    port_number = 0
+    while dev:
+        port_number += 1
+        try:
+            dev = dev.get_parent()
+        except usb.core.USBError:
+            break
+    return port_number
+
+
 def print_dfu_if(dfu_if: dfu.DfuIf, v: Any) -> int:
     """
     Print DFU interface information.
@@ -222,16 +242,15 @@ def print_dfu_if(dfu_if: dfu.DfuIf, v: Any) -> int:
     :param v: Unused (can be any value).
     :return: Always returns 0.
     """
-
     name: str = get_alt_name(dfu_if)
     if name is None:
         name = "UNDEFINED"
-
     logger.info(f"Found {'DFU' if dfu_if.flags & dfu.Mode.IFF_DFU else 'Runtime'}: "
                 f"[{dfu_if.vendor:04x}:{dfu_if.product:04x}] devnum={dfu_if.devnum}, "
                 f"cfg={dfu_if.configuration}, intf={dfu_if.interface}, "
                 f"alt={dfu_if.altsetting}, name=\"{name}\"")
-
+    if sys.platform != "win32":
+        logger.debug(get_device_path(dfu_if.dev))
     return 0
 
 
@@ -343,12 +362,42 @@ def parse_vid_pid(string: str) -> tuple[int, int]:
     return vendor, product
 
 
+def get_device_path(dev: usb.core.Device) -> str:
+    """
+    Get device path
+    :param dev:
+    :return str:
+    """
+    # Retrieve bus and device numbers
+    bus_number = dev.bus
+    device_number = dev.address
+    parent = dev.parent
+    # Retrieve port numbers
+    port_numbers = [device_number]
+    while parent is not None:
+        port_numbers.insert(0, parent.port_number)
+        parent = parent.parent
+
+    # Construct device path
+    device_path = f"{bus_number}-{port_numbers.pop(0)}"
+    for port in port_numbers:
+        device_path += f".{port}"
+    print(dev)
+    # Append configuration and interface numbers
+    cfg = dev.get_active_configuration()
+    device_path += f":{cfg.bConfigurationValue}.{cfg[(0,0)].bInterfaceNumber}"
+
+    return device_path
+
+
 # TODO: maybe useless if pyusb uses
 def resolve_device_path(dif: dfu.DfuIf) -> int:
     """
     :param dif: DfuIf instance
     """
     try:
+        if sys.platform == "win32":
+            raise SystemError("USB device paths are not supported by Windows")
         res: int = usb_path2devnum(dif.path)
         if res < 0:
             return -errno.EINVAL
@@ -358,11 +407,14 @@ def resolve_device_path(dif: dfu.DfuIf) -> int:
         dif.bus = atoi(dif.path)
         dif.devnum = res
         dif.flags |= dfu.Mode.IFF_DEVNUM
+        logger.debug(f"DIF PATH: {dif.path}: {dif.bus}")
         return res
+    except SystemError as err:
+        logger.error(err)
     except Exception as err:
-        logger.error("USB device paths are not supported by this dfu-util.\n")
+        logger.error("USB device paths are not supported by this dfu-util")
         logger.debug(err)
-        sys.exit(1)
+    sys.exit(1)
 
 
 def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
@@ -666,6 +718,7 @@ def main(argv) -> None:
     libusb_ctx = list(usb.core.find(find_all=True, **dif.device_ids))
 
     if mode == Mode.LIST:
+        logger.debug(mode)
         list_dfu_interfaces(libusb_ctx)
         sys.exit(0)
 
