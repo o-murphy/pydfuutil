@@ -223,6 +223,7 @@ class RichBackend(AbstractProgressBackend):
         super().__init__()
         self._progress: [RICH_PROGRESS.Progress, None] = None
         self._task_id = None
+        self._fail = None
 
     def start(self):
         pass
@@ -241,11 +242,11 @@ class RichBackend(AbstractProgressBackend):
 
     def start_task(self, *, description: str = None, total: int = None):
         self._prepare()
+        self._fail = False
         kwargs = {}
         if description is not None:
             kwargs["description"] = f"[#F92672]{description}"
-        if total is not None:
-            kwargs["total"] = total
+        kwargs["total"] = total
         self._task_id = self._progress.add_task(start=True, **kwargs)
 
     def update(self, *, description: str = None, advance: int = None, completed: int = None):
@@ -265,12 +266,19 @@ class RichBackend(AbstractProgressBackend):
                                   description=f"[#729C1F]{desc}")
 
     def fail(self):
+        self._fail = True
         t = self._progress.tasks[self._task_id]
         desc = t.description.split(']')[-1]
         self._progress.update(self._task_id,
                               description=f"[red]{desc}")
 
     def stop(self):
+        if not self._fail:
+            t = self._progress.tasks[self._task_id]
+            desc = t.description.split(']')[-1]
+            self._progress.update(self._task_id,
+                                  description=f"[#729C1F]{desc}",
+                                  total=t.completed)
         # # uncomment to hide bar after complete
         # self._progress.remove_task(self._task_id)
         self._progress.stop()

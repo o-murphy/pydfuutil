@@ -26,7 +26,6 @@ def do_upload(dif: dfu.DfuIf,
     :return: uploaded bytes or error code
     """
 
-    _logger.info(f"bytes_per_hash={xfer_size}")
     _logger.info("Copying data from DFU device to PC")
 
     total_bytes = 0
@@ -34,9 +33,10 @@ def do_upload(dif: dfu.DfuIf,
     buf = bytearray(xfer_size)
 
     with Progress() as progress:
+        progress_total = total_size if total_size >= 0 else None
         progress.start_task(
             description="Starting upload",
-            total=total_size if total_size >= 0 else None
+            total=progress_total
         )
 
         while True:
@@ -57,7 +57,7 @@ def do_upload(dif: dfu.DfuIf,
             total_bytes += len(rc)
 
             transaction += 1
-            progress.update(advance=xfer_size, description="Uploading...")
+            progress.update(advance=len(rc), description="Uploading...")
 
             # last block, return
             if (len(rc) < xfer_size) or (total_bytes >= total_size >= 0):
@@ -129,7 +129,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
                                 f"status({status.bStatus}) = {status.bStatus.to_string()}")
                     raise IOError("Downloading failed!")
 
-                progress.update(description="Downloading...", advance=xfer_size)
+                progress.update(description="Downloading...", advance=xfer_size//1000)
 
             # Send one zero-sized download request to signalize end
             if dif.download(dfu.TRANSACTION, bytes()) < 0:

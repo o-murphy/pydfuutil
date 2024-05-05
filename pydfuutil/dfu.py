@@ -4,7 +4,6 @@ low-level DFU message sending routines (part of dfu-programmer).
 """
 
 import inspect
-import logging
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
 
@@ -14,7 +13,6 @@ from pydfuutil.logger import logger
 
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
-_logger.setLevel(logging.DEBUG)
 
 
 class State(IntEnum):
@@ -186,7 +184,7 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
     bus: int = None
     devnum: int = None
     path: [str, int] = None
-    flags: [Mode, int] = None
+    flags: [Mode, int] = 0
     count: int = None
     dev: usb.core.Device = None
 

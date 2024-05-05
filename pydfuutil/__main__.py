@@ -48,11 +48,16 @@ def atoi(s: str) -> int:
     :param s: input
     :return: Return 0 if no integer is found
     """
-    match = re.match(r'^\s*([-+]?\d+)', s)
+    match = re.match(r'^\dx([\da-fA-F]+)', s)
+    if match:
+        result = int(match.group(1), 16)
+        return result
 
+    match = re.match(r'^\s*([-+]?\d+)', s)
     if match:
         result = int(match.group(1))
         return result
+
     return 0
 
 
@@ -163,14 +168,17 @@ def _get_first_cb(dif: dfu.DfuIf, v: dfu.DfuIf) -> int:
     return 1
 
 
-def _get_first_dfu_if(dif: dfu.DfuIf) -> int:
+def get_first_dfu_if(dev: usb.core.Device) -> dfu.DfuIf:
     """
     Fills in dif with the first found DFU interface.
 
-    :param dif: The DFU interface struct.
+    :param dev: the DFU capable USB device
     :return: 0 if no DFU interface is found, 1 otherwise.
     """
-    return find_dfu_if0(dif.dev, _get_first_cb, dif)
+    if dfu_if := next((i for i in find_dfu_if1(dev) if i is not None), None):
+        return dfu_if
+    logger.error("Cannot open device")
+    sys.exit(1)
 
 
 def _check_match_cb(dif: dfu.DfuIf, v: dfu.DfuIf) -> int:
@@ -658,6 +666,8 @@ def main(argv) -> None:
                         help="Specify the Altsetting of the DFU Interface")
     parser.add_argument("-t", "--transfer-size", metavar="<size>",
                         help="Specify the number of bytes per USB Transfer")
+    # parser.add_argument("-tr", "--total-size", metavar="<size>",
+    #                     help="Specify the expected number of bytes per Transaction")
     parser.add_argument("-U", "--upload", metavar="<file>",
                         help="Read firmware from device into <file>")
     parser.add_argument("-D", "--download", metavar="<file>",
@@ -668,6 +678,8 @@ def main(argv) -> None:
                         help="ST DfuSe mode, specify target address "
                              "for raw file download or upload. "
                              "Not applicable for DfuSe file (.dfu) downloads")
+    parser.add_argument("-y", "--yes-to-all", action="store_true",
+                        help="Say yes to all prompts")
 
     print(parser.prog)
     # Parse arguments
@@ -732,6 +744,9 @@ def main(argv) -> None:
 
     if args.transfer_size:
         transfer_size = atoi(args.transfer_size)
+        print(transfer_size)
+
+    # total_size = atoi(args.total_size) if args.total_size else transfer_size
 
     if args.upload:
         mode = Mode.UPLOAD
@@ -760,6 +775,9 @@ def main(argv) -> None:
         if dif.product:
             dif.flags |= dfu.Mode.IFF_PRODUCT
 
+    apply_all = args.yes_to_all
+
+
     # libusb init
     libusb_ctx = list(usb.core.find(find_all=True, **dif.device_ids))
 
@@ -770,6 +788,7 @@ def main(argv) -> None:
 
     dfu.init(5000)
 
+    print(dif)
     dfu_capable = iterate_dfu_devices(libusb_ctx, dif)
 
     if len(dfu_capable) == 0:
@@ -790,24 +809,9 @@ def main(argv) -> None:
         sys.exit(3)
 
     # We have exactly one device. Its libusb_device is now in dif->dev
-
     logger.info("Opening DFU capable USB device... ")
 
-    _rt_dif: dfu.DfuIf = None
-
-    # FIXME: DEPRECATED
-    def get_first_dfu_if(dif_: dfu.DfuIf, v: Any = None):
-        nonlocal _rt_dif
-        _rt_dif = dif_
-        if not _rt_dif:
-            logger.error("Cannot open device")
-            sys.exit(1)
-
-    find_dfu_if0(dev, get_first_dfu_if)
-
-
-
-    logger.debug(_rt_dif)
+    _rt_dif: dfu.DfuIf = get_first_dfu_if(dev)
 
     logger.info(f"ID 0x{_rt_dif.vendor:04X}:0x{_rt_dif.product:04X}")
 
@@ -837,10 +841,10 @@ def main(argv) -> None:
     # Transition from run-Time mode to DFU mode
 
     # status_again
-    def check_status():
+    def check_status(dfu_if: dfu.DfuIf):
         logger.debug('Status again')
         _log_msg = "Determining device status: "
-        if int(status_ := dif.get_status()) < 0:
+        if int(status_ := dfu_if.get_status()) < 0:
             logger.error(f"{_log_msg}error get_status")
             sys.exit(1)
         logger.info(f"{_log_msg}state = {status_.bState.to_string()}, "
@@ -869,7 +873,7 @@ def main(argv) -> None:
             logger.error("Cannot set alt interface zero")
             sys.exit(1)
 
-        status = check_status()
+        status = check_status(_rt_dif)
 
         if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
             logger.info("Device really in Runtime Mode, send DFU "
@@ -965,8 +969,7 @@ def main(argv) -> None:
         logger.error("Can't find the matching DFU interface/altsetting")
         sys.exit(1)
 
-    # print_dfu_if(dif, None)  # FIXME: DEPRECATED
-    print_dfu_if1(dif, None)
+    print_dfu_if1(dif)
     if (active_alt_name := get_alt_name(dif)) and len(active_alt_name) > 0:
         dif.alt_name = active_alt_name
     else:
@@ -994,7 +997,7 @@ def main(argv) -> None:
         logger.error("Cannot set alternate interface")
         sys.exit(1)
 
-    status = check_status()
+    status = check_status(dif)
     while status.bState != dfu.State.DFU_IDLE:
 
         if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
@@ -1007,7 +1010,7 @@ def main(argv) -> None:
                 logger.error("error clear_status")
                 sys.exit(1)
 
-            status = check_status()
+            status = check_status(dif)
 
         elif status.bState == (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_UPLOAD_IDLE):
             logger.warning("aborting previous incomplete transfer")
@@ -1015,7 +1018,7 @@ def main(argv) -> None:
                 logger.error("can't send DFU_ABORT")
                 sys.exit(1)
 
-            status = check_status()
+            status = check_status(dif)
 
         elif status.bState == dfu.State.DFU_IDLE:
             logger.info("dfuIDLE, continuing")
@@ -1073,6 +1076,7 @@ def main(argv) -> None:
         dfuse_device = 1
 
     # If not overridden by the user
+    # total_size = transfer_size  # FIXME: can't got how the total size specified
     if transfer_size:
         logger.info(f"Device returned transfer size {transfer_size}")
     else:
@@ -1099,10 +1103,17 @@ def main(argv) -> None:
     if mode == Mode.UPLOAD:
         # open for "exclusive" writing in a portable way
         try:
-            with open(file.name, "ab") as file.file_p:
-                if os.path.getsize(file.name) != 0:
-                    logger.info(f"{file.name}: File exists")
-                    sys.exit(1)
+            file_mode = "ab"
+            if os.path.isfile(file.name) and os.path.getsize(file.name) != 0:
+                # ask to overwrite file that exist
+                if not apply_all:
+                    _y = input(f"{file.name} File exists, print `yes` to overwrite: ")
+                    if not _y.lower() in ('y', 'yes'):
+                        logger.info(f"{file.name}: File exists")
+                        sys.exit(1)
+                file_mode = 'wb'
+
+            with open(file.name, file_mode) as file.file_p:
 
                 if dfuse_device or dfuse_options:
                     if dfuse.do_upload(dif, transfer_size, file, dfuse_options) < 0:
