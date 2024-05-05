@@ -546,7 +546,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help="ST DfuSe mode, specify target address "
                              "for raw file download or upload. "
                              "Not applicable for DfuSe file (.dfu) downloads")
-    # """
+    #
     #                         ST DfuSe mode string, specifying target
     #                                 address for raw file download or upload (not
     #                                 applicable for DfuSe file (.dfu) downloads).
@@ -557,13 +557,14 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
     #                 will-reset      Expect device to reset (e.g. option bytes write)
     #                 force           You really know what you are doing!
     #                 <length>        Length of firmware to upload from device
-    #                         """
+    #
     parser.add_argument("-y", "--yes-to-all", action="store_true",
                         help="Say yes to all prompts")
 
 
-def main(argv) -> None:
+def main() -> None:
     """Cli entry point"""
+
     # Create argument parser
     parser = argparse.ArgumentParser(
         prog="pydfuutil",
@@ -573,7 +574,7 @@ def main(argv) -> None:
 
     print(f"v{__version__}")
     # parse options
-    args = parser.parse_args(argv)
+    args = parser.parse_args(sys.argv)
     dif: dfu.DfuIf = dfu.DfuIf()
     file = dfu_file.DFUFile(None)
     mode = Mode.NONE
@@ -1015,9 +1016,7 @@ def main(argv) -> None:
 
 if __name__ == '__main__':
     try:
-        if len(sys.argv) > 0 and sys.argv[0] == __file__:
-            sys.argv.pop(0)
-        main(sys.argv)
+        main()
     except GeneralError as err:
         if err.__str__():
             logger.error(err)

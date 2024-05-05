@@ -132,7 +132,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         const=LmdfuMode.CHECK, help='Set lmdfu mode to LMDFU_CHECK')
 
 
-def main(argv) -> None:
+def main() -> None:
     """cli entry point for suffix"""
 
     parser = argparse.ArgumentParser(
@@ -141,7 +141,11 @@ def main(argv) -> None:
     )
     add_cli_options(parser)
     print(f"v{__version__}")
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args()
+    except argparse.ArgumentError as err:
+        parser.print_help()
+        raise GeneralError(err)
 
     lmdfu_mode = LmdfuMode.NONE
     lmdfu_flash_address: int = 0
@@ -212,9 +216,7 @@ def main(argv) -> None:
 
 if __name__ == '__main__':
     try:
-        if len(sys.argv) > 0 and sys.argv[0] == __file__:
-            sys.argv.pop(0)
-        main(sys.argv)
+        main()
     except GeneralWarning as warn:
         if warn.__str__():
             _logger.warning(warn)
