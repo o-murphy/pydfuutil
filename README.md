@@ -124,8 +124,14 @@ options:
 - [x] usb_dfu
 - [x] lmdfu
 - [x] dfuse_mem
-- [ ] dfuse (not fully supported yet)
-- [ ] dfu-util cli entry point (not fully supported yet)
+- [x] dfuse
+- [x] dfu-util cli entry point (not fully supported yet)
+
+#### Todo
+- [ ] Update sources to latest original version "dfu-util-0.11"
+
+[//]: # (https://dfu-util.sourceforge.net/)
+[//]: # (- https://sourceforge.net/p/dfu-util/dfu-util/ci/master/tree/)
 
 
 ## Getting help

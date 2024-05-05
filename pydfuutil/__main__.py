@@ -11,7 +11,7 @@ import os
 import re
 import sys
 from enum import Enum
-from typing import Literal
+from typing import Literal, Optional
 
 import usb.core
 
@@ -21,6 +21,7 @@ from pydfuutil import dfu_load
 from pydfuutil import dfuse
 from pydfuutil import quirks
 from pydfuutil import usb_dfu
+from pydfuutil.exceptions import GeneralError, MisuseError, CapabilityError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
@@ -117,8 +118,7 @@ def get_first_dfu_if(dev: usb.core.Device) -> dfu.DfuIf:
     """
     if dfu_if := next((i for i in find_dfu_if(dev) if i is not None), None):
         return dfu_if
-    logger.error("Cannot open device")
-    sys.exit(1)
+    raise GeneralError("Cannot open device")
 
 
 def _check_match_cb(dif: dfu.DfuIf, other: dfu.DfuIf):
@@ -330,7 +330,7 @@ def resolve_device_path(dif: dfu.DfuIf) -> int:
     except Exception as err:
         logger.error("USB device paths are not supported by this dfu-util")
         logger.debug(err)
-    sys.exit(1)
+    raise GeneralError
 
 
 def find_descriptor(desc_list: list, desc_type: int, desc_index: int,
@@ -489,7 +489,7 @@ def le16_to_cpu(data: bytes) -> int:
 
 
 def int_(value: [int, bytes, bytearray],
-         order: Literal["little", "big"] = 'little') -> int:
+         order: Optional[Literal["little", "big"]] = 'little') -> int:
     """coerce value to int"""
     if isinstance(value, int):
         return value
@@ -498,16 +498,8 @@ def int_(value: [int, bytes, bytearray],
     raise TypeError("Unsupported type")
 
 
-def main(argv) -> None:
-    """Cli entry point"""
-
-    # Create argument parser
-    parser = argparse.ArgumentParser(
-        prog="pydfuutil",
-        description="Python implementation of DFU-Util tools"
-    )
-
-    # Add arguments
+def add_cli_options(parser: argparse.ArgumentParser) -> None:
+    """Add cli options"""
     parser.add_argument("-V", "--version", action="version", version=VERSION,
                         help="Print the version number")
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -516,37 +508,72 @@ def main(argv) -> None:
                         help="List the currently attached DFU capable USB devices")
     parser.add_argument("-e", "--detach", action="store_true",
                         help="Detach the currently attached DFU capable USB devices")
+    # TODO: Not implemented
+    # parser.add_argument("-E", "--detach-delay", action="store",
+    #                     type=int, default=1, metavar="<seconds>",
+    #                     help="Time to wait before reopening a device after detach")
     parser.add_argument("-d", "--device", metavar="<deviceID>:<productID>",
                         help="Specify Vendor/Product ID of DFU device")
-    parser.add_argument("-p", "--path", metavar="<bus/port>",
+    # TODO: Not implemented
+    # parser.add_argument("-n", "--devnum", metavar="<dnum>",
+    #                     help="Match given device number (devnum from --list)")
+    parser.add_argument("-p", "--path", metavar="<bus-port. ... .port>",
                         help="Specify path to DFU device")
-    parser.add_argument("-c", "--cfg", metavar="<config>",
+    parser.add_argument("-c", "--cfg", metavar="<config_nr>",
                         help="Specify the Configuration of DFU device")
-    parser.add_argument("-i", "--intf", metavar="<interface>",
+    parser.add_argument("-i", "--intf", metavar="<intf_nr>",
                         help="Specify the DFU Interface number")
+    # TODO: Not implemented
+    # parser.add_argument("-S", "--serial", metavar="<serial_string>[,<serial_string_dfu>]",
+    #                     help="Specify the DFU Interface number")
     parser.add_argument("-a", "--alt", metavar="<alt>",
                         help="Specify the Altsetting of the DFU Interface")
     parser.add_argument("-t", "--transfer-size", metavar="<size>",
                         help="Specify the number of bytes per USB Transfer")
     parser.add_argument("-U", "--upload", metavar="<file>",
                         help="Read firmware from device into <file>")
+    # TODO: Not implemented
+    # parser.add_argument("-Z", "--upload-size", metavar="<bytes>",
+    #                     help="Specify the expected upload size in bytes")
     parser.add_argument("-D", "--download", metavar="<file>",
                         help="Write firmware from <file> into device")
     parser.add_argument("-R", "--reset", action="store_true",
                         help="Issue USB Reset signalling once we're finished")
+    #  TODO: Not implemented
+    # parser.add_argument("-w", "--wait", action="store_true",
+    #                     help="Wait for device to appear")
     parser.add_argument("-s", "--dfuse-address", metavar="<address>",
                         help="ST DfuSe mode, specify target address "
                              "for raw file download or upload. "
                              "Not applicable for DfuSe file (.dfu) downloads")
+    # """
+    #                         ST DfuSe mode string, specifying target
+    #                                 address for raw file download or upload (not
+    #                                 applicable for DfuSe file (.dfu) downloads).
+    #                                 Add more DfuSe options separated with ':'
+    #                 leave           Leave DFU mode (jump to application)
+    #                 mass-erase      Erase the whole device (requires "force")
+    #                 unprotect       Erase read protected device (requires "force")
+    #                 will-reset      Expect device to reset (e.g. option bytes write)
+    #                 force           You really know what you are doing!
+    #                 <length>        Length of firmware to upload from device
+    #                         """
     parser.add_argument("-y", "--yes-to-all", action="store_true",
                         help="Say yes to all prompts")
 
+
+def main(argv) -> None:
+    """Cli entry point"""
+    # Create argument parser
+    parser = argparse.ArgumentParser(
+        prog="pydfuutil",
+        description="Python implementation of DFU-Util tools"
+    )
+    add_cli_options(parser)
+
     print(f"v{__version__}")
-    # Parse arguments
-    if len(argv) > 0 and argv[0] == __file__:
-        argv.pop(0)
+    # parse options
     args = parser.parse_args(argv)
-    verbose = False
     dif: dfu.DfuIf = dfu.DfuIf()
     file = dfu_file.DFUFile(None)
     mode = Mode.NONE
@@ -557,13 +584,10 @@ def main(argv) -> None:
     dfuse_options = None
     final_reset = 0
 
-    # func_dfu_rt = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
-    # func_dfu = USB_DFU_FUNC_DESCRIPTOR.parse(bytes(USB_DFU_FUNC_DESCRIPTOR.sizeof()))
     func_dfu_rt = usb_dfu.FuncDescriptor()
     func_dfu = usb_dfu.FuncDescriptor()
 
     if args.verbose:
-        verbose = True
         logger.setLevel(logging.DEBUG)
         usb_logger.setLevel(logging.DEBUG)
 
@@ -580,11 +604,9 @@ def main(argv) -> None:
         dif.path = args.path
         dif.flags |= dfu.Mode.IFF_PATH
         if ret := resolve_device_path(dif):
-            logger.error(f"unable to parse {args.path}")
-            sys.exit(2)
+            raise MisuseError(f"unable to parse {args.path}")
         if not ret:
-            logger.error(f"cannot find {args.path}")
-            sys.exit(1)
+            raise GeneralError(f"cannot find {args.path}")
 
     if args.cfg:
         dif.configuration = atoi(args.cfg)
@@ -622,7 +644,7 @@ def main(argv) -> None:
     if mode == Mode.NONE:
         logger.error("You need to specify one of -D or -U\n\n")
         parser.print_help()
-        sys.exit(2)
+        raise MisuseError
 
     if device_id_filter:
         dif.vendor, dif.product = parse_vid_pid(device_id_filter)
@@ -647,21 +669,19 @@ def main(argv) -> None:
     dfu_capable = iterate_dfu_devices(libusb_ctx, dif)
 
     if len(dfu_capable) == 0:
-        logger.error("No DFU capable USB device found")
-        sys.exit(1)
+        raise GeneralError("No DFU capable USB device found")
     elif len(dfu_capable) > 1:
         # We cannot safely support more than one DFU capable device
         # with same vendor/product ID, since during DFU we need to do
         # a USB bus reset, after which the target device will get a
         # new address */
-        logger.error("More than one DFU capable USB device found, "
-                     "you might try `--list' and then disconnect all but one "
-                     "device")
-        sys.exit(3)
+        raise CapabilityError("More than one DFU capable USB device found, "
+                              "you might try `--list' and then disconnect all but one "
+                              "device")
 
     # get_first_dfu_device
     if not (dev := dfu_capable[0]):
-        sys.exit(3)
+        raise CapabilityError("Can't get DFU capable USB device")
 
     # We have exactly one device. Its libusb_device is now in dif->dev
     logger.info("Opening DFU capable USB device... ")
@@ -695,8 +715,7 @@ def main(argv) -> None:
         logger.debug('Status again')
         _log_msg = "Determining device status: "
         if int(status_ := dfu_if.get_status()) < 0:
-            logger.error(f"{_log_msg}error get_status")
-            sys.exit(1)
+            raise GeneralError(f"{_log_msg}error get_status")
         logger.info(f"{_log_msg}state = {status_.bState.to_string()}, "
                     f"status = {status_.bStatus}")
         if not _quirks & quirks.QUIRK_POLLTIMEOUT:
@@ -712,14 +731,12 @@ def main(argv) -> None:
         try:
             usb.util.claim_interface(_rt_dif.dev, _rt_dif.interface)
         except usb.core.USBError:
-            logger.error(f"Cannot claim interface {_rt_dif.interface}")
-            sys.exit(1)
+            raise GeneralError(f"Cannot claim interface {_rt_dif.interface}")
 
         try:
             _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
         except usb.core.USBError:
-            logger.error("Cannot set alt interface zero")
-            sys.exit(1)
+            raise GeneralError("Cannot set alt interface zero")
 
         status = check_status(_rt_dif)
 
@@ -728,8 +745,7 @@ def main(argv) -> None:
                         "detach request...")
 
             if int_(_rt_dif.detach(1000)) < 0:
-                logger.error("error detaching")
-                sys.exit(1)
+                raise GeneralError("error detaching")
 
             if func_dfu_rt.bmAttributes & usb_dfu.BmAttributes.USB_DFU_WILL_DETACH:
                 logger.info("Device will detach and reattach...")
@@ -743,8 +759,7 @@ def main(argv) -> None:
         elif status.bState == dfu.State.DFU_ERROR:
             logger.error("dfuERROR, clearing status")
             if dfu.clear_status(_rt_dif.dev, _rt_dif.interface) < 0:
-                logger.error("error detaching")
-                sys.exit(1)
+                raise GeneralError("error detaching")
         else:
             logger.info("Runtime device already in DFU state ?!?")
 
@@ -759,21 +774,17 @@ def main(argv) -> None:
         if dif.flags & dfu.Mode.IFF_PATH:
             ret = resolve_device_path(dif)
             if not ret:
-                logger.error("Cannot resolve path after RESET?")
-                sys.exit(1)
+                raise GeneralError("Cannot resolve path after RESET?")
             if int_(ret) < 0:
-                logger.error(f"internal error: cannot re-parse {dif.path}")
-                sys.exit(1)
+                raise GeneralError(f"internal error: cannot re-parse {dif.path}")
 
         dfu_capable = iterate_dfu_devices(libusb_ctx, dif)
         if len(dfu_capable) == 0:
-            logger.error("Lost device after RESET?")
-            sys.exit(1)
+            raise GeneralError("Lost device after RESET?")
         elif len(dfu_capable) > 1:
-            logger.error("More than one DFU capable USB "
-                         "device found, you might try `--list' and "
-                         "then disconnect all but one device")
-            sys.exit(1)
+            raise GeneralError("More than one DFU capable USB "
+                               "device found, you might try `--list' and "
+                               "then disconnect all but one device")
 
     # get first detached dfu if
     dif: dfu.DfuIf = get_first_dfu_if(dev)
@@ -788,27 +799,22 @@ def main(argv) -> None:
     if alt_name:
         n = next((alt_by_name(dfu_if, alt_name) for dfu_if in find_dfu_if(dev)), None)
         if not n:
-            logger.error(f"No such Alternate Setting: {alt_name}")
-            sys.exit(1)
+            raise GeneralError(f"No such Alternate Setting: {alt_name}")
         if n < 0:
-            logger.error(f"Error {n} in name lookup")
-            sys.exit(1)
+            raise GeneralError(f"Error {n} in name lookup")
         dif.altsetting = n - 1
 
     if (num_ifs := count_matching_dfu_if(dif)) < 0:
-        logger.error("No matching DFU Interface after RESET?!?")
-        sys.exit(1)
+        raise GeneralError("No matching DFU Interface after RESET?!?")
     elif num_ifs > 1:
         logger.warning("Detected interfaces after DFU transition")
         list_dfu_interfaces(libusb_ctx)
-        logger.error(f"We have {num_ifs} DFU Interfaces/Altsettings,"
-                     " you have to specify one via --intf / --alt"
-                     " options")
-        sys.exit(1)
+        raise GeneralError(f"We have {num_ifs} DFU Interfaces/Altsettings,"
+                           " you have to specify one via --intf / --alt"
+                           " options")
 
     if not get_matching_dfu_if(dif):
-        logger.error("Can't find the matching DFU interface/altsetting")
-        sys.exit(1)
+        raise GeneralError("Can't find the matching DFU interface/altsetting")
 
     print_dfu_if(dif)
     if (active_alt_name := get_alt_name(dif)) and len(active_alt_name) > 0:
@@ -821,43 +827,37 @@ def main(argv) -> None:
     # try:
     #     dif.dev.set_configuration(dif.configuration)
     # except usb.core.USBError as e:
-    #     logger.error("Cannot set configuration")
-    #     sys.exit(1)
+    #     raise GeneralError("Cannot set configuration")
 
     logger.info("Claiming USB DFU Interface...")
     try:
         usb.util.claim_interface(dif.dev, dif.interface)
     except usb.core.USBError:
-        logger.error("Cannot claim interface")
-        sys.exit(1)
+        raise GeneralError("Cannot claim interface")
 
     logger.info(f"Setting Alternate Setting {dif.altsetting} ...\n")
     try:
         dif.dev.set_interface_altsetting(dif.interface, dif.altsetting)
     except usb.core.USBError:
-        logger.error("Cannot set alternate interface")
-        sys.exit(1)
+        raise GeneralError("Cannot set alternate interface")
 
     status = check_status(dif)
     while status.bState != dfu.State.DFU_IDLE:
 
         if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
-            logger.error("Device still in Runtime Mode!")
-            sys.exit(1)
+            raise GeneralError("Device still in Runtime Mode!")
 
         elif status.bState == dfu.State.DFU_ERROR:
             logger.error("dfuERROR, clearing status")
             if dfu.clear_status(dif.dev, dif.interface) < 0:
-                logger.error("error clear_status")
-                sys.exit(1)
+                raise GeneralError("error clear_status")
 
             status = check_status(dif)
 
         elif status.bState == (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_UPLOAD_IDLE):
             logger.warning("aborting previous incomplete transfer")
             if dif.abort() < 0:
-                logger.error("can't send DFU_ABORT")
-                sys.exit(1)
+                raise GeneralError("can't send DFU_ABORT")
 
             status = check_status(dif)
 
@@ -872,8 +872,7 @@ def main(argv) -> None:
         dfu.clear_status(dif.dev, dif.interface)
         _ = int(status := dif.get_status())
         if status.bStatus != dfu.Status.OK:
-            logger.error(f"{status.bStatus}")
-            sys.exit(1)
+            raise GeneralError(f"{status.bStatus}")
         if not _quirks & quirks.QUIRK_POLLTIMEOUT:
             milli_sleep(status.bwPollTimeout)
 
@@ -916,8 +915,7 @@ def main(argv) -> None:
     if transfer_size:
         logger.info(f"Device returned transfer size {transfer_size}")
     else:
-        logger.error("Transfer size must be specified")
-        sys.exit(1)
+        raise GeneralError("Transfer size must be specified")
 
     # autotools lie when cross-compiling for Windows using mingw32/64
     if HAVE_GET_PAGESIZE:
@@ -929,8 +927,7 @@ def main(argv) -> None:
 
     # DFU specification
     # if dif.dev:  # strange think, unreachable
-    #     logger.error(f"Failed to get device descriptor")
-    #     sys.exit(1)
+    #     raise GeneralError(f"Failed to get device descriptor")
 
     # pylint: disable=no-member
     if transfer_size < dif.dev.bMaxPacketSize0:
@@ -945,41 +942,37 @@ def main(argv) -> None:
                 if not apply_all:
                     _y = input(f"{file.name} File exists, print `yes` to overwrite: ")
                     if not _y.lower() in ('y', 'yes'):
-                        logger.info(f"{file.name}: File exists")
-                        sys.exit(1)
+                        raise GeneralError(f"{file.name}: File exists")
                 file_mode = 'wb'
 
             with open(file.name, file_mode) as file.file_p:
 
                 if dfuse_device or dfuse_options:
                     if dfuse.do_upload(dif, transfer_size, file, dfuse_options) < 0:
-                        sys.exit(1)
+                        raise GeneralError
                 else:
                     if dfu_load.do_upload(dif, transfer_size, file) < 0:
-                        sys.exit(1)
+                        raise GeneralError
 
         except OSError as e:
-            logger.error(e)
-            sys.exit(1)
+            raise GeneralError(e)
 
     elif mode == Mode.DOWNLOAD:
         try:
             # Open file for reading in binary mode
             with open(file.name, "rb") as file_p:
                 if not file_p:
-                    logger.error(f"Error: Failed to open {file.name}")
-                    sys.exit(1)
+                    raise GeneralError(f"Error: Failed to open {file.name}")
 
                 # Parse DFU suffix
                 # ret = dfu_file.parse_dfu_suffix(file)
                 ret = file.parse_dfu_suffix()
                 if ret < 0:
-                    sys.exit(1)
+                    raise GeneralError
                 elif ret == 0:
                     logger.warning("File has no DFU suffix")
                 elif file.bcdDFU not in (0x0100, 0x011a):
-                    logger.error(f"Unsupported DFU file revision 0x{file.bcdDFU:04x}")
-                    sys.exit(1)
+                    raise GeneralError(f"Unsupported DFU file revision 0x{file.bcdDFU:04x}")
 
                 # Check vendor ID
                 if file.idVendor not in (0xffff, dif.vendor):
@@ -994,18 +987,16 @@ def main(argv) -> None:
                 # Perform download based on conditions
                 if dfuse_device or dfuse_options or file.bcdDFU == 0x011a:
                     if dfuse.do_dnload(dif, transfer_size, file, dfuse_options) < 0:
-                        sys.exit(1)
+                        raise GeneralError
                 else:
-                    if dfu_load.do_dnload(dif, transfer_size, file, _quirks, verbose) < 0:
-                        sys.exit(1)
+                    if dfu_load.do_dnload(dif, transfer_size, file, _quirks) < 0:
+                        raise GeneralError
 
         except OSError as e:
-            logger.error(e)
-            sys.exit(1)
+            raise GeneralError(e)
 
     else:
-        logger.error(f"Unsupported mode: {mode}")
-        sys.exit(1)
+        raise GeneralError(f"Unsupported mode: {mode}")
 
     if final_reset:
         # if IntOrBytes(dfu.detach(dif.dev, dif.interface, 1000)) < 0:
@@ -1020,8 +1011,18 @@ def main(argv) -> None:
 
     usb.util.release_interface(dif.dev, dif.interface)
     usb.util.dispose_resources(dif.dev)
-    sys.exit(0)
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    try:
+        if len(sys.argv) > 0 and sys.argv[0] == __file__:
+            sys.argv.pop(0)
+        main(sys.argv)
+    except GeneralError as err:
+        if err.__str__():
+            logger.error(err)
+        sys.exit(err.exit_code)
+    except Exception as err:
+        logger.error(err)
+        sys.exit(1)
+    sys.exit(0)

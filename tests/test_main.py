@@ -39,6 +39,11 @@ class TestMain(unittest.TestCase):
         self.assertEqual(v, 5)
         self.assertEqual(v2, None)
 
+    @unittest.skip("Already implemented")
+    def test_main_upload(self):
+        argv = "-U test.bin -t 2048 -y".split(' ')
+        main(argv)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -34,11 +34,10 @@ class TestDFULoader(unittest.TestCase):
 
         file = DFUFile(name='test_file', file_p=Mock(), size=xfer_size, suffix_len=0)
         quirks = 0
-        verbose = False
 
         # Mock file_p.readinto to return the length of the data read
         with patch.object(file.file_p, 'readinto', return_value=xfer_size) as mock_readinto:
-            result = do_dnload(dif, xfer_size, file, quirks, verbose)
+            result = do_dnload(dif, xfer_size, file, quirks)
 
         # Assertions
         self.assertEqual(result, xfer_size)  # Assuming xfer_size bytes are sent

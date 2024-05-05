@@ -13,6 +13,7 @@ import usb.util
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
+from pydfuutil.exceptions import GeneralError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -153,7 +154,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
     except (ValueError, IOError) as err:
         _logger.error(err)
-        sys.exit(1)
+        raise GeneralError
 
     milli_sleep(dst.bwPollTimeout)
     return ret
@@ -545,7 +546,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
 
     except (ValueError, PermissionError, IOError) as err:
         _logger.error(err)
-        sys.exit(1)
+        raise GeneralError
 
     if opts.address:
         if file.bcdDFU == 0x11a:

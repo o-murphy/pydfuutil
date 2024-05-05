@@ -71,17 +71,15 @@ def do_upload(dif: dfu.DfuIf,
 
 
 # pylint: disable=too-many-branches
-def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
+def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int:
     """
     :param dif: DfuIf instance
     :param xfer_size: transaction size
     :param file: DFUFile instance
     :param quirks: quirks
-    :param verbose: is verbose
+    verbose: is verbose useless cause of using python's logging
     :return:
     """
-
-    _logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     bytes_sent = 0
     buf = bytearray(xfer_size)

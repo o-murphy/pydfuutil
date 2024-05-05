@@ -11,6 +11,7 @@ from enum import IntEnum
 from pydfuutil import __copyright__
 from pydfuutil import lmdfu
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
+from pydfuutil.exceptions import GeneralWarning, GeneralError, MisuseError
 from pydfuutil.logger import logger
 
 try:
@@ -71,8 +72,7 @@ def remove_suffix(file: DFUFile) -> int:
                 f.truncate(file.size - file.suffix_len)
             _logger.info("DFU suffix removed")
         except OSError as e:
-            _logger.error(f"Error truncating file: {e}")
-            sys.exit(1)
+            raise GeneralError(f"Error truncating file: {e}")
     else:
         _logger.error("Suffix removal not implemented on this platform")
     return 1
@@ -91,28 +91,12 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
         try:
             raise OSError("generate")
         except OSError as e:
-            _logger.error(e)
-            sys.exit(1)
+            raise GeneralError(e)
     _logger.info("New DFU suffix added.")
 
 
-def _get_arg_parser():
-    """Get custom argument parser"""
-
-    class CustomHelpFormatter(argparse.HelpFormatter):
-        """Custom argument parser formatter"""
-
-        def add_argument(self, action):
-            if action.dest == 'help':
-                action.help = 'Print this help message'
-            super().add_argument(action)
-
-    parser = argparse.ArgumentParser(
-        prog=f'pydfuutil-suffix v{__version__}',
-        exit_on_error=False,
-        formatter_class=CustomHelpFormatter
-    )
-
+def add_cli_options(parser: argparse.ArgumentParser) -> None:
+    """Add cli options"""
     parser.add_argument('-V', '--version', action='version',
                         version=VERSION,
                         help='Print the version number')
@@ -147,28 +131,17 @@ def _get_arg_parser():
     parser.add_argument('-T', '--stellaris', dest='lmdfu_mode', action='store_const',
                         const=LmdfuMode.CHECK, help='Set lmdfu mode to LMDFU_CHECK')
 
-    return parser
-
-
-def get_args(parser, argv):
-    """parse command line arguments"""
-    try:
-        print(parser.prog)
-        args = parser.parse_args(argv)
-    except argparse.ArgumentError as err:
-        parser.print_help()
-        _logger.error(err)
-        sys.exit(1)
-    return args
-
 
 def main(argv) -> None:
-    """main executable"""
-    if len(argv) > 0 and argv[0] == __file__:
-        argv.pop(0)
+    """cli entry point for suffix"""
 
-    parser = _get_arg_parser()
-    args = get_args(parser, argv)
+    parser = argparse.ArgumentParser(
+        prog='pydfuutil-suffix',
+        exit_on_error=False,
+    )
+    add_cli_options(parser)
+    print(f"v{__version__}")
+    args = parser.parse_args(argv)
 
     lmdfu_mode = LmdfuMode.NONE
     lmdfu_flash_address: int = 0
@@ -199,8 +172,7 @@ def main(argv) -> None:
                 if check_suffix(file):
                     if lmdfu_prefix:
                         lmdfu.check_prefix(file)
-                    _logger.warning("Please remove existing DFU suffix before adding a new one.")
-                    sys.exit(1)
+                    raise GeneralWarning("Please remove existing DFU suffix before adding a new one.")
 
                 if lmdfu_mode == LmdfuMode.ADD:
                     if lmdfu.check_prefix(file):
@@ -220,27 +192,37 @@ def main(argv) -> None:
                         and lmdfu_mode == LmdfuMode.DEL
                         and lmdfu.check_prefix(file)):
                     lmdfu.remove_prefix(file)
-                    sys.exit(1)
+                    raise GeneralWarning
 
             else:
                 parser.print_help()
-                sys.exit(2)
+                raise MisuseError
 
             if lmdfu_mode == LmdfuMode.DEL and check_suffix(file):
-                _logger.warning(
+                raise GeneralWarning(
                     "DFU suffix exist. "
                     "Remove suffix before using -T or use it with -D to delete suffix")
-                sys.exit(1)
 
             if lmdfu_mode == LmdfuMode.DEL and lmdfu.check_prefix(file):
                 lmdfu.remove_prefix(file)
 
         except Exception as error:
-            _logger.error(error)
-            sys.exit(1)
-
-    sys.exit(0)
+            raise GeneralError(error)
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    try:
+        if len(sys.argv) > 0 and sys.argv[0] == __file__:
+            sys.argv.pop(0)
+        main(sys.argv)
+    except GeneralWarning as warn:
+        if warn.__str__():
+            _logger.warning(warn)
+    except GeneralError as err:
+        if err.__str__():
+            _logger.error(err)
+        sys.exit(err.exit_code)
+    except Exception as err:
+        logger.error(err)
+        sys.exit(1)
+    sys.exit(0)
