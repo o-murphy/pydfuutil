@@ -8,7 +8,7 @@ class TestMain(unittest.TestCase):
     def test_find_dfu_if_first(self):
         ctx = usb.core.find(find_all=True)
         for dev in ctx:
-            dfu_if = next((i for i in find_dfu_if1(dev) if i is not None), None)
+            dfu_if = next((i for i in find_dfu_if(dev) if i is not None), None)
             if dfu_if:
                 print_dfu_if1(dfu_if)
 
