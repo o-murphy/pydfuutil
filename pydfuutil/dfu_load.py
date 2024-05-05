@@ -26,7 +26,6 @@ def do_upload(dif: dfu.DfuIf,
     :return: uploaded bytes or error code
     """
 
-    _logger.info(f"bytes_per_hash={xfer_size}")
     _logger.info("Copying data from DFU device to PC")
 
     total_bytes = 0
@@ -34,9 +33,10 @@ def do_upload(dif: dfu.DfuIf,
     buf = bytearray(xfer_size)
 
     with Progress() as progress:
+        progress_total = total_size if total_size >= 0 else None
         progress.start_task(
             description="Starting upload",
-            total=total_size if total_size >= 0 else None
+            total=progress_total
         )
 
         while True:
@@ -57,7 +57,7 @@ def do_upload(dif: dfu.DfuIf,
             total_bytes += len(rc)
 
             transaction += 1
-            progress.update(advance=xfer_size, description="Uploading...")
+            progress.update(advance=len(rc), description="Uploading...")
 
             # last block, return
             if (len(rc) < xfer_size) or (total_bytes >= total_size >= 0):
@@ -71,17 +71,15 @@ def do_upload(dif: dfu.DfuIf,
 
 
 # pylint: disable=too-many-branches
-def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbose: bool) -> int:
+def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int:
     """
     :param dif: DfuIf instance
     :param xfer_size: transaction size
     :param file: DFUFile instance
     :param quirks: quirks
-    :param verbose: is verbose
+    verbose: is verbose useless cause of using python's logging
     :return:
     """
-
-    _logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     bytes_sent = 0
     buf = bytearray(xfer_size)
@@ -125,11 +123,11 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int, verbos
 
                 if status.bStatus != dfu.Status.OK:
                     logger.error("Transfer failed!")
-                    print(f"state({status.bState}) = {status.bState.to_string()}, "
-                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
+                    logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
+                                f"status({status.bStatus}) = {status.bStatus.to_string()}")
                     raise IOError("Downloading failed!")
 
-                progress.update(description="Downloading...", advance=xfer_size)
+                progress.update(description="Downloading...", advance=xfer_size//1000)
 
             # Send one zero-sized download request to signalize end
             if dif.download(dfu.TRANSACTION, bytes()) < 0:

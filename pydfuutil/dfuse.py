@@ -13,8 +13,10 @@ import usb.util
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
+from pydfuutil.exceptions import GeneralError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
+from pydfuutil.progress import Progress
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
@@ -152,7 +154,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
 
     except (ValueError, IOError) as err:
         _logger.error(err)
-        sys.exit(1)
+        raise GeneralError
 
     milli_sleep(dst.bwPollTimeout)
     return ret
@@ -213,7 +215,6 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
 
 def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str, bytes]) -> int:
     """
-    TODO: implementation
     :param dif:
     :param xfer_size:
     :param file:
@@ -257,34 +258,42 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
                 upload_limit = 0x4000
             _logger.info("Limiting default upload to %i bytes", upload_limit)
 
-        _logger.info(f"bytes_per_hash={xfer_size}")
-        print("Starting upload: [")  # TODO: Progress
     except (ValueError, IOError) as err:
         _logger.error(err)
         return -1
 
-    while True:
-        xfer_size = min(xfer_size, upload_limit - total_bytes)
-        rc = upload(dif, buf, transaction)
-        if rc < 0:
-            _logger.error("Error during upload")
-            ret = rc
-            break
-        write_rc = file.file_p.write(buf[:rc])
-        if write_rc < rc:
-            _logger.error(f"Short file write: {rc}")
-            ret = -1
-            break
-        total_bytes += rc
-        if rc < xfer_size or total_bytes >= upload_limit:
-            # Last block, return successfully
-            ret = total_bytes
-            break
-        print("#")
-        transaction += 1
+    try:
+        with Progress() as progress:
+            progress.start_task(
+                description="Starting upload",
+                total=total_bytes
+            )
+            while True:
+                xfer_size = min(xfer_size, upload_limit - total_bytes)
+                rc = upload(dif, buf, transaction)
+                if rc < 0:
+                    _logger.error("Error during upload")
+                    ret = rc
+                    break
+                write_rc = file.file_p.write(buf[:rc])
+                if write_rc < rc:
+                    _logger.error(f"Short file write: {rc}")
+                    ret = -1
+                    break
+                total_bytes += rc
+                if rc < xfer_size or total_bytes >= upload_limit:
+                    # Last block, return successfully
+                    ret = total_bytes
+                    break
 
-    print("] finished!")
-    return ret
+                progress.update(description="Uploading...", advance=xfer_size)
+                transaction += 1
+
+            progress.update(description="Upload finished!")
+            return ret
+    except Exception as e:
+        logger.error(e)
+        return -1
 
 
 def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> int:
@@ -537,7 +546,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
 
     except (ValueError, PermissionError, IOError) as err:
         _logger.error(err)
-        sys.exit(1)
+        raise GeneralError
 
     if opts.address:
         if file.bcdDFU == 0x11a:

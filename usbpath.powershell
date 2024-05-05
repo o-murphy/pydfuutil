@@ -1,0 +1,10 @@
+Get-PnpDevice | Where-Object {
+    $_.Class -eq "USB" -and
+    $_.DeviceID -like "VID_1fc9"
+} | ForEach-Object {
+    $InstanceId = $_.InstanceId -replace '\\', '#'
+    if ($InstanceId -match 'USB#VID_[0-9A-F]+&PID_[0-9A-F]+(?:&MI_[0-9A-F]+)?#(?:\w+&){3}(\d+(?:\.\d+)*)') {
+        $port = $matches[1] -replace '\.', ':'
+        "$port"
+    }
+}

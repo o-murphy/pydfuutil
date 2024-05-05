@@ -8,7 +8,7 @@ unittest.TestLoader.sortTestMethodsUsing = None
 
 class TestDfuProgress(unittest.TestCase):
 
-    def _loop(self, backend=None):
+    def _loop(self, backend=None, total=None):
         i = 10
 
         with Progress(backend) as prog:
@@ -17,7 +17,7 @@ class TestDfuProgress(unittest.TestCase):
                     else f"Any")
 
             prog.start_task(description=f"{name}",
-                            total=i)
+                            total=total)
             while i >= 1:
                 sleep(0.1)
                 prog.update(advance=1)
@@ -27,18 +27,41 @@ class TestDfuProgress(unittest.TestCase):
     @unittest.skipIf(not TQDM_PROGRESS,
                      "package not installed ImportError/UnboundLocalError/AttributeError")
     def test_tqdm(self):
-        self._loop(TqdmBackend)
+        self._loop(TqdmBackend, 10)
+
+        with self.subTest("indeterminate"):
+            self._loop(TqdmBackend, None)
 
     @unittest.skipIf(not RICH_PROGRESS,
                      "package not installed ImportError/UnboundLocalError/AttributeError")
     def test_rich(self):
-        self._loop(RichBackend)
+        self._loop(RichBackend, 10)
+
+        with self.subTest("indeterminate"):
+            self._loop(RichBackend, None)
 
     def test_no_progress(self):
         self._loop(NoProgressBarBackend)
 
     def test_ascii(self):
-        self._loop(AsciiBackend)
+        with self.subTest("by completed"):
+            i, j = 20, 1
+            n = AsciiBackend.__name__
+            with Progress(AsciiBackend) as prog:
+                prog.start_task(description=n,
+                                total=i)
+                while i >= 0:
+                    sleep(0.1)
+                    prog.update(completed=21-i)
+                    i -= 1 + j
+                    j += 1
+                prog.update(description=f"{n} OK")
+
+        with self.subTest("by advance"):
+            self._loop(AsciiBackend, 10)
+
+        with self.subTest("indeterminate"):
+            self._loop(AsciiBackend, None)
 
     @unittest.skip("rich.errors.LiveError: Only one live display may be active at once")
     def test_autodetect(self):
