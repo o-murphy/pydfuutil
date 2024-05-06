@@ -21,7 +21,7 @@ class TestDFULoader(unittest.TestCase):
             result = do_upload(dif, xfer_size, file, total_size)
 
         # Assertions
-        self.assertEqual(result, total_size)  # Assuming total_size bytes are received
+        self.assertEqual(result, total_size)  # Assuming expected_size bytes are received
 
     def test_dfu_load_do_dnload(self):
 

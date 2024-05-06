@@ -12,6 +12,10 @@ class GeneralError(Exception):
     exit_code = 1
 
 
+class UsbIOError(GeneralError):
+    exit_code = 1
+
+
 class GeneralWarning(GeneralError):
     """
     Usually indicates a general warning

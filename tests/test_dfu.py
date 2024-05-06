@@ -18,9 +18,8 @@ class TestDfu(unittest.TestCase):
         self.assertEqual(dfu.state_to_string(dfu.State.APP_IDLE), "appIDLE")
         self.assertEqual(dfu.State.APP_IDLE.to_string(), "appIDLE")
 
-    @patch("pydfuutil.dfu.verify_init")
     @patch("usb.core.find")
-    def test_detach(self, mock_find, mock_verify_init):
+    def test_detach(self, mock_find):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -36,7 +35,6 @@ class TestDfu(unittest.TestCase):
         result = dfu.detach(mock_device, interface, timeout)
 
         # Assertions
-        mock_verify_init.assert_called_once()
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21 | 0x01,
             bRequest=dfu.Command.DETACH,  # Assuming Command.DETACH is 23
@@ -47,9 +45,8 @@ class TestDfu(unittest.TestCase):
         )
         self.assertEqual(result, 1)  # Assuming success returns 1
 
-    @patch("pydfuutil.dfu.verify_init")
     @patch("usb.core.find")
-    def test_upload(self, mock_find, mock_verify_init):
+    def test_upload(self, mock_find):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -66,7 +63,6 @@ class TestDfu(unittest.TestCase):
         result = dfu.upload(mock_device, interface, transaction, data)
 
         # Assertions
-        mock_verify_init.assert_called_once()
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
             bRequest=dfu.Command.UPLOAD,  # Assuming Command.UPLOAD
@@ -77,9 +73,8 @@ class TestDfu(unittest.TestCase):
         )
         self.assertEqual(result, data)  # Assuming success returns bytes(10)
 
-    @patch("pydfuutil.dfu.verify_init")
     @patch("usb.core.find")
-    def test_dwnload(self, mock_find, mock_verify_init):
+    def test_dwnload(self, mock_find):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -96,7 +91,6 @@ class TestDfu(unittest.TestCase):
         result = dfu.download(mock_device, interface, transaction, data)
 
         # Assertions
-        mock_verify_init.assert_called_once()
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
             bRequest=dfu.Command.DNLOAD,  # Assuming Command.DNLOAD
@@ -107,9 +101,8 @@ class TestDfu(unittest.TestCase):
         )
         self.assertEqual(result, len(data))  # Assuming success returns 10
 
-    @patch("pydfuutil.dfu.verify_init")
     @patch("usb.core.find")
-    def test_get_status(self, mock_find, mock_verify_init):
+    def test_get_status(self, mock_find):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -126,7 +119,6 @@ class TestDfu(unittest.TestCase):
         status = dfu.get_status(mock_device, interface)
 
         # Assertions
-        mock_verify_init.assert_called_once()
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
             bRequest=dfu.Command.GETSTATUS,  # Assuming Command.GETSTATUS
@@ -137,9 +129,8 @@ class TestDfu(unittest.TestCase):
         )
         self.assertEqual(status.bState, 0)  # Assuming success returns 0
 
-    @patch("pydfuutil.dfu.verify_init")
     @patch("usb.core.find")
-    def test_clear_status(self, mock_find, mock_verify_init):
+    def test_clear_status(self, mock_find):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -155,7 +146,6 @@ class TestDfu(unittest.TestCase):
         result = dfu.clear_status(mock_device, interface)
 
         # Assertions
-        mock_verify_init.assert_called_once()
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
             bRequest=dfu.Command.CLRSTATUS,  # Assuming Command.CLRSTATUS
@@ -166,9 +156,8 @@ class TestDfu(unittest.TestCase):
         )
         self.assertEqual(result, 0)  # Assuming success returns 0
 
-    @patch("pydfuutil.dfu.verify_init")
     @patch("usb.core.find")
-    def test_abort(self, mock_find, mock_verify_init):
+    def test_abort(self, mock_find):
         # Mocking the device
         mock_device = MagicMock()
 
@@ -184,7 +173,6 @@ class TestDfu(unittest.TestCase):
         result = dfu.abort(mock_device, interface)
 
         # Assertions
-        mock_verify_init.assert_called_once()
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
             bRequest=dfu.Command.ABORT,  # Assuming Command.ABORT

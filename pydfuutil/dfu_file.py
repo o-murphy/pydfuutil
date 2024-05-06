@@ -1,11 +1,30 @@
 """
 Checks for, parses and generates a DFU suffix
+Load or store DFU files including suffix and prefix
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
 import io
 import os
+import struct
+import sys
+import warnings
 from dataclasses import dataclass, field
+from enum import Enum
 
 from construct import (Struct, Const, ByteSwapped, Default,
                        Int32ub, Int16ub, Int8sb,
@@ -18,6 +37,9 @@ __all__ = ('DFUFile', 'parse_dfu_suffix', 'generate_dfu_suffix')
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 DFU_SUFFIX_LENGTH = 16
+LMDFU_PREFIX_LENGTH = 8
+LPCDFU_PREFIX_LENGTH = 16
+STDIN_CHUNK_SIZE = 65536
 
 crc32_table = [
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
@@ -76,25 +98,18 @@ _suffix = ByteSwapped(Struct(
 ))
 
 
-def crc32_byte(accum: int, delta: int):
-    """
-    Calculate a 32-bit CRC
-    """
-    return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8)
-
-
 @dataclass
 class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     """Class to store DFU file data"""
     name: [str, None]
-    file_p: io.FileIO = field(default=None)
-    size: int = field(default=0)
-    dwCRC: int = field(default=0)
-    suffix_len: int = field(default=0)
-    bcdDFU: int = field(default=0)
-    idVendor: int = field(default=0xffff)  # wildcard value
-    idProduct: int = field(default=0xffff)  # wildcard value
-    bcdDevice: int = field(default=0xffff)  # wildcard value
+    file_p: io.FileIO = None
+    size: int = 0
+    dwCRC: int = 0
+    suffix_len: int = 0
+    bcdDFU: int = 0
+    idVendor: int = 0xffff  # wildcard value
+    idProduct: int = 0xffff  # wildcard value
+    bcdDevice: int = 0xffff  # wildcard value
 
     def parse_dfu_suffix(self) -> int:
         """Bind parse_dfu_suffix to DFUFile instance"""
@@ -105,12 +120,300 @@ class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
         return generate_dfu_suffix(self)
 
 
+@dataclass
+class DFUFileSize:
+    total: int
+    prefix: int
+    suffix: int
+
+
+class SuffixReq(Enum):
+    NO_SUFFIX = 0
+    NEEDS_SUFFIX = 1
+    MAYBE_SUFFIX = 2
+
+
+class PrefixReq(Enum):
+    NO_SUFFIX = 0
+    NEEDS_SUFFIX = 1
+    MAYBE_SUFFIX = 2
+
+
+class PrefixType(Enum):
+    ZERO_PREFIX = 0
+    LMDFU_PREFIX = 1
+    LPCDFU_UNENCRYPTED_PREFIX = 2
+
+
+@dataclass
+class DFUFile011:  # pylint: disable=too-many-instance-attributes, invalid-name
+    """Class to store DFU file data"""
+    name: [str, None]
+    firmware: [bytearray, bytes] = field(default_factory=bytearray)
+    file_p: io.FileIO = None
+    size: DFUFileSize = None
+    lmdfu_address: int = 0
+    prefix_type: PrefixType = None
+    dwCRC: int = 0
+    bcdDFU: int = 0
+    idVendor: int = 0xffff  # wildcard value
+    idProduct: int = 0xffff  # wildcard value
+    bcdDevice: int = 0xffff  # wildcard value
+
+    def parse_dfu_suffix(self) -> int:
+        """Bind parse_dfu_suffix to DFUFile instance"""
+        return parse_dfu_suffix(self)
+
+    def generate_dfu_suffix(self) -> int:
+        """Bind generate_dfu_suffix to DFUFile instance"""
+        return generate_dfu_suffix(self)
+
+
+def crc32_byte(accum: int, delta: int):
+    """
+    Calculate a 32-bit CRC
+    """
+    return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8)
+
+
+def probe_prefix(file: DFUFile011):
+    prefix = file.firmware
+
+    if file.size.total < LMDFU_PREFIX_LENGTH:
+        return 1
+    if prefix[0] == 0x01 and prefix[1] == 0x00:
+        payload_len = ((prefix[7] << 24) | (prefix[6] << 16)
+                       | (prefix[5] << 8) | prefix[4])
+        expected_payload_len = file.size.total - LMDFU_PREFIX_LENGTH - file.size.suffix
+        if payload_len != expected_payload_len:
+            return 1
+        file.prefix_type = PrefixType.LMDFU_PREFIX
+        file.size.prefix = LMDFU_PREFIX_LENGTH
+        file.lmdfu_address = 1024 * ((prefix[3] << 8) | prefix[2])
+
+    elif ((prefix[0] & 0x3f) == 0x1a) and ((prefix[1] & 0x3f) == 0x3f):
+        file.prefix_type = PrefixType.LPCDFU_UNENCRYPTED_PREFIX
+        file.size.prefix = LPCDFU_PREFIX_LENGTH
+    if file.size.prefix + file.size.suffix > file.size.total:
+        return 1
+    return 0
+
+
+def write_crc(f: DFUFile.file_p, crc: int, buf: [bytes, bytearray], size: int) -> int:
+    # compute CRC
+    for x in range(0, size):
+        crc = crc32_byte(crc, buf[x])
+
+    # write data
+    if f.write(buf, size) != size:
+        _logger.error(f"Could not write {size} bytes to {f}")
+
+    return crc
+
+
+def load_file(file: DFUFile011, check_suffix: SuffixReq, check_prefix: PrefixReq):
+
+    file.size.prefix = 0
+    file.size.suffix = 0
+
+    # default values, if no valid suffix is found
+    file.bcdDFU = 0
+    file.idVendor = 0xffff  # wildcard value
+    file.idProduct = 0xffff  # wildcard value
+    file.bcdDevice = 0xffff  # wildcard value
+
+    # default values, if no valid prefix is found
+    file.lmdfu_address = 0
+
+    file.firmware = None
+
+    if file.name and file.name != '-':
+
+        if sys.stdin.isatty():
+            print("Please provide input via stdin.")
+            return None
+
+        # Check if the platform is Windows
+        if sys.platform.startswith("win"):
+            import msvcrt
+            # Set stdin to binary mode
+            msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+
+        file.firmware = bytearray()
+        read_bytes = sys.stdin.buffer.read(STDIN_CHUNK_SIZE)
+        file.firmware += read_bytes
+        file.size.total = len(read_bytes)
+
+        while len(read_bytes) == STDIN_CHUNK_SIZE:
+            read_bytes = sys.stdin.buffer.read(STDIN_CHUNK_SIZE)
+            file.firmware += read_bytes
+            file.size.total += len(read_bytes)
+
+        _logger.debug(f"Read {file.size.total} bytes from stdin")
+
+        # Never require suffix when reading from stdin
+        check_suffix = SuffixReq.MAYBE_SUFFIX
+    else:
+        with open(file.name, 'rb') as file.file_p:
+            file.firmware = file.file_p.read()
+            file.size.total = len(file.firmware)
+
+    # TODO
+    raise NotImplementedError
+    # # Check for possible DFU file suffix by trying to parse one
+    # if check_suffix != SuffixReq.NO_SUFFIX:
+    #     dfusuffix = file.firmware[-16:] if file.size['total'] >= 16 else None
+    #     missing_suffix = False
+    #     reason = None
+    #
+    #     if not dfusuffix:
+    #         reason = "File too short for DFU suffix"
+    #         missing_suffix = True
+    #     elif dfusuffix[10:13] != b'DFU':
+    #         reason = "Invalid DFU suffix signature"
+    #         missing_suffix = True
+    #     else:
+    #         crc = 0xffffffff
+    #         for byte in file.firmware[:-16]:
+    #             crc = crc32_byte(crc, byte)
+    #
+    #         file.dwCRC = struct.unpack('<I', dfusuffix[12:16])[0]
+    #         if file.dwCRC != crc:
+    #             reason = "DFU suffix CRC does not match"
+    #             missing_suffix = True
+    #         else:
+    #             file.bcdDFU = struct.unpack('<H', dfusuffix[6:8])[0]
+    #             _logger.debug(f"DFU suffix version {file.bcdDFU}")
+    #
+    #             file.size.suffix = dfusuffix[11]
+    #             if file.size.suffix < 16:
+    #                 raise ValueError("Unsupported DFU suffix length")
+    #             if file.size.suffix > file.size.total:
+    #                 raise ValueError("Invalid DFU suffix length")
+    #
+    #             file.idVendor = struct.unpack('<H', dfusuffix[4:6])[0]
+    #             file.idProduct = struct.unpack('<H', dfusuffix[2:4])[0]
+    #             file.bcdDevice = struct.unpack('<H', dfusuffix[0:2])[0]
+    #
+    #     if missing_suffix:
+    #         if check_suffix == SuffixReq.NEEDS_SUFFIX:
+    #             _logger.info(f"{reason}")
+    #             _logger.info("A valid DFU suffix will be required in a future dfu-util release")
+    #             # raise ValueError("Valid DFU suffix needed")
+    #
+    #     elif check_suffix == SuffixReq.MAYBE_SUFFIX:
+    #         _logger.warning(f"{reason}")
+
+
+def store_file(file: DFUFile011, write_suffix: int, write_prefix: int):
+    crc = 0xffffffff
+
+    try:
+        with open(file.name, 'wb') as file.file_p:
+
+            # write prefix, if any
+            if write_prefix:
+                if file.prefix_type == PrefixType.LMDFU_PREFIX:
+                    lmdfu_prefix = bytearray(LMDFU_PREFIX_LENGTH)
+                    addr = file.lmdfu_address // 1024
+
+                    # lmdfu_dfu_prefix payload length excludes prefix and suffix
+                    len_ = file.size.total - file.size.prefix - file.size.suffix
+
+                    lmdfu_prefix[0] = 0x01  # STELLARIS_DFU_PROG
+                    lmdfu_prefix[1] = 0x00  # Reserved
+                    lmdfu_prefix[2] = addr & 0xff
+                    lmdfu_prefix[3] = addr >> 8
+                    lmdfu_prefix[4] = len_ & 0xff
+                    lmdfu_prefix[5] = (len_ >> 8) & 0xff
+                    lmdfu_prefix[6] = (len_ >> 16) & 0xff
+                    lmdfu_prefix[7] = (len_ >> 24)
+
+                    crc = write_crc(file.file_p, crc, lmdfu_prefix, LMDFU_PREFIX_LENGTH)
+
+                if file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
+                    lpcdfu_prefix = bytearray(LPCDFU_PREFIX_LENGTH)
+
+                    # Payload is firmware and prefix rounded to 512 bytes
+                    len_ = (file.size.total - file.size.suffix + 511) // 512
+
+                    lpcdfu_prefix[0] = 0x1a  # Unencypted
+                    lpcdfu_prefix[1] = 0x3f  # Reserved
+                    lpcdfu_prefix[2] = (len_ & 0xff)
+                    lpcdfu_prefix[3] = (len_ >> 8) & 0xff
+                    for i in range(12, LPCDFU_PREFIX_LENGTH):
+                        lpcdfu_prefix[i] = 0xff
+
+                    crc = write_crc(file.file_p, crc, lpcdfu_prefix, LPCDFU_PREFIX_LENGTH)
+
+            # write firmware binary
+            crc = write_crc(file.file_p, crc, file.firmware[file.size.prefix:],
+                            file.size.total + file.size.prefix + file.size.suffix)
+
+            # write suffix, if any
+            if write_suffix:
+                dfusuffix = bytearray(DFU_SUFFIX_LENGTH)
+
+                dfusuffix[0] = file.bcdDevice & 0xff
+                dfusuffix[1] = file.bcdDevice >> 8
+                dfusuffix[2] = file.idProduct & 0xff
+                dfusuffix[3] = file.idProduct >> 8
+                dfusuffix[4] = file.idVendor & 0xff
+                dfusuffix[5] = file.idVendor >> 8
+                dfusuffix[6] = file.bcdDFU & 0xff
+                dfusuffix[7] = file.bcdDFU >> 8
+                dfusuffix[8] = ord('U')
+                dfusuffix[9] = ord('F')
+                dfusuffix[10] = ord('D')
+                dfusuffix[11] = DFU_SUFFIX_LENGTH
+
+                crc = write_crc(file.file_p, crc, dfusuffix, DFU_SUFFIX_LENGTH - 4)
+
+                dfusuffix[12] = crc
+                dfusuffix[13] = crc >> 8
+                dfusuffix[14] = crc >> 16
+                dfusuffix[15] = crc >> 24
+
+                crc = write_crc(file.file_p, crc, dfusuffix[12:], 4)
+
+    except OSError as err:
+        _logger.debug(err)
+        raise OSError(f"Could not open file {file.name} for writing")
+
+
+def show_suffix_and_prefix(file: DFUFile011) -> None:
+
+    if file.size.prefix == LPCDFU_PREFIX_LENGTH:
+        print(f"The file {file.name} contains a TI Stellaris "
+              f"DFU prefix with the following properties:")
+        print(f"Address:\t0x{file.lmdfu_address:08x}")
+    elif file.size.prefix == LPCDFU_PREFIX_LENGTH:
+        prefix = file.firmware
+        size_kib = prefix[2] >> 1 | prefix[3] << 7
+        print(f"The file {file.name} contains a NXP unencrypted "
+              f"LPC DFU prefix with the following properties:")
+        print(f"Size:\t{size_kib:5} kiB")
+    elif file.size.prefix != 0:
+        print(f"The file {file.name} contains an unknown prefix")
+
+    if file.size.suffix > 0:
+        print(f"The file {file.name} contains a DFU suffix with the following properties:")
+        print(f"BCD device:\t0x{file.bcdDevice:04X}")
+        print(f"Product ID:\t0x{file.idProduct:04X}")
+        print(f"Vendor ID:\t0x{file.idVendor:04X}")
+        print(f"BCD DFU:\t0x{file.bcdDFU:04X}")
+        print(f"Length:\t\t{file.size.suffix}")
+        print(f"CRC:\t\t0x{file.dwCRC:08X}")
+
+
 def parse_dfu_suffix(file: DFUFile) -> int:
     """
     reads the file_p and name member, fills in all others
+    FIXME: deprecated
     :param file:
     :return: 0 if no DFU suffix, positive if valid DFU suffix, negative on file read error
     """
+    warnings.warn("parse_dfu_suffix is deprecated", FutureWarning)
 
     crc = 0xffffffff
     dfu_suffix = bytearray([0] * DFU_SUFFIX_LENGTH)
@@ -178,6 +481,7 @@ def generate_dfu_suffix(file: DFUFile) -> int:
     :param file:
     :return: positive on success, negative on errors
     """
+    warnings.warn("generate_dfu_suffix is deprecated", FutureWarning)
 
     file.size = 0
     file.dwCRC = 0xffffffff
