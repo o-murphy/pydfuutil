@@ -198,7 +198,7 @@ class TestDnloadElement(unittest.TestCase):
                                              ] * (self.dw_element_size // self.xfer_size)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
-    @patch('pydfuutil.dfuse.dnload_chunk')
+    @patch('pydfuutil.dfuse1.dnload_chunk')
     def test_dnload_element_success(self, mock_dnload_chunk, mock_find_segment):
         mock_find_segment.return_value = Mock(mem_type=dfuse_mem.DFUSE.WRITEABLE)
         mock_dnload_chunk.return_value = 512
@@ -207,23 +207,20 @@ class TestDnloadElement(unittest.TestCase):
             512)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
-    @patch('pydfuutil.dfuse.dnload_chunk')
+    @patch('pydfuutil.dfuse1.dnload_chunk')
     def test_dnload_element_segment_not_found(self, mock_dnload_chunk, mock_find_segment):
         mock_find_segment.return_value = None
         mock_dnload_chunk.return_value = -1
-        self.assertEqual(
-            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size),
-            -1)
+        with self.assertRaises(IOError):
+            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
-    @patch('pydfuutil.dfuse.dnload_chunk')
+    @patch('pydfuutil.dfuse1.dnload_chunk')
     def test_dnload_element_segment_not_writeable(self, mock_dnload_chunk, mock_find_segment):
         mock_find_segment.return_value = Mock(mem_type=0)
         mock_dnload_chunk.return_value = -1
-        self.assertEqual(
-            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size),
-            -1)
-
+        with self.assertRaises(IOError):
+            dfuse.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size)
 
 class TestDoBinDnload(unittest.TestCase):
 
@@ -258,7 +255,7 @@ class TestDoDfuseDnload(unittest.TestCase):
         self.file.file_p = Mock()
         self.file.suffix_len = 16
 
-    @patch('pydfuutil.dfuse.dnload_element')
+    @patch('pydfuutil.dfuse1.dnload_element')
     def test_do_dfuse_dnload_success(self, mock_dnload_element):
         mock_dnload_element.return_value = 0
         # self.file.file_p.read.return_value = b'DfuSe\x01\x01Target\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
