@@ -5,6 +5,20 @@ Protocol definitions for USB DFU
 
 This ought to be compliant to the USB DFU Spec 1.0 as available from
 https://www.usb.org/developers/devclass_docs/usbdfu10.pdf
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 from dataclasses import dataclass
 from enum import IntEnum
@@ -50,6 +64,7 @@ class UsbReqDfu(IntEnum):
     ABORT = 0x06
 
 
+# DFU_GETSTATUS bStatus values (Section 6.1.2, DFU Rev 1.1)
 class DFUStatus(IntEnum):
     """Dfu statuses"""
     OK = 0x00

@@ -1,7 +1,30 @@
 """
+DFU transfer routines
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This is supposed to be a general DFU implementation, as specified in the
+USB DFU 1.0 and 1.1 specification.
+
+The code was originally intended to interface with a USB device running the
+"sam7dfu" firmware (see https://www.openpcd.org/) on an AT91SAM7 processor.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 import logging
+
+import usb
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
@@ -16,13 +39,13 @@ _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 def do_upload(dif: dfu.DfuIf,
               xfer_size: int,
               file: DFUFile = None,
-              total_size: int = -1) -> [int, bytes]:
+              expected_size: int = -1) -> [int, bytes]:
     """
     Uploads data from DFU device from special page
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
     :param file: optional - DFUFile object
-    :param total_size: optional - total bytes expected to be uploaded
+    :param expected_size: optional - total bytes expected to be uploaded
     :return: uploaded bytes or error code
     """
 
@@ -33,41 +56,55 @@ def do_upload(dif: dfu.DfuIf,
     buf = bytearray(xfer_size)
 
     with Progress() as progress:
-        progress_total = total_size if total_size >= 0 else None
+        progress_total = expected_size if expected_size >= 0 else None
         progress.start_task(
             description="Starting upload",
             total=progress_total
         )
+        # ret = 0  # need there?
+        try:
+            while True:
+                rc = dif.upload(transaction, buf)
 
-        while True:
-            rc = dif.upload(transaction, buf)
+                if len(rc) < 0:
+                    _logger.error("Error during upload")
+                    ret = rc
+                    break
 
-            if len(rc) < 0:
-                ret = rc
-                break
+                if file:
+                    write_rc = file.file_p.write(rc)
+                    # TODO: replace to dfu_file_write_crc
 
-            if file:
-                write_rc = file.file_p.write(rc)
+                    if write_rc < len(rc):
+                        _logger.error(f'Short file write: {write_rc}')
+                        ret = total_bytes
+                        break
 
-                if write_rc < len(rc):
-                    _logger.error(f'Short file write: {write_rc}')
+                total_bytes += len(rc)
+
+                if total_bytes < 0:
+                    raise IOError("Received too many bytes (wraparound)")
+
+
+                transaction += 1
+                progress.update(advance=len(rc), description="Uploading...")
+
+                # last block, return
+                if (len(rc) < xfer_size) or (total_bytes >= expected_size >= 0):
                     ret = total_bytes
                     break
 
-            total_bytes += len(rc)
+            progress.update(description='Upload finished!')
 
-            transaction += 1
-            progress.update(advance=len(rc), description="Uploading...")
+            _logger.debug(f"Received a total of {total_bytes} bytes")
 
-            # last block, return
-            if (len(rc) < xfer_size) or (total_bytes >= total_size >= 0):
-                ret = total_bytes
-                break
+            if expected_size != 0 and total_bytes != expected_size:
+                _logger.warning("Unexpected number of bytes uploaded from device")
 
-        progress.update(description='Upload finished!')
-
-        _logger.debug(f"Received a total of {total_bytes} bytes")
-        return ret
+            return ret
+        except IOError as e:
+            _logger.error(e)
+            return -1
 
 
 # pylint: disable=too-many-branches
@@ -76,20 +113,24 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int
     :param dif: DfuIf instance
     :param xfer_size: transaction size
     :param file: DFUFile instance
-    :param quirks: quirks
+    :param quirks: quirks  TODO: replace to DFUFile011 with quirks
     verbose: is verbose useless cause of using python's logging
     :return:
     """
 
     bytes_sent = 0
+    # # TODO: new one
+    # buf = file.firmware
+    # expected_size = file.size.total - file.size.suffix;
+    # bytes_sent = 0
     buf = bytearray(xfer_size)
 
     _logger.info("Copying data from PC to DFU device")
-    _logger.info("Starting download: ")
+
     try:
 
         with Progress() as progress:
-            total_size = file.size - file.suffix_len
+            total_size = file.size - file.suffix_len  # TODO: replace to expected_size
             progress.start_task(
                 description="Starting download",
                 total=total_size if total_size >= 0 else None
@@ -157,12 +198,11 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int
 
             if status.bState == dfu.State.DFU_IDLE:
                 _logger.info("Done!")
+        return bytes_sent
 
     except IOError as err:
         _logger.error(err)
         return -1
-
-    return bytes_sent
 
 
 def init() -> None:

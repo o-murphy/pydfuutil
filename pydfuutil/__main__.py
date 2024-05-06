@@ -574,7 +574,7 @@ def main() -> None:
 
     print(f"v{__version__}")
     # parse options
-    args = parser.parse_args(sys.argv)
+    args = parser.parse_args()
     dif: dfu.DfuIf = dfu.DfuIf()
     file = dfu_file.DFUFile(None)
     mode = Mode.NONE
