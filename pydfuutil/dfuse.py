@@ -494,8 +494,8 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
                     return ret
 
     # Read through the whole file for bookkeeping
-    file.file_p.read(file.suffix_len)
-    read_bytes += file.suffix_len
+    file.file_p.read(file.size.suffix)
+    read_bytes += file.size.suffix
 
     if read_bytes != file.size:
         _logger.warning(f"Read {read_bytes} bytes, file size {file.size}")
