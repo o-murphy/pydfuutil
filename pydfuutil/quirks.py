@@ -52,7 +52,6 @@ class PRODUCT(IntEnum):
 
 
 class QUIRK(IntFlag):
-    NONE = 0
     POLLTIMEOUT = 1 << 0
     FORCE_DFU11 = 1 << 1
     UTF8_SERIAL = 1 << 2
@@ -69,7 +68,7 @@ def get_quirks(vendor: int, product: int, bcdDevice: int) -> int:
     :param bcdDevice:
     :return: device specific quirks
     """
-    quirks = QUIRK.NONE
+    quirks = 0
 
     # Device returns bogus bwPollTimeout values
     if vendor in {VENDOR.OPENMOKO, VENDOR.FIC} and \
