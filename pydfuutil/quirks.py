@@ -21,9 +21,7 @@ from enum import IntEnum, IntFlag
 from pydfuutil.dfuse_mem import MemSegment, find_segment
 from pydfuutil.logger import logger
 
-
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
-
 
 # Fallback value, works for OpenMoko
 DEFAULT_POLLTIMEOUT = 5
@@ -54,11 +52,12 @@ class PRODUCT(IntEnum):
 
 
 class QUIRK(IntFlag):
-    POLLTIMEOUT = 0x0
-    FORCE_DFU11 = 0x1
-    UTF8_SERIAL = 0x2
-    DFUSE_LAYOUT = 0x4
-    DFUSE_LEAVE = 0x8
+    NONE = 0
+    POLLTIMEOUT = 1 << 0
+    FORCE_DFU11 = 1 << 1
+    UTF8_SERIAL = 1 << 2
+    DFUSE_LAYOUT = 1 << 3
+    DFUSE_LEAVE = 1 << 4
 
 
 # pylint: disable=invalid-name
@@ -70,7 +69,7 @@ def get_quirks(vendor: int, product: int, bcdDevice: int) -> int:
     :param bcdDevice:
     :return: device specific quirks
     """
-    quirks = 0
+    quirks = QUIRK.NONE
 
     # Device returns bogus bwPollTimeout values
     if vendor in {VENDOR.OPENMOKO, VENDOR.FIC} and \

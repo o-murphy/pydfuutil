@@ -28,7 +28,7 @@ class NoInputError(GeneralError, OSError):
     exit_code = 66
 
 
-class UsbIOError(GeneralError, _IOError):
+class UsbIOError(_IOError):
     exit_code = 1
 
 

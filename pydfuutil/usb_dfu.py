@@ -21,7 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 from dataclasses import dataclass
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 
 import usb.util
 
@@ -31,12 +31,12 @@ USB_DT_DFU_SIZE = 9
 USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
 
-class BmAttributes(IntEnum):
+class BmAttributes(IntFlag):
     """Enum of DFU_FUNC_DESCRIPTOR's BmAttributes"""
-    USB_DFU_CAN_DOWNLOAD = 0x1
-    USB_DFU_CAN_UPLOAD = 0x2
-    USB_DFU_MANIFEST_TOL = 0x3
-    USB_DFU_WILL_DETACH = 0x4
+    USB_DFU_CAN_DOWNLOAD = 1 << 0
+    USB_DFU_CAN_UPLOAD = 1 << 1
+    USB_DFU_MANIFEST_TOL = 1 << 2
+    USB_DFU_WILL_DETACH = 1 << 3
 
 
 # pylint: disable=invalid-name
