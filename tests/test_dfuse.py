@@ -1,3 +1,4 @@
+import io
 import unittest
 from unittest.mock import Mock, patch
 
@@ -226,18 +227,20 @@ class TestDnloadElement(unittest.TestCase):
 class TestDoBinDnload(unittest.TestCase):
 
     def setUp(self):
-        self.dfu_if = Mock()
+        self.dfu_if = dfu.DfuIf()
         self.xfer_size = 1024
         self.start_address = 0x08000000
-        self.file = Mock(spec=DFUFile)
-        self.file.size = 1024
+        # self.file = Mock(spec=DFUFile)
+        self.file = DFUFile("")
+        self.file.file_p = Mock(spec=io.FileIO)
+        self.file.size.total = 1024
         self.file.file_p.read.return_value = bytes(1024)
 
     @patch('pydfuutil.dfuse.dnload_element')
     def test_do_bin_dnload_success(self, mock_dnload_element):
         mock_dnload_element.return_value = 0
         self.assertEqual(dfuse.do_bin_dnload(self.dfu_if, self.xfer_size, self.file, self.start_address),
-                         self.file.size)
+                         self.file.size.total)
 
     @patch('pydfuutil.dfuse.dnload_element')
     def test_do_bin_dnload_failure(self, mock_dnload_element):

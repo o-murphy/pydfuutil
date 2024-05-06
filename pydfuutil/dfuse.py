@@ -208,7 +208,7 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
 
     if status < 0:
         _logger.error(f"{download.__name__}: "
-                     f"libusb_control_transfer returned {status}")
+                      f"libusb_control_transfer returned {status}")
 
     return status
 
@@ -382,8 +382,8 @@ def dnload_element(dif: dfu.DfuIf,
 
         if VERBOSE:
             _logger.info(f"Download from image offset {p:08x} "
-                        f"to memory {address:08x}-{address + chunk_size - 1:08x}"
-                        f", size {chunk_size}")
+                         f"to memory {address:08x}-{address + chunk_size - 1:08x}"
+                         f", size {chunk_size}")
 
         special_command(dif, address, Command.SET_ADDRESS)
 
@@ -414,7 +414,8 @@ def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: 
     :return: Number of bytes read or error code
     """
     dwElementAddress = start_address
-    dwElementSize = file.size
+    print(file)
+    dwElementSize = file.size.total - file.size.suffix - file.size.prefix
 
     _logger.info(f"Downloading to address = 0x{dwElementAddress:08x}, size = {dwElementSize}")
 
@@ -471,7 +472,7 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
         if bAlternateSetting != dif.altsetting:
             _logger.warning("Image does not match current alternate setting.")
             _logger.warning("Please rerun with the correct -a option setting"
-                           " to download this image!")
+                            " to download this image!")
 
         for element in range(1, dwNbElements + 1):
             _logger.info(f"Parsing element {element}")
@@ -556,7 +557,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
     else:
         if file.bcdDFU != 0x11a:
             _logger.error("Only DfuSe file version 1.1a is supported"
-                         ", (for raw binary download, use the --dfuse-address option)")
+                          ", (for raw binary download, use the --dfuse-address option)")
             return -1
         ret = do_dfuse_dnload(dif, xfer_size, file)
 

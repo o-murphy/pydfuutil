@@ -28,6 +28,7 @@ import usb
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
+from pydfuutil.exceptions import _IOError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -55,14 +56,14 @@ def do_upload(dif: dfu.DfuIf,
     transaction = dfu.TRANSACTION  # start page
     buf = bytearray(xfer_size)
 
-    with Progress() as progress:
-        progress_total = expected_size if expected_size >= 0 else None
-        progress.start_task(
-            description="Starting upload",
-            total=progress_total
-        )
-        # ret = 0  # need there?
-        try:
+    try:
+
+        with Progress() as progress:
+            progress.start_task(
+                description="Starting upload",
+                total=expected_size if expected_size >= 0 else None
+            )
+            # ret = 0  # need there?
             while True:
                 rc = dif.upload(transaction, buf)
 
@@ -71,26 +72,18 @@ def do_upload(dif: dfu.DfuIf,
                     ret = rc
                     break
 
-                if file:
-                    write_rc = file.file_p.write(rc)
-                    # TODO: replace to dfu_file_write_crc
-
-                    if write_rc < len(rc):
-                        _logger.error(f'Short file write: {write_rc}')
-                        ret = total_bytes
-                        break
+                file.write_crc(0, buf)
 
                 total_bytes += len(rc)
 
                 if total_bytes < 0:
-                    raise IOError("Received too many bytes (wraparound)")
-
+                    raise _IOError("Received too many bytes (wraparound)")
 
                 transaction += 1
                 progress.update(advance=len(rc), description="Uploading...")
 
                 # last block, return
-                if (len(rc) < xfer_size) or (total_bytes >= expected_size >= 0):
+                if len(rc) < xfer_size or total_bytes >= expected_size >= 0:
                     ret = total_bytes
                     break
 
@@ -102,63 +95,58 @@ def do_upload(dif: dfu.DfuIf,
                 _logger.warning("Unexpected number of bytes uploaded from device")
 
             return ret
-        except IOError as e:
-            _logger.error(e)
-            return -1
+    except _IOError as e:
+        _logger.error(e)
+        return -1
 
 
 # pylint: disable=too-many-branches
-def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int:
+def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
     """
     :param dif: DfuIf instance
     :param xfer_size: transaction size
     :param file: DFUFile instance
-    :param quirks: quirks  TODO: replace to DFUFile011 with quirks
     verbose: is verbose useless cause of using python's logging
     :return:
     """
 
+    buf = file.firmware
+
+    expected_size = file.size.total - file.size.suffix
     bytes_sent = 0
-    # # TODO: new one
-    # buf = file.firmware
-    # expected_size = file.size.total - file.size.suffix;
-    # bytes_sent = 0
-    buf = bytearray(xfer_size)
 
     _logger.info("Copying data from PC to DFU device")
 
     try:
-
         with Progress() as progress:
-            total_size = file.size - file.suffix_len  # TODO: replace to expected_size
             progress.start_task(
                 description="Starting download",
-                total=total_size if total_size >= 0 else None
+                total=expected_size if expected_size >= 0 else None
             )
 
-            while bytes_sent < file.size - file.suffix_len:
+            while bytes_sent < expected_size:
                 # Note: no idea what's there
                 # bytes_left = file.size - file.suffix_len - bytes_sent
                 # chunk_size = min(bytes_left, xfer_size)
 
                 if (ret := file.file_p.readinto(buf)) < 0:  # Handle read error
-                    raise IOError(f"Error reading file: {file.name}")
+                    raise _IOError(f"Error reading file: {file.name}")
 
                 ret = dif.download(ret, buf[:ret] if ret else None)
 
                 if ret < 0:
-                    raise IOError("Error during download")
+                    raise _IOError("Error during download")
                 bytes_sent += ret
 
                 while True:
                     if int(status := dif.get_status()) < 0:
-                        raise IOError("Error during download get_status")
+                        raise _IOError("Error during download get_status")
                     if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR):
                         break
                     # Wait while the device executes flashing
                     milli_sleep(
                         DEFAULT_POLLTIMEOUT
-                        if quirks & QUIRK_POLLTIMEOUT
+                        if dif.quirks & QUIRK_POLLTIMEOUT
                         else status.bwPollTimeout
                     )
 
@@ -166,13 +154,13 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int
                     logger.error("Transfer failed!")
                     logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                                 f"status({status.bStatus}) = {status.bStatus.to_string()}")
-                    raise IOError("Downloading failed!")
+                    raise _IOError("Downloading failed!")
 
                 progress.update(description="Downloading...", advance=xfer_size//1000)
 
             # Send one zero-sized download request to signalize end
             if dif.download(dfu.TRANSACTION, bytes()) < 0:
-                raise IOError("Error sending completion packet")
+                raise _IOError("Error sending completion packet")
 
             progress.update(description="Download finished!")
             _logger.info("finished!")
@@ -180,11 +168,11 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int
 
             # Transition to MANIFEST_SYNC state
             if int(status := dif.get_status()) < 0:
-                raise IOError("Unable to read DFU status")
+                raise _IOError("Unable to read DFU status")
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
-            if not quirks & QUIRK_POLLTIMEOUT:
+            if not dif.quirks & QUIRK_POLLTIMEOUT:
                 milli_sleep(status.bwPollTimeout)
 
             # Deal correctly with ManifestationTolerant=0 / WillDetach bits
@@ -192,7 +180,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int
                 # Some devices need some time before we can obtain the status
                 milli_sleep(1000)
                 if int(status := dif.get_status()) < 0:
-                    raise IOError("Unable to read DFU status")
+                    raise _IOError("Unable to read DFU status")
                 _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                              f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
@@ -200,7 +188,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, quirks: int) -> int
                 _logger.info("Done!")
         return bytes_sent
 
-    except IOError as err:
+    except _IOError as err:
         _logger.error(err)
         return -1
 

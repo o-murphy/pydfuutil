@@ -12,6 +12,22 @@ class GeneralError(Exception):
     exit_code = 1
 
 
+class DataError(GeneralError, ValueError, TypeError):
+    exit_code = 65
+
+
+class SoftwareError(GeneralError):
+    exit_code = 70
+
+
+class _IOError(GeneralError, IOError):
+    exit_code = 74
+
+
+class NoInputError(GeneralError, OSError):
+    exit_code = 66
+
+
 class UsbIOError(GeneralError):
     exit_code = 1
 
