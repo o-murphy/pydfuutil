@@ -22,9 +22,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
-import logging
-
-import usb
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
@@ -32,7 +29,7 @@ from pydfuutil.exceptions import _IOError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
-from pydfuutil.quirks import QUIRK_POLLTIMEOUT, DEFAULT_POLLTIMEOUT
+from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
@@ -146,7 +143,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
                     # Wait while the device executes flashing
                     milli_sleep(
                         DEFAULT_POLLTIMEOUT
-                        if dif.quirks & QUIRK_POLLTIMEOUT
+                        if dif.quirks & QUIRK.POLLTIMEOUT
                         else status.bwPollTimeout
                     )
 
@@ -172,7 +169,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
-            if not dif.quirks & QUIRK_POLLTIMEOUT:
+            if not dif.quirks & QUIRK.POLLTIMEOUT:
                 milli_sleep(status.bwPollTimeout)
 
             # Deal correctly with ManifestationTolerant=0 / WillDetach bits
@@ -193,7 +190,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
         return -1
 
 
-def init() -> None:
-    """Init dfu_load props"""
-    dfu.debug(dfu.DEBUG)
-    dfu.init(dfu.TIMEOUT)
+__all__ = (
+    'do_upload',
+    'do_dnload'
+)

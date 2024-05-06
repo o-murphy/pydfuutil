@@ -31,18 +31,6 @@ from construct import (Struct, Const, ByteSwapped, Default,
 from pydfuutil.exceptions import GeneralError, GeneralWarning, NoInputError, _IOError, DataError
 from pydfuutil.logger import logger
 
-__all__ = (
-    'DFUFile',
-    # 'parse_dfu_suffix',
-    # 'generate_dfu_suffix'
-    'PrefixType',
-    'SuffixReq',
-    'PrefixReq',
-    'DFUFileSize',
-    'store_file',
-    'load_file',
-
-)
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
@@ -409,10 +397,22 @@ def show_suffix_and_prefix(file: DFUFile) -> None:
         print(f"Length:\t\t{file.size.suffix}")
         print(f"CRC:\t\t0x{file.dwCRC:08X}")
 
+
+__all__ = (
+    'DFUFile',
+    'SuffixReq',
+    'PrefixReq',
+    'PrefixType',
+    'load_file',
+    'store_file',
+    'write_crc',
+    'show_suffix_and_prefix',
+)
+
+# #  FIXME: all bellow are deprecated
 # def parse_dfu_suffix(file: DFUFile) -> int:
 #     """
 #     reads the file_p and name member, fills in all others
-#     FIXME: deprecated
 #     :param file:
 #     :return: 0 if no DFU suffix, positive if valid DFU suffix, negative on file read error
 #     """

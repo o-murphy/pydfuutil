@@ -691,7 +691,7 @@ def main() -> None:
 
     logger.info(f"ID 0x{_rt_dif.vendor:04X}:0x{_rt_dif.product:04X}")
 
-    _quirks = quirks.set_quirks(_rt_dif.vendor, _rt_dif.product, _rt_dif.bcdDevice)
+    _quirks = quirks.get_quirks(_rt_dif.vendor, _rt_dif.product, _rt_dif.bcdDevice)
 
     # Obtain run-time DFU functional descriptor without asking device
     # E.g. Free runner does not like to be requested at this point
@@ -719,7 +719,7 @@ def main() -> None:
             raise GeneralError(f"{_log_msg}error get_status")
         logger.info(f"{_log_msg}state = {status_.bState.to_string()}, "
                     f"status = {status_.bStatus}")
-        if not _quirks & quirks.QUIRK_POLLTIMEOUT:
+        if not _quirks & quirks.QUIRK.POLLTIMEOUT:
             milli_sleep(status_.bwPollTimeout)
         return status_
 
@@ -874,7 +874,7 @@ def main() -> None:
         _ = int(status := dif.get_status())
         if status.bStatus != dfu.Status.OK:
             raise GeneralError(f"{status.bStatus}")
-        if not _quirks & quirks.QUIRK_POLLTIMEOUT:
+        if not _quirks & quirks.QUIRK.POLLTIMEOUT:
             milli_sleep(status.bwPollTimeout)
 
     logger.debug(f"State: {status.bState.to_string()}, "
@@ -903,7 +903,7 @@ def main() -> None:
         logger.warning("Warning: Transfer size can not be detected")
         func_dfu.wTransferSize = 0
 
-    if _quirks & quirks.QUIRK_FORCE_DFU11:
+    if _quirks & quirks.QUIRK.FORCE_DFU11:
         func_dfu.bcdDFUVersion = 0x0110
 
     logger.info(f"DFU mode device DFU version  0x{func_dfu.bcdDFUVersion:04X}")

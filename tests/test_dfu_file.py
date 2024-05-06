@@ -48,7 +48,8 @@ class TestLoadFile(unittest.TestCase):
         self.sample_file_path = os.path.join(os.path.dirname(__file__), "sample_file.bin")
         self.file = DFUFile(self.sample_file_path)
         self.file_size = os.path.getsize(self.sample_file_path)
-        self.file.size = DFUFileSize(self.file_size, 0, 0)
+        self.file.size.total = self.file_size
+
     def test_load_file(self):
         self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
         self.assertEqual(self.file.size.total, self.file_size)
@@ -65,7 +66,7 @@ class TestLoadFile(unittest.TestCase):
     def test_load_file_from_stdin(self, mock_read):
         file = DFUFile("-")
         file_size = os.path.getsize(self.sample_file_path)
-        file.size = DFUFileSize(file_size, 0, 0)
+        file.size.total = file_size
         load_file(file, SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
         self.assertEqual(file.size.total, 6)
         self.assertEqual(file.firmware, b"abcdef")

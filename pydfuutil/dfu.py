@@ -552,3 +552,22 @@ TIMEOUT: int = INVALID_DFU_TIMEOUT
 TRANSACTION: int = 0
 
 DEBUG_LEVEL: int = 0
+
+__all__ = (
+    "Command",
+    "Status",
+    "State",
+    "StatusRetVal",
+    "DfuIf",
+    "detach",
+    "download",
+    "upload",
+    "get_status",
+    "clear_status",
+    "get_state",
+    "abort",
+    "abort_to_idle",
+    "status_to_string",
+    "state_to_string",
+)
+

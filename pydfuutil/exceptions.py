@@ -28,7 +28,7 @@ class NoInputError(GeneralError, OSError):
     exit_code = 66
 
 
-class UsbIOError(GeneralError):
+class UsbIOError(GeneralError, _IOError):
     exit_code = 1
 
 
@@ -50,3 +50,16 @@ class MisuseError(GeneralError):
 class CapabilityError(GeneralError):
     """DFU incompatible usage error."""
     exit_code = 3
+
+
+__all__ = (
+    'GeneralError',
+    'GeneralWarning',
+    'NoInputError',
+    'UsbIOError',
+    'MisuseError',
+    'CapabilityError',
+    'DataError',
+    'UsbIOError',
+    '_IOError',
+)
