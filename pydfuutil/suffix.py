@@ -132,7 +132,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         const=LmdfuMode.CHECK, help='Set lmdfu mode to LMDFU_CHECK')
 
 
-def main() -> None:
+def _main() -> None:
     """cli entry point for suffix"""
 
     parser = argparse.ArgumentParser(
@@ -214,7 +214,7 @@ def main() -> None:
             raise GeneralError(error)
 
 
-if __name__ == '__main__':
+def main():
     try:
         main()
     except GeneralWarning as warn:
@@ -228,3 +228,7 @@ if __name__ == '__main__':
         logger.error(err)
         sys.exit(1)
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

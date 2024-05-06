@@ -562,7 +562,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help="Say yes to all prompts")
 
 
-def main() -> None:
+def _main() -> None:
     """Cli entry point"""
 
     # Create argument parser
@@ -1014,9 +1014,9 @@ def main() -> None:
     usb.util.dispose_resources(dif.dev)
 
 
-if __name__ == '__main__':
+def main():
     try:
-        main()
+        _main()
     except GeneralError as err:
         if err.__str__():
             logger.error(err)
@@ -1025,3 +1025,7 @@ if __name__ == '__main__':
         logger.error(err)
         sys.exit(1)
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
