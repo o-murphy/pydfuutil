@@ -559,6 +559,7 @@ __all__ = (
     "State",
     "StatusRetVal",
     "DfuIf",
+    'Mode',
     "detach",
     "download",
     "upload",

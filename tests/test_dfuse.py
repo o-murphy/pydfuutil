@@ -95,6 +95,7 @@ class TestDownload(unittest.TestCase):
 
     def test_download_failure(self):
         self.dfu_if.dev.ctrl_transfer.return_value = -1
+        self.dfu_if.quirks = 0
         data = b'\x01\x02\x03\x04'
         transaction = 123
         status = dfuse.download(self.dfu_if, data, transaction)

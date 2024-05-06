@@ -38,7 +38,7 @@ class GeneralWarning(GeneralError):
     """
 
 
-class MisuseError(GeneralError):
+class MissuseError(GeneralError):
     """
     Often used to indicate misuse or incorrect usage of the program.
     For example, if the program receives
@@ -57,7 +57,7 @@ __all__ = (
     'GeneralWarning',
     'NoInputError',
     'UsbIOError',
-    'MisuseError',
+    'MissuseError',
     'CapabilityError',
     'DataError',
     'UsbIOError',

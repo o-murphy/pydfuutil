@@ -27,14 +27,15 @@ import usb.util
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
-from pydfuutil.exceptions import GeneralError
+from pydfuutil.exceptions import GeneralError, MissuseError, _IOError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
+from pydfuutil.quirks import QUIRK
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
-VERBOSE = False
+
 MEM_LAYOUT: [MemSegment, None] = None
 
 TIMEOUT = 5000
@@ -79,6 +80,7 @@ def parse_options(options: str) -> argparse.Namespace:
 def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
     """
     Perform DfuSe-specific commands.
+    Leaves the device in dfuDNLOAD-IDLE state
     :param dif: DFU interface
     :param address: Address for the command
     :param command: DfuSe command to execute
@@ -95,18 +97,16 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
             segment = find_segment(MEM_LAYOUT, address)
 
             if not segment or not segment.mem_type & DFUSE.ERASABLE:
-                raise IOError(f"Page at 0x{address:08x} cannot be erased")
+                raise MissuseError(f"Page at 0x{address:08x} cannot be erased")
 
             page_size = segment.pagesize
-            if VERBOSE > 1:
-                _logger.info(
-                    f"Erasing page size {page_size} at address 0x{address:08x}, "
-                    f"page starting at 0x{address & ~(page_size - 1):08x}")
+            _logger.debug(
+                f"Erasing page size {page_size} at address 0x{address:08x}, "
+                f"page starting at 0x{address & ~(page_size - 1):08x}")
             buf[0], length = 0x41, 5  # Note: Unused variable 'length'
             # last_erased = address  # Note: useless?
         elif command == Command.SET_ADDRESS:
-            if VERBOSE > 2:
-                _logger.debug(f"Setting address pointer to 0x{address:08x}")
+            _logger.debug(f"Setting address pointer to 0x{address:08x}")
             buf[0], length = 0x21, 5  # Set Address Pointer command
         elif command == Command.MASS_ERASE:
             buf[0], length = 0x41, 1  # Mass erase command when length = 1
@@ -136,8 +136,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
             raise IOError("Wrong state after command download")
 
         # Wait while command is executed
-        if VERBOSE:
-            _logger.info(f"Poll timeout {dst.bwPollTimeout} ms")
+        _logger.debug(f"Poll timeout {dst.bwPollTimeout} ms")
 
         milli_sleep(dst.bwPollTimeout)
 
@@ -195,7 +194,7 @@ def upload(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     )
 
     if status < 0:
-        _logger.error(f"{upload.__name__}: libusb_control_msg returned {status}")
+        _logger.warning(f"upload: libusb_control_msg returned {status}")
 
     return status
 
@@ -221,8 +220,12 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     )
 
     if status < 0:
-        _logger.error(f"{download.__name__}: "
-                      f"libusb_control_transfer returned {status}")
+        # Silently fail on leave request on some unpredictable devices
+        if dif.quirks & QUIRK.DFUSE_LEAVE and not data and transaction == 2:
+            return status
+        _logger.warning(
+            f"download: libusb_control_transfer returned {status}"
+        )
 
     return status
 
@@ -259,7 +262,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
 
             segment = find_segment(MEM_LAYOUT, parsed_args.address)
             if not parsed_args.force and (not segment or not segment.mem_type & DFUSE.READABLE):
-                raise IOError(f"Page at 0x{parsed_args.address:08x} is not readable")
+                raise MissuseError(f"Page at 0x{parsed_args.address:08x} is not readable")
 
             if not upload_limit:
                 upload_limit = segment.end - parsed_args.address + 1
@@ -379,10 +382,10 @@ def dnload_element(dif: dfu.DfuIf,
     segment = find_segment(MEM_LAYOUT, dw_element_address + dw_element_size - 1)
 
     if not segment or not segment.mem_type & DFUSE.WRITEABLE:
-        _logger.error(
-            f"Error: Last page at 0x{dw_element_address + dw_element_size - 1:08x} is not writeable"
+        raise MissuseError(
+            f"Error: Last page at 0x{dw_element_address + dw_element_size - 1:08x} "
+            f"is not writeable"
         )
-        return -1
 
     p = 0
     while p < dw_element_size:
@@ -394,24 +397,19 @@ def dnload_element(dif: dfu.DfuIf,
             _logger.error(f"Error: Page at 0x{address:08x} is not writeable")
             return -1
 
-        if VERBOSE:
-            _logger.info(f"Download from image offset {p:08x} "
-                         f"to memory {address:08x}-{address + chunk_size - 1:08x}"
-                         f", size {chunk_size}")
+        _logger.debug(f"Download from image offset {p:08x} "
+                     f"to memory {address:08x}-{address + chunk_size - 1:08x}"
+                     f", size {chunk_size}")
 
         special_command(dif, address, Command.SET_ADDRESS)
 
         # transaction = 2 for no address offset
         ret = dnload_chunk(dif, data[p:p + chunk_size], chunk_size, 2)
         if ret != chunk_size:
-            _logger.error(f"Failed to write whole chunk: {ret} of {chunk_size} bytes")
-            return -1
+            raise _IOError(f"Failed to write whole chunk: {ret} of {chunk_size} bytes")
 
         # Move to the next chunk
         p += xfer_size
-
-    if not VERBOSE:
-        _logger.info("")
 
     return ret
 
@@ -584,8 +582,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, dfuse_options: [str
         ret2 = int(dst := dif.get_status())
         if ret2 < 0:
             _logger.error("Error during download get_status")
-        if VERBOSE:
-            _logger.info(f"bState = {dst.bState} and bStatus = {dst.bStatus}")
+        _logger.debug(f"bState = {dst.bState} and bStatus = {dst.bStatus}")
 
     return ret
 

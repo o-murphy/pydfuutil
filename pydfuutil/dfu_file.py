@@ -28,7 +28,7 @@ from enum import Enum
 from construct import (Struct, Const, ByteSwapped, Default,
                        Int32ub, Int16ub, Int8sb)
 
-from pydfuutil.exceptions import GeneralError, GeneralWarning, NoInputError, _IOError, DataError
+from pydfuutil.exceptions import GeneralError, NoInputError, _IOError, DataError
 from pydfuutil.logger import logger
 
 
@@ -199,7 +199,7 @@ def probe_prefix(file: DFUFile):
     return 0
 
 
-def write_crc(f: io.FileIO, crc: int, buf: [bytes, bytearray]) -> int:
+def write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> int:
     # compute CRC
     size = len(buf)
     for x in range(0, size):
@@ -244,6 +244,8 @@ def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -
                 else:
                     raise _IOError(f"Error reading file {file.name}: {e}")
 
+        missing_suffix, reason = False, None
+
         if file.size.total < DFU_SUFFIX_LENGTH:
             reason = "File too short for DFU suffix"
             missing_suffix = True
@@ -274,13 +276,11 @@ def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -
                 file.idProduct = struct.unpack('<H', dfu_suffix[2:4])[0]
                 file.bcdDevice = struct.unpack('<H', dfu_suffix[0:2])[0]
 
-                missing_suffix = False
-
         if missing_suffix:
             if check_suffix == PrefixReq.NEEDS_PREFIX:
                 raise DataError(reason + " Valid DFU suffix needed")
             elif check_suffix == PrefixReq.MAYBE_PREFIX:
-                GeneralWarning(f"{reason}")
+                _logger.warning(f"{reason}")
                 warnings.warn(
                     "A valid DFU suffix will be required in a future dfu-util release",
                     FutureWarning
@@ -306,10 +306,6 @@ def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -
                              f"Payload length: {struct.unpack('<H', data[2:4])[0] >> 1} kiByte")
             else:
                 raise DataError("Unknown DFU prefix type")
-    except GeneralWarning as err:
-        if err.__str__():
-            _logger.warning(err)
-        sys.exit(err.exit_code)
     except GeneralError as err:
         if err.__str__():
             _logger.error(err)
@@ -408,123 +404,3 @@ __all__ = (
     'write_crc',
     'show_suffix_and_prefix',
 )
-
-# #  FIXME: all bellow are deprecated
-# def parse_dfu_suffix(file: DFUFile) -> int:
-#     """
-#     reads the file_p and name member, fills in all others
-#     :param file:
-#     :return: 0 if no DFU suffix, positive if valid DFU suffix, negative on file read error
-#     """
-#     warnings.warn("parse_dfu_suffix is deprecated", FutureWarning)
-#
-#     crc = 0xffffffff
-#     dfu_suffix = bytearray([0] * DFU_SUFFIX_LENGTH)
-#
-#     try:
-#         with io.FileIO(file.name, 'rb') as file.file_p:
-#             file.size = file.file_p.seek(0, os.SEEK_END)
-#             file.file_p.seek(0)
-#
-#             if file.size < DFU_SUFFIX_LENGTH:
-#                 _logger.error("File too short for DFU suffix")
-#                 return 0
-#
-#             firmware = bytearray(file.file_p.read(file.size))
-#
-#             for i in range(file.size - 4):
-#                 crc = crc32_byte(crc, firmware[i])
-#
-#             del firmware
-#
-#             file.file_p.seek(-DFU_SUFFIX_LENGTH, os.SEEK_END)
-#             ret = file.file_p.readinto(dfu_suffix)
-#
-#             if ret < 0:
-#                 _logger.error("Could not read DFU suffix")
-#                 return ret
-#             if ret < DFU_SUFFIX_LENGTH:
-#                 _logger.error("Could not read whole DFU suffix")
-#                 return -1
-#
-#             suffix = _suffix.parse(dfu_suffix)
-#             file.dwCRC = suffix.dwCRC
-#
-#             if file.dwCRC != crc:
-#                 _logger.error("DFU CRC does not match")
-#                 return 0
-#
-#             file.bcdDFU = suffix.bcdDFU
-#             _logger.info(f"Dfu suffix version {hex(file.bcdDFU)}")
-#
-#             file.suffix_len = dfu_suffix[11]
-#             if file.suffix_len < DFU_SUFFIX_LENGTH:
-#                 _logger.error(f"Unsupported DFU suffix length {file.suffix_len}")
-#                 return 0
-#
-#             file.idVendor = suffix.idVendor
-#             file.idProduct = suffix.idProduct
-#             file.bcdDevice = suffix.bcdDevice
-#
-#     except StreamError as e:
-#         _logger.error(f"Could not read whole DFU suffix, {e}")
-#         ret = -1
-#     except ConstError as e:
-#         _logger.error(f"No valid DFU suffix signature, {e}")
-#         ret = 0
-#     except Exception as e:
-#         _logger.exception(e)
-#         ret = -1
-#     return ret
-#
-#
-# def generate_dfu_suffix(file: DFUFile) -> int:
-#     """
-#     reads file, generates CRC and adds DFU suffix to file
-#     :param file:
-#     :return: positive on success, negative on errors
-#     """
-#     warnings.warn("generate_dfu_suffix is deprecated", FutureWarning)
-#
-#     file.size = 0
-#     file.dwCRC = 0xffffffff
-#     file.suffix_len = DFU_SUFFIX_LENGTH
-#     file.bcdDFU = 0x0100  # Default to bcdDFU version 1.0
-#
-#     suffix_data = {
-#         'bcdDevice': file.bcdDevice,
-#         'idProduct': file.idProduct,
-#         'idVendor': file.idVendor,
-#         'bcdDFU': file.bcdDFU,
-#         'bLength': file.suffix_len
-#     }
-#
-#     dfu_suffix = bytearray(_suffix.build(suffix_data))
-#
-#     try:
-#         with io.FileIO(file.name, 'rb+') as file_p:
-#             file.size = file_p.seek(0, os.SEEK_END)
-#             file_p.seek(0)
-#
-#             # Make space for all but CRC
-#             firmware = bytearray(file_p.read(file.size))
-#             firmware.extend(dfu_suffix[:12])
-#             # Calculate CRC. It is calculated over file and suffix excluding the CRC itself
-#             for i in range(file.size + file.suffix_len - 4):
-#                 file.dwCRC = crc32_byte(file.dwCRC, firmware[i])
-#
-#             del firmware
-#
-#             dfu_suffix[12:16] = ByteSwapped(_suffix.subcon.dwCRC).build(file.dwCRC)
-#
-#             # Move to the end of the file
-#             file_p.seek(0, os.SEEK_END)
-#
-#             # Add the suffix at the end of the file
-#             ret = file_p.write(dfu_suffix)
-#
-#     except Exception as e:
-#         _logger.exception(e)
-#         ret = -1
-#
-#     return ret

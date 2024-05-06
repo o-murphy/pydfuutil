@@ -11,7 +11,7 @@ from enum import IntEnum
 from pydfuutil import __copyright__
 from pydfuutil import lmdfu
 from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
-from pydfuutil.exceptions import GeneralWarning, GeneralError, MisuseError
+from pydfuutil.exceptions import GeneralWarning, GeneralError, MissuseError
 from pydfuutil.logger import logger
 
 try:
@@ -200,7 +200,7 @@ def main() -> None:
 
             else:
                 parser.print_help()
-                raise MisuseError
+                raise MissuseError
 
             if lmdfu_mode == LmdfuMode.DEL and check_suffix(file):
                 raise GeneralWarning(
