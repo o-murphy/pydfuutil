@@ -266,8 +266,10 @@ class TestDoDfuseDnload(unittest.TestCase):
             bytes(16),
         ]
         self.file.file_p.read.side_effect = read_values
-        self.file.size = 11 + 16
-        self.assertEqual(dfuse.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file), self.file.size)
+        self.file.size.total = 16
+        self.file.size.suffix = 11
+        self.assertEqual(dfuse.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file),
+                         self.file.size.total + self.file.size.suffix)
 
     def test_do_dfuse_dnload_invalid_signature(self):
         self.file.file_p.read.return_value = b'InvalidSignature'
