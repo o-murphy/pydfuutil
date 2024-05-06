@@ -60,7 +60,7 @@ class QUIRK(IntFlag):
 
 
 # pylint: disable=invalid-name
-def get_quirks(vendor: int, product: int, bcdDevice: int) -> int:
+def get_quirks(vendor: int, product: int, bcdDevice: int) -> [int, QUIRK]:
     """
     Get device specific quirks
     :param vendor: VID
