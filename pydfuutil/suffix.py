@@ -216,7 +216,7 @@ def _main() -> None:
 
 def main():
     try:
-        main()
+        _main()
     except GeneralWarning as warn:
         if warn.__str__():
             _logger.warning(warn)
