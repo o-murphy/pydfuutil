@@ -28,7 +28,7 @@ import usb.util
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
-from pydfuutil.exceptions import GeneralError, MissuseError, _IOError
+from pydfuutil.exceptions import GeneralError, MissuseError, _IOError, DataError, NoInputError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -430,10 +430,95 @@ def do_upload():
     raise NotImplemented
 
 
-def do_dfuse_dnload():
-    # FIXME
-    raise NotImplemented
+def dfuse_memcpy(dst, src, rem):
+    size = len(dst)
+    if size > rem:
+        raise NoInputError(
+            f"Corrupt DfuSe file: Cannot read {size} bytes from {rem} bytes"
+        )
+    if dst is not None:
+        dst[:size] = src[:size]
+    src[:] = src[size:]  # Adjust src pointer
+    rem -= size
+    return rem
 
+
+def do_dfuse_dnload(dif, xfer_size, file):
+    def read_data(size):
+        nonlocal data, rem
+        if size > rem:
+            raise ValueError(f"Corrupt DfuSe file: Cannot read {size} bytes from {rem} bytes")
+        chunk = file.file_p.read(size)
+        data += chunk
+        rem -= len(chunk)
+        return chunk
+
+    rem = file.size.total - file.size.prefix - file.size.suffix
+    data = file.file_p.read(file.size.prefix)
+
+    dfuprefix = read_data(11)
+
+    if dfuprefix[:5] != b'DfuSe':
+        raise ValueError("No valid DfuSe signature")
+    if dfuprefix[5] != 0x01:
+        raise ValueError(f"DFU format revision {dfuprefix[5]} not supported")
+
+    bTargets = dfuprefix[10]
+    print(f"File contains {bTargets} DFU images")
+
+    while bTargets > 0:
+        print(f"Parsing DFU image {bTargets}")
+        targetprefix = read_data(274)
+
+        if targetprefix[:6] != b'Target':
+            raise ValueError("No valid target signature")
+
+        bAlternateSetting = targetprefix[6]
+        print(f"Image for alternate setting {bAlternateSetting}")
+
+        dwNbElements = int.from_bytes(targetprefix[266:270], byteorder='little')
+        print(f"({dwNbElements} elements, total size = {int.from_bytes(targetprefix[270:274], byteorder='little')})")
+
+        adif = dif
+        while adif:
+            if bAlternateSetting == adif.altsetting:
+                print(f"Setting Alternate Interface #{adif.altsetting} ...")
+                # Implement libusb_set_interface_alt_setting here
+                break
+            adif = adif.next
+        else:
+            print(f"No alternate setting {bAlternateSetting} (skipping elements)")
+
+        for element in range(1, dwNbElements + 1):
+            print(f"Parsing element {element}")
+            elementheader = read_data(8)
+
+            dwElementAddress = int.from_bytes(elementheader[:4], byteorder='little')
+            dwElementSize = int.from_bytes(elementheader[4:], byteorder='little')
+            print(f"Address = 0x{dwElementAddress:08x}, Size = {dwElementSize}")
+
+            if dwElementSize > rem:
+                raise ValueError("File too small for element size")
+
+            if adif:
+                ret = dnload_element(adif, dwElementAddress, dwElementSize, data, xfer_size)
+            else:
+                ret = 0
+
+            data = data[dwElementSize:]
+            rem -= dwElementSize
+
+            if ret != 0:
+                return ret
+
+        bTargets -= 1
+
+    if rem != 0:
+        print(f"{rem} bytes leftover")
+
+    print("Done parsing DfuSe file")
+
+    return 0
 
 
 def dfuse_do_dnload():

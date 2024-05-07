@@ -4,13 +4,12 @@ from unittest.mock import Mock, patch, MagicMock
 
 import usb.util
 
-
 from pydfuutil import dfu
+from pydfuutil import dfuse1
 from pydfuutil import dfuse_mem
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import parse_memory_layout
-from pydfuutil.exceptions import MissuseError
-from pydfuutil import dfuse1
+from pydfuutil.exceptions import MissuseError, NoInputError
 
 
 # FIXME
@@ -59,6 +58,28 @@ class TestDFuseMultipleAlt(unittest.TestCase):
         # Call the function and assert that it returns 0
         result = dfuse1.multiple_alt(dfu_root)
         self.assertEqual(result, 0)
+
+class TestDfuseMemcpy(unittest.TestCase):
+    def test_copy_data(self):
+        src_data = bytearray([1, 2, 3, 4, 5])
+        dst_data = bytearray()
+        rem = 5
+        rem = dfuse1.dfuse_memcpy(dst_data, src_data, rem, 5)
+        self.assertEqual(dst_data, bytearray([1, 2, 3, 4, 5]))
+        self.assertEqual(rem, 0)
+
+    def test_not_enough_bytes(self):
+        src_data = bytearray([1, 2, 3, 4, 5])
+        dst_data = bytearray()
+        rem = 4  # Not enough bytes
+        with self.assertRaises(NoInputError):
+            rem = dfuse1.dfuse_memcpy(dst_data, src_data, rem, 5)
+
+    def test_none_dst(self):
+        src_data = bytearray([1, 2, 3, 4, 5])
+        rem = 5
+        rem = dfuse1.dfuse_memcpy(None, src_data, rem, 5)
+        self.assertEqual(rem, 0)
 
 
 class TestDfuseOptions(unittest.TestCase):
@@ -279,7 +300,8 @@ class TestDnloadElement(unittest.TestCase):
         mock_find_segment.return_value = Mock(mem_type=dfuse_mem.DFUSE.WRITEABLE)
         mock_dnload_chunk.return_value = 512
         self.assertEqual(
-            dfuse1.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data, self.xfer_size),
+            dfuse1.dnload_element(self.dfu_if, self.dw_element_address, self.dw_element_size, self.data,
+                                  self.xfer_size),
             512)
 
     @patch('pydfuutil.dfuse_mem.find_segment')
@@ -322,38 +344,40 @@ class TestDoBinDnload(unittest.TestCase):
         self.assertEqual(dfuse1.do_bin_dnload(self.dfu_if, self.xfer_size, self.file, self.start_address), -1)
 
 
-# class TestDoDfuseDnload(unittest.TestCase):
-#
-#     def setUp(self):
-#         self.dfu_if = Mock()
-#         self.xfer_size = 1024
-#         self.file = DFUFile("")
-#         self.file.file_p = Mock()
-#         self.file.suffix_len = 16
-#
-#     @patch('pydfuutil.dfuse.dnload_element')
-#     def test_do_dfuse_dnload_success(self, mock_dnload_element):
-#         mock_dnload_element.return_value = 0
-#         # self.file.file_p.read.return_value = b'DfuSe\x01\x01Target\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-#         read_values = [
-#             b'DfuSe\x01\x01\x00\x00\x00\x00',
-#             bytes(16),
-#         ]
-#         self.file.file_p.read.side_effect = read_values
-#         self.file.size.total = 16
-#         self.file.size.suffix = 11
-#         self.assertEqual(dfuse.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file),
-#                          self.file.size.total + self.file.size.suffix)
-#
-#     def test_do_dfuse_dnload_invalid_signature(self):
-#         self.file.file_p.read.return_value = b'InvalidSignature'
-#         self.assertEqual(dfuse.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file), -22)  # -errno.EINVAL
-#
-#     def test_do_dfuse_dnload_invalid_target_signature(self):
-#         self.file.file_p.read.return_value = b'DfuSe\x01\x00InvalidTrgt'
-#         self.assertEqual(dfuse.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file), -22)  # -errno.EINVAL
-#
-#
+class TestDoDfuseDnload(unittest.TestCase):
+
+    def setUp(self):
+        self.dfu_if = Mock()
+        self.xfer_size = 1024
+        self.file = DFUFile("")
+        self.file.file_p = Mock()
+        self.file.suffix_len = 16
+
+    @patch('pydfuutil.dfuse1.dnload_element')
+    def test_do_dfuse_dnload_success(self, mock_dnload_element):
+        mock_dnload_element.return_value = 0
+        read_values = [
+            b'DfuSe\x01\x01\x00\x00\x00\x00',  # DFU prefix
+            bytes(16),  # Data chunk
+        ]
+        # self.file = Mock(file_p=Mock(read=Mock(side_effect=read_values)), size=Mock(total=16, suffix=11))
+        self.file = DFUFile("")
+        self.file.file_p = Mock()
+        self.file.file_p.read.side_effect = read_values
+        self.file.size.total = 16
+        self.file.size.suffix = 11
+        self.assertEqual(dfuse1.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file),
+                         16 + 11)  # Total size + suffix
+
+    def test_do_dfuse_dnload_invalid_signature(self):
+        self.file.file_p.read.return_value = b'InvalidSignature'
+        self.assertEqual(dfuse1.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file), -22)  # -errno.EINVAL
+
+    def test_do_dfuse_dnload_invalid_target_signature(self):
+        self.file.file_p.read.return_value = b'DfuSe\x01\x00InvalidTrgt'
+        self.assertEqual(dfuse1.do_dfuse_dnload(self.dfu_if, self.xfer_size, self.file), -22)  # -errno.EINVAL
+
+
 # class TestDoDnload(unittest.TestCase):
 #
 #     def setUp(self):
