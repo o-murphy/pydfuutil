@@ -30,7 +30,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ['pyusb', 'libusb-package', 'construct']
+dependencies = ['pyusb', 'libusb-package']
 
 
 [project.urls]
