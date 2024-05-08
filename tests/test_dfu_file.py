@@ -67,7 +67,7 @@ class TestLoadFile(unittest.TestCase):
         file = DFUFile("-")
         file_size = os.path.getsize(self.sample_file_path)
         file.size.total = file_size
-        load_file(file, SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+        file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
         self.assertEqual(file.size.total, 6)
         self.assertEqual(file.firmware, b"abcdef")
         self.assertEqual(file.size.prefix, 0)
@@ -84,20 +84,20 @@ class TestLoadFile(unittest.TestCase):
     def test_load_file_file_not_found(self, mock_open):
         with self.assertRaises(SystemExit):
             with self.assertRaises(GeneralError):
-                load_file(self.file, SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+                self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
 
     @patch("builtins.open", side_effect=IOError(errno.EACCES, "Permission denied"))
     def test_load_file_permission_denied(self, mock_open):
         with self.assertRaises(SystemExit):
             with self.assertRaises(GeneralError):
-                load_file(self.file, SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+                self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
     @patch("builtins.open", side_effect=IOError("Other error"))
     def test_load_file_other_io_error(self, mock_open):
         with self.assertRaises(SystemExit):
             with self.assertRaises(GeneralError):
-                load_file(self.file, SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+                self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts size automatically")
     def test_load_file_short_suffix(self):
@@ -105,7 +105,7 @@ class TestLoadFile(unittest.TestCase):
         self.file.size.suffix = 10
         with self.assertRaises(SystemExit):
             with self.assertRaises(GeneralError):
-                load_file(self.file, SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
+                self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts firmware and size automatically")
     def test_load_file_invalid_suffix_signature(self):
@@ -113,14 +113,14 @@ class TestLoadFile(unittest.TestCase):
         self.file.read = Mock(return_value=b"abcdef" + b"DFUU" + b"12345678")
         self.file.firmware = bytearray(b"abcdef" + b"DFUU" + b"12345678")
         with self.assertRaises(GeneralError):
-            load_file(self.file, SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
+            self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts firmware and size automatically")
     def test_load_file_invalid_suffix_crc(self):
         self.file.size.total = 20
         self.file.firmware = bytearray(b"abcdef" + b"DFUD" + b"12345678")
         with self.assertRaises(GeneralError):
-            load_file(self.file, SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
+            self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
 
 class TestStoreFile(unittest.TestCase):
@@ -143,7 +143,7 @@ class TestStoreFile(unittest.TestCase):
             self.file.file_p.close()
 
     def test_store_file_success(self):
-        store_file(self.file, write_suffix=True, write_prefix=True)
+        self.file.dump(write_suffix=True, write_prefix=True)
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertEqual(data[0], 0x01)
@@ -152,29 +152,29 @@ class TestStoreFile(unittest.TestCase):
     @patch('builtins.open', side_effect=IOError(errno.ENOENT, "File not found"))
     def test_store_file_file_not_found(self, mock_open_file):
         with self.assertRaises(IOError):
-            store_file(self.file, write_suffix=True, write_prefix=True)
+            self.file.dump(write_suffix=True, write_prefix=True)
 
     @patch('builtins.open', side_effect=IOError(errno.EACCES, "Permission denied"))
     def test_store_file_permission_denied(self, mock_open_file):
         with self.assertRaises(IOError):
-            store_file(self.file, write_suffix=True, write_prefix=True)
+            self.file.dump(write_suffix=True, write_prefix=True)
 
     def test_store_file_with_prefix(self):
-        store_file(self.file, write_suffix=False, write_prefix=True)
+        self.file.dump(write_suffix=False, write_prefix=True)
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertEqual(data[0], 0x01)
         self.assertNotEqual(data[-6:-3], b'UDF')
 
     def test_store_file_with_suffix(self):
-        store_file(self.file, write_suffix=True, write_prefix=False)
+        self.file.dump(write_suffix=True, write_prefix=False)
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertNotEqual(data[0], 0x01)
         self.assertEqual(data[-6:-3], b'UDF')
 
     def test_store_file_with_no_prefix_and_suffix(self):
-        store_file(self.file, write_suffix=False, write_prefix=False)
+        self.file.dump(write_suffix=False, write_prefix=False)
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertNotEqual(data[0], 0x01)

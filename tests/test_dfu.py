@@ -13,9 +13,9 @@ class TestDfu(unittest.TestCase):
         self.assertEqual(dfu.TIMEOUT, 1000)
 
     def test_str(self):
-        self.assertEqual(dfu.status_to_string(dfu.Status.OK), "No error condition is present")
+        self.assertEqual(dfu._status_to_string(dfu.Status.OK), "No error condition is present")
         self.assertEqual(dfu.Status.OK.to_string(), "No error condition is present")
-        self.assertEqual(dfu.state_to_string(dfu.State.APP_IDLE), "appIDLE")
+        self.assertEqual(dfu._state_to_string(dfu.State.APP_IDLE), "appIDLE")
         self.assertEqual(dfu.State.APP_IDLE.to_string(), "appIDLE")
 
     @patch("usb.core.find")
@@ -32,7 +32,7 @@ class TestDfu(unittest.TestCase):
         # Calling the function
         interface = 0
         timeout = 1000
-        result = dfu.detach(mock_device, interface, timeout)
+        result = dfu._detach(mock_device, interface, timeout)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
@@ -60,7 +60,7 @@ class TestDfu(unittest.TestCase):
         interface = 0
         transaction = 0
         data = bytes(10)
-        result = dfu.upload(mock_device, interface, transaction, data)
+        result = dfu._upload(mock_device, interface, transaction, data)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
@@ -88,7 +88,7 @@ class TestDfu(unittest.TestCase):
         interface = 0
         transaction = 0
         data = bytes(10)
-        result = dfu.download(mock_device, interface, transaction, data)
+        result = dfu._download(mock_device, interface, transaction, data)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
@@ -116,7 +116,7 @@ class TestDfu(unittest.TestCase):
         interface = 0
         transaction = 0
         length = 6
-        status = dfu.get_status(mock_device, interface)
+        status = dfu._get_status(mock_device, interface)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
@@ -143,7 +143,7 @@ class TestDfu(unittest.TestCase):
         # Calling the function
         interface = 0
         transaction = 0
-        result = dfu.clear_status(mock_device, interface)
+        result = dfu._clear_status(mock_device, interface)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
@@ -170,7 +170,7 @@ class TestDfu(unittest.TestCase):
         # Calling the function
         interface = 0
         transaction = 0
-        result = dfu.abort(mock_device, interface)
+        result = dfu._abort(mock_device, interface)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(

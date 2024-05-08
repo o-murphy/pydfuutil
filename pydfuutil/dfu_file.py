@@ -124,16 +124,16 @@ class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     bcdDevice: int = 0xffff  # wildcard value
 
     def dump(self, write_suffix: bool, write_prefix: bool) -> None:
-        return store_file(self, write_suffix, write_prefix)
+        return _store_file(self, write_suffix, write_prefix)
 
     def load(self, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
-        return load_file(self, check_suffix, check_prefix)
+        return _load_file(self, check_suffix, check_prefix)
 
     def write_crc(self, crc: int, buf: [bytes, bytearray]) -> int:
-        return write_crc(self.file_p, crc, buf)
+        return _write_crc(self.file_p, crc, buf)
 
     def show_suffix_and_prefix(self) -> None:
-        show_suffix_and_prefix(self)
+        _show_suffix_and_prefix(self)
 
 
 def crc32_byte(accum: int, delta: int):
@@ -141,7 +141,7 @@ def crc32_byte(accum: int, delta: int):
     return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8)
 
 
-def probe_prefix(file: DFUFile):
+def _probe_prefix(file: DFUFile):
     prefix = file.firmware
 
     if file.size.total < LMDFU_PREFIX_LENGTH:
@@ -164,7 +164,7 @@ def probe_prefix(file: DFUFile):
     return 0
 
 
-def write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> int:
+def _write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> int:
     # compute CRC
     size = len(buf)
     for x in range(0, size):
@@ -178,7 +178,7 @@ def write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> 
 
 
 @handle_exceptions(_logger)
-def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
+def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
     file.size.prefix = 0
     file.size.suffix = 0
 
@@ -254,7 +254,7 @@ def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -
         if check_suffix == PrefixReq.NO_PREFIX:
             raise DataError("Please remove existing DFU suffix before adding a new one.")
 
-    res = probe_prefix(file)
+    res = _probe_prefix(file)
     if (res or file.size.prefix == 0) and check_prefix == PrefixReq.NEEDS_PREFIX:
         sys.exit("Valid DFU prefix needed")
     if file.size.prefix and check_prefix == PrefixReq.NO_PREFIX:
@@ -272,7 +272,7 @@ def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -
             raise DataError("Unknown DFU prefix type")
 
 
-def store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
+def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
     crc = 0xffffffff
 
     try:
@@ -297,7 +297,7 @@ def store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
                 lmdfu_prefix[2:4] = addr.to_bytes(2, 'little')
                 lmdfu_prefix[4:8] = len_payload.to_bytes(4, 'little')
 
-                crc = write_crc(file.file_p, crc, lmdfu_prefix)
+                crc = _write_crc(file.file_p, crc, lmdfu_prefix)
 
             elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
                 len_payload = (file.size.total - file.size.suffix + 511) // 512
@@ -306,10 +306,10 @@ def store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
                 lpcdfu_prefix[0] = 0x1a  # Unencrypted
                 lpcdfu_prefix[2:4] = len_payload.to_bytes(2, 'little')
 
-                crc = write_crc(file.file_p, crc, lpcdfu_prefix)
+                crc = _write_crc(file.file_p, crc, lpcdfu_prefix)
 
         # Write firmware binary
-        crc = write_crc(file.file_p, crc,
+        crc = _write_crc(file.file_p, crc,
                         file.firmware[file.size.prefix:file.size.total - file.size.suffix])
 
         # Write suffix, if any
@@ -322,15 +322,15 @@ def store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
             dfusuffix[8:12] = b'UDF'
             dfusuffix[12] = file.size.suffix
 
-            crc = write_crc(file.file_p, crc, dfusuffix[:-4])
-            write_crc(file.file_p, crc, dfusuffix[12:])
+            crc = _write_crc(file.file_p, crc, dfusuffix[:-4])
+            _write_crc(file.file_p, crc, dfusuffix[12:])
             # crc = write_crc(file.file_p, crc, dfusuffix[12:])
 
     finally:
         file.file_p.close()
 
 
-def show_suffix_and_prefix(file: DFUFile) -> None:
+def _show_suffix_and_prefix(file: DFUFile) -> None:
     if file.size.prefix == LPCDFU_PREFIX_LENGTH:
         print(f"The file {file.name} contains a TI Stellaris "
               f"DFU prefix with the following properties:")
@@ -359,8 +359,4 @@ __all__ = (
     'SuffixReq',
     'PrefixReq',
     'PrefixType',
-    'load_file',
-    'store_file',
-    'write_crc',
-    'show_suffix_and_prefix',
 )

@@ -25,7 +25,7 @@ from enum import Enum
 import usb.util
 from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
 
-from pydfuutil import dfu, dfu_file
+from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
 from pydfuutil.exceptions import MissuseError, _IOError, DataError, ProtocolError, \
@@ -372,7 +372,7 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
 
 
 @handle_exceptions(_logger)
-def do_upload(dif: dfu.DfuIf, xfer_size: int, fd: int,
+def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile,
               opts: str) -> int:
     total_bytes = 0
     upload_limit = 0
@@ -426,7 +426,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, fd: int,
                 ret = rc
                 return ret
 
-            rc = dfu_file.write_crc(fd, 0, buf)
+            rc = file.write_crc(0, buf)
             total_bytes += rc
 
             if total_bytes < 0:

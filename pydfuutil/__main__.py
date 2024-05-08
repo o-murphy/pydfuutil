@@ -759,7 +759,7 @@ def main() -> None:
             milli_sleep(2000)
         elif status.bState == dfu.State.DFU_ERROR:
             logger.error("dfuERROR, clearing status")
-            if dfu.clear_status(_rt_dif.dev, _rt_dif.interface) < 0:
+            if dfu._clear_status(_rt_dif.dev, _rt_dif.interface) < 0:
                 raise GeneralError("error detaching")
         else:
             logger.info("Runtime device already in DFU state ?!?")
@@ -850,7 +850,7 @@ def main() -> None:
 
         elif status.bState == dfu.State.DFU_ERROR:
             logger.error("dfuERROR, clearing status")
-            if dfu.clear_status(dif.dev, dif.interface) < 0:
+            if dfu._clear_status(dif.dev, dif.interface) < 0:
                 raise GeneralError("error clear_status")
 
             status = check_status(dif)
@@ -870,7 +870,7 @@ def main() -> None:
         logger.warning(f"DFU Status: {status.bStatus.to_string()}")
 
         # Clear our status & try again.
-        dfu.clear_status(dif.dev, dif.interface)
+        dfu._clear_status(dif.dev, dif.interface)
         _ = int(status := dif.get_status())
         if status.bStatus != dfu.Status.OK:
             raise GeneralError(f"{status.bStatus}")

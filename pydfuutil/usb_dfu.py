@@ -23,12 +23,15 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
 
-import usb.util
+# import usb.util
+# USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
+
+import usb
+USB_TYPE_DFU = usb.TYPE_CLASS | usb.RECIP_INTERFACE
 
 
 USB_DT_DFU = 0x21
 USB_DT_DFU_SIZE = 9
-USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
 
 class BmAttributes(IntFlag):

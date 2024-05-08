@@ -52,7 +52,7 @@ class State(IntEnum):
         """
         :return: State.self name by State Enum
         """
-        return state_to_string(self)
+        return _state_to_string(self)
 
 
 class Status(IntEnum):
@@ -78,7 +78,7 @@ class Status(IntEnum):
         """
         :return: Status.self name by Status Enum
         """
-        return status_to_string(self)
+        return _status_to_string(self)
 
 
 class Command(IntEnum):
@@ -190,31 +190,31 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
 
     def detach(self, timeout: int) -> bytes:
         """Binds self to dfu.detach()"""
-        return detach(self.dev, self.interface, timeout)
+        return _detach(self.dev, self.interface, timeout)
 
     def download(self, transaction: int, data_or_length: [bytes, int]) -> int:
         """Binds self to dfu.download()"""
-        return download(self.dev, self.interface, transaction, data_or_length)
+        return _download(self.dev, self.interface, transaction, data_or_length)
 
     def upload(self, transaction: int, data_or_length: [bytes, int]) -> bytes:
         """Binds self to dfu.upload()"""
-        return upload(self.dev, self.interface, transaction, data_or_length)
+        return _upload(self.dev, self.interface, transaction, data_or_length)
 
     def abort(self) -> int:
         """Binds self to dfu.abort()"""
-        return abort(self.dev, self.interface)
+        return _abort(self.dev, self.interface)
 
     def get_status(self) -> StatusRetVal:
         """Binds self to dfu.get_status()"""
-        return get_status(self.dev, self.interface)
+        return _get_status(self.dev, self.interface)
 
     def get_state(self) -> State:
         """Binds self to dfu.get_state()"""
-        return get_state(self.dev, self.interface)
+        return _get_state(self.dev, self.interface)
 
     def abort_to_idle(self):
         """Binds self to dfu.abort_to_idle()"""
-        return abort_to_idle(self)
+        return _abort_to_idle(self)
 
 
 def init(timeout: int) -> None:
@@ -234,20 +234,6 @@ def init(timeout: int) -> None:
             raise ValueError(f"dfu_init: Invalid timeout value {timeout}")
 
 
-# def verify_init() -> int:
-#     """
-#     Verifies provided TIMEOUT and DEBUG_LEVEL
-#     NOTE: (function: typing.Callable) not needed cause python can get it from stack
-#     :raise ValueError with caller function name
-#     :return: 0
-#     """
-#     caller = inspect.stack()[0][3]
-#     if INVALID_DFU_TIMEOUT == TIMEOUT:
-#         if 0 != DEBUG_LEVEL:
-#             raise ValueError(f'"{caller}": dfu system not initialized properly.')
-#     return 0
-
-
 def debug(level: int) -> None:
     """
     NOTE: Maybe not needed cause python can define globals after
@@ -260,7 +246,7 @@ def debug(level: int) -> None:
     _logger.setLevel(level)
 
 
-def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
+def _detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     """
     DETACH Request (DFU Spec 1.0, Section 5.1)
 
@@ -271,7 +257,7 @@ def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     :param timeout: the timeout in ms the USB device should wait for a pending
     :return: bytes or < 0 on error
     """
-    # verify_init()
+    
     _logger.debug('DETACH...')
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT
@@ -287,10 +273,10 @@ def detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     return result
 
 
-def download(device: usb.core.Device,
-             interface: int,
-             transaction: int,
-             data_or_length: [bytes, int]) -> int:
+def _download(device: usb.core.Device,
+              interface: int,
+              transaction: int,
+              data_or_length: [bytes, int]) -> int:
     """
     DNLOAD Request (DFU Spec 1.0, Section 6.1.1)
 
@@ -301,7 +287,7 @@ def download(device: usb.core.Device,
     :param data_or_length: the data to transfer
     :return: downloaded data or error code in bytes
     """
-    # verify_init()
+    
     _logger.debug('DFU_DOWNLOAD...')
 
     result = device.ctrl_transfer(
@@ -319,10 +305,10 @@ def download(device: usb.core.Device,
     return result
 
 
-def upload(device: usb.core.Device,
-           interface: int,
-           transaction: int,
-           data_or_length: [bytes, int]) -> bytes:
+def _upload(device: usb.core.Device,
+            interface: int,
+            transaction: int,
+            data_or_length: [bytes, int]) -> bytes:
     """
     UPLOAD Request (DFU Spec 1.0, Section 6.2)
 
@@ -333,7 +319,7 @@ def upload(device: usb.core.Device,
     :param data_or_length: the buffer to put the received data in
     :return: uploaded bytes or < 0 on error
     """
-    # verify_init()
+    
     _logger.debug('UPLOAD...')
 
     result = device.ctrl_transfer(
@@ -352,7 +338,7 @@ def upload(device: usb.core.Device,
     return result.tobytes()
 
 
-def get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
+def _get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
     """
      GETSTATUS Request (DFU Spec 1.0, Section 6.1.2)
 
@@ -361,7 +347,7 @@ def get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
     :param interface: the interface to communicate with
     :return: StatusRetVal
     """
-    # verify_init()
+    
     _logger.debug('DFU_GET_STATUS...')
 
     length = 6
@@ -384,7 +370,7 @@ def get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
     return StatusRetVal.from_bytes(result)
 
 
-def clear_status(device: usb.core.Device, interface: int) -> int:
+def _clear_status(device: usb.core.Device, interface: int) -> int:
     """
     CLRSTATUS Request (DFU Spec 1.0, Section 6.1.3)
 
@@ -393,7 +379,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
     :param interface: the interface to communicate with
     :return: return 0 or < 0 on an error
     """
-    # verify_init()
+    
     _logger.debug('CLEAR_STATUS...')
 
     result = device.ctrl_transfer(
@@ -411,7 +397,7 @@ def clear_status(device: usb.core.Device, interface: int) -> int:
     return result
 
 
-def get_state(device: usb.core.Device, interface: int) -> [State, int]:
+def _get_state(device: usb.core.Device, interface: int) -> [State, int]:
     """
     GETSTATE Request (DFU Spec 1.0, Section 6.1.5)
 
@@ -420,7 +406,7 @@ def get_state(device: usb.core.Device, interface: int) -> [State, int]:
     :param interface: the interface to communicate with
     :return: returns the state or < 0 on error
     """
-    # verify_init()
+    
 
     length = 1
     result = device.ctrl_transfer(
@@ -441,7 +427,7 @@ def get_state(device: usb.core.Device, interface: int) -> [State, int]:
     return value
 
 
-def abort(device: usb.core.Device, interface: int) -> int:
+def _abort(device: usb.core.Device, interface: int) -> int:
     """
     ABORT Request (DFU Spec 1.0, Section 6.1.4)
 
@@ -450,7 +436,7 @@ def abort(device: usb.core.Device, interface: int) -> int:
     :param interface: the interface to communicate with
     :return: returns 0 or < 0 on an error
     """
-    # verify_init()
+    
     _logger.debug('ABORT...')
 
     result = device.ctrl_transfer(
@@ -469,7 +455,7 @@ def abort(device: usb.core.Device, interface: int) -> int:
     return result
 
 
-def state_to_string(state: int) -> [str, None]:
+def _state_to_string(state: int) -> [str, None]:
     """
     :param state:
     :return: State name by State Enum
@@ -480,7 +466,7 @@ def state_to_string(state: int) -> [str, None]:
         return None
 
 
-def status_to_string(status: int) -> [str, None]:
+def _status_to_string(status: int) -> [str, None]:
     """
     :param status:
     :return: State name by Status Enum
@@ -527,7 +513,7 @@ _DFU_STATUS_NAMES = {
 }
 
 
-def abort_to_idle(dif: DfuIf):
+def _abort_to_idle(dif: DfuIf):
     if dif.abort() < 0:
         _logger.error("Error sending dfu abort request")
         sys.exit(1)
@@ -558,14 +544,5 @@ __all__ = (
     "StatusRetVal",
     "DfuIf",
     'Mode',
-    "detach",
-    "download",
-    "upload",
-    "get_status",
-    "clear_status",
-    "get_state",
-    "abort",
-    "abort_to_idle",
-    "status_to_string",
-    "state_to_string",
+    'init'
 )
