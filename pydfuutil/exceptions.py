@@ -20,6 +20,10 @@ class SoftwareError(GeneralError):
     exit_code = 70
 
 
+class ProtocolError(GeneralError):
+    exit_code = 76
+
+
 class _IOError(GeneralError, IOError):
     exit_code = 74
 

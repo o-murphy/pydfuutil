@@ -24,6 +24,7 @@ from enum import IntEnum, IntFlag
 
 import usb.util
 
+from pydfuutil.dfuse_mem import MemSegment
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.usb_dfu import FuncDescriptor
@@ -52,9 +53,6 @@ class State(IntEnum):
         :return: State.self name by State Enum
         """
         return state_to_string(self)
-
-
-
 
 
 class Status(IntEnum):
@@ -109,7 +107,7 @@ class Mode(IntFlag):
     # DFU_IFF_ALT = 0x0002  /* Multiple alternate settings */
 
 
-@dataclass(frozen=True)
+@dataclass
 class StatusRetVal:
     """
     Converts dfu_get_status result bytes to applicable dataclass
@@ -174,7 +172,8 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
     bwPollTimeout: int = 0
     serial_name: str = ""
     usb_dfu_func_desc: FuncDescriptor = None
-
+    next: 'DfuIf' = None
+    mem_layout: MemSegment = None
 
     @property
     def device_ids(self) -> dict:
@@ -506,7 +505,6 @@ _STATES_NAMES = {
     State.DFU_ERROR: 'dfuERROR',
 }
 
-
 _DFU_STATUS_NAMES = {
     Status.OK: "No error condition is present",
     Status.ERROR_TARGET: "File is not targeted for use by this device",
@@ -571,4 +569,3 @@ __all__ = (
     "status_to_string",
     "state_to_string",
 )
-

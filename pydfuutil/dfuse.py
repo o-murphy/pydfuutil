@@ -18,17 +18,17 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 import argparse
-import errno
 import sys
 from dataclasses import dataclass
 from enum import Enum
 
 import usb.util
+from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
-from pydfuutil.exceptions import GeneralError, MissuseError, _IOError, DataError, NoInputError
+from pydfuutil.exceptions import GeneralError, MissuseError, _IOError, DataError, NoInputError, ProtocolError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -51,6 +51,7 @@ class RuntimeOptions:
     will_reset: bool = False
     force: bool = False
     length: int = None
+    fast: bool = False
 
 
 class Command(Enum):
@@ -190,24 +191,28 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     return status
 
 
-def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
+def special_command(dif: dfu.DfuIf, address: int, command: Command, rt_opts: RuntimeOptions) -> int:
     """
     Perform DfuSe-specific commands.
     Leaves the device in dfuDNLOAD-IDLE state
     :param dif: DFU interface
     :param address: Address for the command
     :param command: DfuSe command to execute
+    :param rt_opts: RuntimeOptions
     :return: None
     """
     buf = bytearray(5)
 
     ret: int
-    dst: [dict, None]
+    dst: dfu.StatusRetVal
+    firstpoll = 1
+    zerotimeouts = 0
+    polltimeout = 0
+    stalls = 0
 
     try:
-
         if command == Command.ERASE_PAGE:
-            segment = find_segment(MEM_LAYOUT, address)
+            segment = find_segment(dif.mem_layout, address)
 
             if not segment or not segment.mem_type & DFUSE.ERASABLE:
                 raise MissuseError(f"Page at 0x{address:08x} cannot be erased")
@@ -216,8 +221,8 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
             _logger.debug(
                 f"Erasing page size {page_size} at address 0x{address:08x}, "
                 f"page starting at 0x{address & ~(page_size - 1):08x}")
-            buf[0], length = 0x41, 5  # Note: Unused variable 'length'
-            # last_erased = address  # Note: useless?
+            buf[0], length = 0x41, 5  # Erase command
+            last_erased_page = address & ~(page_size - 1)
         elif command == Command.SET_ADDRESS:
             _logger.debug(f"Setting address pointer to 0x{address:08x}")
             buf[0], length = 0x21, 5  # Set Address Pointer command
@@ -228,62 +233,71 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command) -> int:
         else:
             raise MissuseError(f"Non-supported special command {command}")
 
-        # # overhead
-        # buf[1] = address & 0xff; buf[2] = (address >> 8) & 0xff;
-        # buf[3] = (address >> 16) & 0xff; buf[4] = (address >> 24) & 0xff
+        buf[1] = address & 0xff
+        buf[2] = (address >> 8) & 0xff
+        buf[3] = (address >> 16) & 0xff
+        buf[4] = (address >> 24) & 0xff
 
-        # for i in range(1, 5):
-        #     buf[i] = (address >> (8 * (i - 1))) & 0xFF
-
-        for i in range(0, 4):
-            buf[i + 1] = (address >> (8 * i)) & 0xFF
-
-        if download(dif, buf, 0) < 0:
-            raise _IOError("Error during special command download")
-
-        ret = int(dst := dif.get_status())
+        ret = download(dif, buf, 0)
         if ret < 0:
-            raise _IOError("Error during special command get_status")
+            raise _IOError(f"Error during special command {command.name} download: {ret}")
 
-        if dst.bState != dfu.State.DFU_DOWNLOAD_BUSY:
-            raise _IOError("Wrong state after command download")
+        while True:
+            ret = int(dst := dif.get_status())
+            # Workaround for some STM32L4 bootloaders that report a too
+            # short poll timeout and may stall the pipe when we poll.
+            # This also allows "fast" mode (without poll timeouts) to work
+            # with many bootloaders
 
-        # Wait while command is executed
-        _logger.debug(f"Poll timeout {dst.bwPollTimeout} ms")
+            if ret == LIBUSB_ERROR_PIPE and polltimeout != 0 and stalls < 3:
+                dst.bState = dfu.State.DFU_DOWNLOAD_BUSY
+                stalls += 1
+                _logger.debug("* Device stalled USB pipe, reusing last poll timeout")
+            elif ret < 0:
+                raise _IOError(f"Error during special command {command.name} get_status: {ret}")
+            else:
+                polltimeout = dst.bwPollTimeout
 
-        milli_sleep(dst.bwPollTimeout)
+            if firstpoll:
+                firstpoll = 0
+                if dst.bState != dfu.State.DFU_DOWNLOAD_BUSY and dst.bState != dfu.State.DFU_DOWNLOAD_IDLE:
+                    _logger.error(f"DFU state({dst.bState}) = {dst.bState.to_string()}, "
+                                  f"status({dst.bStatus}) = {dst.bStatus.to_string()}")
+                    raise ProtocolError(f"Wrong state after command {command.name} download")
+                # STM32F405 lies about mass erase timeout
+                if command == Command.MASS_ERASE and dst.bwPollTimeout == 100:
+                    polltimeout = 35000  # Datasheet says up to 32 seconds
+                    _logger.info("Setting timeout to 35 seconds")
 
-        if command == Command.READ_UNPROTECT:
-            return ret
+            _logger.debug(f"Err: Poll timeout {polltimeout} "
+                          f"ms on command {command.name} (state={dst.bState.to_string()})")
+            # A non-null bwPollTimeout for SET_ADDRESS seems a common bootloader bug
+            if command == Command.SET_ADDRESS:
+                polltimeout = 0
+            if not rt_opts.fast and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY:
+                milli_sleep(polltimeout)
+            if command == Command.READ_UNPROTECT:
+                return ret
+            # Workaround for e.g. Black Magic Probe getting stuck
+            if dst.bwPollTimeout == 0:
+                zerotimeouts += 1
+                if zerotimeouts == 100:
+                    raise _IOError("Device stuck after special command request")
+            else:
+                zerotimeouts = 0
 
-        ret = int(dst := dif.get_status())
-        if ret < 0:
-            _logger.error(
-                f"state({dst.bState}) = {dst.bState.to_string()}, "
-                f"status({dst.bStatus}) = {dst.bStatus.to_string()}")
-            raise _IOError("Error during second get_status")
+            if dst.bState != dfu.State.DFU_DOWNLOAD_BUSY:
+                break
 
         if dst.bStatus != dfu.Status.OK:
-            raise _IOError("Command not correctly executed")
+            raise _IOError(f"{command.name} not correctly executed")
 
-        milli_sleep(dst.bwPollTimeout)
+        return 0
 
-        if dif.abort() < 0:
-            raise _IOError("Error sending dfu abort request")
-
-        ret = int(dst := dif.get_status())
-        if ret < 0:
-            raise _IOError("Error during abort get_status")
-
-        if dst.bState != dfu.State.DFU_IDLE:
-            raise _IOError("Failed to enter idle state on abort")
-
-    except (ValueError, _IOError, MissuseError) as err:
-        _logger.error(err)
-        raise GeneralError
-
-    milli_sleep(dst.bwPollTimeout)
-    return ret
+    except GeneralError as err:
+        if err.__str__:
+            _logger.error(err)
+        sys.exit(err.exit_code)
 
 
 def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> int:
@@ -297,39 +311,67 @@ def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> in
     :return: Number of bytes sent or error code
     """
 
+    stalls = 0
+
     ret = download(dif, data if size else None, transaction)
-    print(ret)
     if ret < 0:
-        _logger.error("Error during download")
-        return ret
+        raise IOError(f"Error during download: {ret} ({_strerror(ret)})")
 
     bytes_sent = ret
 
     while True:
-        ret = int(status := dif.get_status())
+        ret = int(dst := dif.get_status())
+
+        if ret == LIBUSB_ERROR_PIPE and stalls < 3:
+            dst.bState = dfu.State.DFU_DOWNLOAD_BUSY
+            stalls += 1
+            _logger.debug("Err: * Pipe error, retrying get_status")
+            continue
+
         if ret < 0:
-            _logger.error("Error during download get_status")
-            return ret
+            raise _IOError(f"Error during download get_status {ret} ({_strerror(ret)})")
 
-        # dst = ret # useless?
-        milli_sleep(status.bwPollTimeout)
+        _logger.debug(f"Err: Poll timeout {dst.bwPollTimeout} "
+                      f"ms on download (state={dst.bState.to_string()})")
+        if not rt_opts.fast and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY:
+            milli_sleep(dst.bwPollTimeout)
 
-        if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE,
-                             dfu.State.DFU_ERROR,
-                             dfu.State.DFU_MANIFEST):
+        if (dst.bState != dfu.State.DFU_IDLE and
+            dst.bState != dfu.State.DFU_ERROR and
+            dst.bState != dfu.State.DFU_MANIFEST and
+            not (rt_opts.will_reset and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY)):
             break
 
-    if status.bState == dfu.State.DFU_MANIFEST:
+    if dst.bState == dfu.State.DFU_MANIFEST:
         _logger.info("Transitioning to dfuMANIFEST state")
 
-    if status.bStatus != dfu.Status.OK:
-        _logger.error("Download failed!")
-        _logger.error("state(%u) = %s, status(%u) = %s", status.bState,
-                      status.bState.to_string(), status.bStatus,
-                      status.bStatus.to_string())
+    if dst.bStatus != dfu.Status.OK:
+        _logger.error("Failed!")
+        _logger.error(f"DFU state{dst.bState} = {dst.bState.to_string()},"
+                      f"status{dst.bStatus} = {dst.bStatus.to_string()}")
         return -1
 
     return bytes_sent
+
+
+def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
+    """Submitting dfuse leave request"""
+
+    if rt_opts.address_present:
+        special_command(dif, rt_opts.address, Command.SET_ADDRESS)
+    _logger.info("Submitting leave request...")
+    if dif.quirks & QUIRK.DFUSE_LEAVE:
+        # The device might leave after this request, with or without a response
+        download(dif, 0, None, 2)
+        # Or it might leave after this request, with or without a response
+        dst = dif.get_status()
+    else:
+        dnload_chunk(dif, None, 0, 2)
+
+
+def do_upload():
+    # FIXME
+    raise NotImplemented
 
 
 # Writes an element of any size to the device, taking care of page erases
@@ -386,21 +428,6 @@ def dnload_element(dif: dfu.DfuIf,
     return ret
 
 
-def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
-    """Submitting dfuse leave request"""
-
-    if rt_opts.address_present:
-        special_command(dif, rt_opts.address, Command.SET_ADDRESS)
-    _logger.info("Submitting leave request...")
-    if dif.quirks & QUIRK.DFUSE_LEAVE:
-        # The device might leave after this request, with or without a response
-        download(dif, 0, None, 2)
-        # Or it might leave after this request, with or without a response
-        dst = dif.get_status()
-    else:
-        dnload_chunk(dif, None, 0, 2)
-
-
 def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: int) -> int:
     """
     Download raw binary file to DfuSe device.
@@ -423,11 +450,6 @@ def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: 
         _logger.info("File downloaded successfully")
 
     return ret
-
-
-def do_upload():
-    # FIXME
-    raise NotImplemented
 
 
 def dfuse_memcpy(dst, src, rem, size):
@@ -509,7 +531,7 @@ def do_dfuse_dnload(dif, xfer_size, file):
 
             if not bFirstAddressSaved:
                 bFirstAddressSaved = 1
-                dfuse_addr = dwElementAddress  # To rt_opts
+                dfuse_addr = dwElementAddress  # TODO: Store to rt_opts?
 
             if dwElementSize > rem:
                 raise DataError("File too small for element size")
