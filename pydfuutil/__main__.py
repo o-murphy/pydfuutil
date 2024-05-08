@@ -21,7 +21,7 @@ from pydfuutil import dfu_load
 from pydfuutil import dfuse
 from pydfuutil import quirks
 from pydfuutil import usb_dfu
-from pydfuutil.exceptions import GeneralError, MissuseError, CapabilityError
+from pydfuutil.exceptions import GeneralError, MissuseError, CapabilityError, handle_exceptions
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
@@ -562,6 +562,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help="Say yes to all prompts")
 
 
+@handle_exceptions(logger)
 def main() -> None:
     """Cli entry point"""
 
@@ -1015,13 +1016,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except GeneralError as err:
-        if err.__str__():
-            logger.error(err)
-        sys.exit(err.exit_code)
-    except Exception as err:
-        logger.error(err)
-        sys.exit(1)
-    sys.exit(0)
+    main()
