@@ -1,10 +1,29 @@
+"""
+lsusb
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+"""
+
 import argparse
 import importlib.metadata
 import sys
 
 from pydfuutil import __copyright__
 from pydfuutil.logger import logger
-from pydfuutil.exceptions import handle_exceptions, GeneralError, MissuseError
+from pydfuutil.exceptions import handle_exceptions, GeneralError
 import usb.core
 import usb._lookup as _lu
 
@@ -29,7 +48,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
             def validate_int(val, base: int = 10):
                 try:
                     return int(val, base) if val not in (None, '') else None
-                except ValueError as err:
+                except ValueError:
                     parser.print_help()
                     parser.error(f"-d format should be vendor:[product] "
                                  f"vendor and product ID numbers (in hexadecimal)")
@@ -54,7 +73,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
             def validate_int(val, base: int = 10):
                 try:
                     return int(val, base) if val not in (None, '') else None
-                except ValueError as err:
+                except ValueError:
                     parser.print_help()
                     parser.error(f"-s format should be [[bus]:][devnum] "
                                  f"device and/or bus numbers (in decimal)")
@@ -80,7 +99,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
             def validate_int(val, base: int = 10):
                 try:
                     return int(val, base) if val not in (None, '') else None
-                except ValueError as err:
+                except ValueError:
                     parser.print_help()
                     parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
 

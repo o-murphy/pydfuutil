@@ -257,7 +257,7 @@ def _detach(device: usb.core.Device, interface: int, timeout: int) -> bytes:
     :param timeout: the timeout in ms the USB device should wait for a pending
     :return: bytes or < 0 on error
     """
-    
+
     _logger.debug('DETACH...')
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT
@@ -287,7 +287,7 @@ def _download(device: usb.core.Device,
     :param data_or_length: the data to transfer
     :return: downloaded data or error code in bytes
     """
-    
+
     _logger.debug('DFU_DOWNLOAD...')
 
     result = device.ctrl_transfer(
@@ -319,7 +319,7 @@ def _upload(device: usb.core.Device,
     :param data_or_length: the buffer to put the received data in
     :return: uploaded bytes or < 0 on error
     """
-    
+
     _logger.debug('UPLOAD...')
 
     result = device.ctrl_transfer(
@@ -347,7 +347,7 @@ def _get_status(device: usb.core.Device, interface: int) -> StatusRetVal:
     :param interface: the interface to communicate with
     :return: StatusRetVal
     """
-    
+
     _logger.debug('DFU_GET_STATUS...')
 
     length = 6
@@ -379,7 +379,7 @@ def _clear_status(device: usb.core.Device, interface: int) -> int:
     :param interface: the interface to communicate with
     :return: return 0 or < 0 on an error
     """
-    
+
     _logger.debug('CLEAR_STATUS...')
 
     result = device.ctrl_transfer(
@@ -406,7 +406,6 @@ def _get_state(device: usb.core.Device, interface: int) -> [State, int]:
     :param interface: the interface to communicate with
     :return: returns the state or < 0 on error
     """
-    
 
     length = 1
     result = device.ctrl_transfer(
@@ -436,7 +435,7 @@ def _abort(device: usb.core.Device, interface: int) -> int:
     :param interface: the interface to communicate with
     :return: returns 0 or < 0 on an error
     """
-    
+
     _logger.debug('ABORT...')
 
     result = device.ctrl_transfer(

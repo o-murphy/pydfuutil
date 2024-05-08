@@ -149,7 +149,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
                             f"status({status.bStatus}) = {status.bStatus.to_string()}")
                 raise _IOError("Downloading failed!")
 
-            progress.update(description="Downloading...", advance=xfer_size//1000)
+            progress.update(description="Downloading...", advance=xfer_size // 1000)
 
         # Send one zero-sized download request to signalize end
         if dif.download(dfu.TRANSACTION, bytes()) < 0:

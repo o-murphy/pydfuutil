@@ -1,7 +1,22 @@
 """
 pydfuutil
+dfu-util
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
 Based on existing code of dfu-programmer-0.4
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 import argparse
 import errno
@@ -21,7 +36,7 @@ from pydfuutil import dfu_load
 from pydfuutil import dfuse
 from pydfuutil import quirks
 from pydfuutil import usb_dfu
-from pydfuutil.exceptions import GeneralError, MissuseError, CapabilityError, handle_exceptions
+from pydfuutil.exceptions import GeneralError, MissUseError, CapabilityError, handle_exceptions
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
@@ -598,7 +613,7 @@ def main() -> None:
         dif.path = args.path
         dif.flags |= dfu.Mode.IFF_PATH
         if ret := resolve_device_path(dif):
-            raise MissuseError(f"unable to parse {args.path}")
+            raise MissUseError(f"unable to parse {args.path}")
         if not ret:
             raise GeneralError(f"cannot find {args.path}")
 
@@ -638,7 +653,7 @@ def main() -> None:
     if mode == Mode.NONE:
         logger.error("You need to specify one of -D or -U\n\n")
         parser.print_help()
-        raise MissuseError
+        raise MissUseError
 
     if device_id_filter:
         dif.vendor, dif.product = parse_vid_pid(device_id_filter)
@@ -980,7 +995,7 @@ def main() -> None:
 
                 # Perform download based on conditions
                 if dfuse_device or dfuse_options or file.bcdDFU == 0x011a:
-                    if dfuse.do_dnload(dif, transfer_size, file, dfuse_options) < 0:
+                    if dfuse.do_download(dif, transfer_size, file, dfuse_options) < 0:
                         raise GeneralError
                 else:
                     if dfu_load.do_dnload(dif, transfer_size, file, _quirks) < 0:

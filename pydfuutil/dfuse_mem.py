@@ -244,6 +244,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
 
 
 __all__ = (
+    "DFUSE",
     "MemSegment",
     "add_segment",
     "find_segment",

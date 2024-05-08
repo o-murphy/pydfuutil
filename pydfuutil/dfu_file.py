@@ -25,7 +25,7 @@ import warnings
 from dataclasses import dataclass, field
 from enum import IntEnum
 
-from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions, MissuseError
+from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions, MissUseError
 from pydfuutil.logger import logger
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
@@ -254,7 +254,7 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
 
     res = _probe_prefix(file)
     if (res or file.size.prefix == 0) and check_prefix == PrefixReq.NEEDS_PREFIX:
-        raise MissuseError("Valid DFU prefix needed")
+        raise MissUseError("Valid DFU prefix needed")
     if file.size.prefix and check_prefix == PrefixReq.NO_PREFIX:
         raise DataError("A prefix already exists, please delete it first")
     if file.size.prefix:
@@ -316,18 +316,18 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
 
         # Write suffix, if any
         if write_suffix:
-            dfusuffix = bytearray(16)
-            dfusuffix[0:2] = file.bcdDevice.to_bytes(2, 'little')
-            dfusuffix[2:4] = file.idProduct.to_bytes(2, 'little')
-            dfusuffix[4:6] = file.idVendor.to_bytes(2, 'little')
-            dfusuffix[6:8] = file.bcdDFU.to_bytes(2, 'little')
-            dfusuffix[8:11] = b'UFD'
-            dfusuffix[11] = DFU_SUFFIX_LENGTH
+            dfu_suffix = bytearray(16)
+            dfu_suffix[0:2] = file.bcdDevice.to_bytes(2, 'little')
+            dfu_suffix[2:4] = file.idProduct.to_bytes(2, 'little')
+            dfu_suffix[4:6] = file.idVendor.to_bytes(2, 'little')
+            dfu_suffix[6:8] = file.bcdDFU.to_bytes(2, 'little')
+            dfu_suffix[8:11] = b'UFD'
+            dfu_suffix[11] = DFU_SUFFIX_LENGTH
 
-            crc = file.write_crc(crc, dfusuffix[:-4])
+            crc = file.write_crc(crc, dfu_suffix[:-4])
 
-            dfusuffix[12:16] = crc.to_bytes(4, 'little')
-            _write_crc(file.file_p, crc, dfusuffix[12:])
+            dfu_suffix[12:16] = crc.to_bytes(4, 'little')
+            _write_crc(file.file_p, crc, dfu_suffix[12:])
 
     finally:
         file.file_p.close()

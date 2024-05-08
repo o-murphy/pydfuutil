@@ -1,4 +1,21 @@
-"""Pydfuutil exceptions."""
+"""
+Pydfuutil exceptions.
+(C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+"""
 import sys
 from functools import wraps
 
@@ -44,7 +61,7 @@ class GeneralWarning(GeneralError):
     """
 
 
-class MissuseError(GeneralError):
+class MissUseError(GeneralError):
     """
     Often used to indicate misuse or incorrect usage of the program.
     For example, if the program receives
@@ -53,10 +70,10 @@ class MissuseError(GeneralError):
     """
     exit_code = 2
 
+
 class CapabilityError(GeneralError):
     """DFU incompatible usage error."""
     exit_code = 3
-
 
 
 def handle_exceptions(_logger):
@@ -76,9 +93,10 @@ def handle_exceptions(_logger):
                 else:
                     _logger.exception("Unhandled exception occurred")
                     raise
-        return wrapper
-    return decorator
 
+        return wrapper
+
+    return decorator
 
 
 __all__ = (
@@ -86,7 +104,9 @@ __all__ = (
     'GeneralWarning',
     'NoInputError',
     'UsbIOError',
-    'MissuseError',
+    'MissUseError',
+    'SoftwareError',
+    'ProtocolError',
     'CapabilityError',
     'DataError',
     'UsbIOError',

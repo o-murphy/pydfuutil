@@ -28,8 +28,8 @@ from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
-from pydfuutil.exceptions import MissuseError, _IOError, DataError, ProtocolError, \
-    SoftwareError, handle_exceptions
+from pydfuutil.exceptions import (MissUseError, _IOError, DataError, ProtocolError,
+                                  SoftwareError, handle_exceptions)
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -119,7 +119,7 @@ def parse_options(options: list[str]) -> RuntimeOptions:
             rt_opts.address_present = True
             opts.pop(0)
         else:
-            raise MissuseError(f"Invalid dfuse address: {opts[0]}")
+            raise MissUseError(f"Invalid dfuse address: {opts[0]}")
 
     # Parse other options if any
     for opt in ("force", "leave", "mass_erase", "unprotect", 'will_reset'):
@@ -128,13 +128,13 @@ def parse_options(options: list[str]) -> RuntimeOptions:
             opts.pop(opts.index(opt))
 
     if len(opts) > 1:
-        raise MissuseError(f"Too many unexpected dfuse arguments {opts}")
+        raise MissUseError(f"Too many unexpected dfuse arguments {opts}")
 
     if len(opts) == 1:
         if length := atoi(opts[0]):
             rt_opts.length = length
         else:
-            raise MissuseError(f"Wrong dfuse length: {opts[0]}")
+            raise MissUseError(f"Wrong dfuse length: {opts[0]}")
     return rt_opts
 
 
@@ -166,7 +166,7 @@ def upload(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
 
 def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     """
-    DNLOAD request for DfuSe 1.1a
+    Download request for DfuSe 1.1a
 
     :param dif: The DFU interface object.
     :param data: The data buffer to download.
@@ -204,22 +204,22 @@ def special_command(dif: dfu.DfuIf, address: int,
     :param dif: DFU interface
     :param address: Address for the command
     :param command: DfuSe command to execute
-    :param dfuse_fast: fast
+    :param rt_opts: RuntimeOptions
     :return: None
     """
     buf = bytearray(5)
 
     ret: int
     dst: dfu.StatusRetVal
-    firstpoll = 1
-    zerotimeouts = 0
+    first_poll = 1
+    zero_timeouts = 0
     poll_timeout = 0
     stalls = 0
     if command == Command.ERASE_PAGE:
         segment = find_segment(dif.mem_layout, address)
 
         if not segment or not segment.mem_type & DFUSE.ERASABLE:
-            raise MissuseError(f"Page at 0x{address:08x} cannot be erased")
+            raise MissUseError(f"Page at 0x{address:08x} cannot be erased")
 
         page_size = segment.pagesize
         _logger.debug(
@@ -235,7 +235,7 @@ def special_command(dif: dfu.DfuIf, address: int,
     elif command == Command.READ_UNPROTECT:
         buf[0], length = 0x92, 1
     else:
-        raise MissuseError(f"Non-supported special command {command}")
+        raise MissUseError(f"Non-supported special command {command}")
 
     buf[1] = address & 0xff
     buf[2] = (address >> 8) & 0xff
@@ -262,8 +262,8 @@ def special_command(dif: dfu.DfuIf, address: int,
         else:
             poll_timeout = dst.bwPollTimeout
 
-        if firstpoll:
-            firstpoll = 0
+        if first_poll:
+            first_poll = 0
             if dst.bState != dfu.State.DFU_DOWNLOAD_BUSY and dst.bState != dfu.State.DFU_DOWNLOAD_IDLE:
                 _logger.error(f"DFU state({dst.bState}) = {dst.bState.to_string()}, "
                               f"status({dst.bStatus}) = {dst.bStatus.to_string()}")
@@ -284,11 +284,11 @@ def special_command(dif: dfu.DfuIf, address: int,
             return ret
         # Workaround for e.g. Black Magic Probe getting stuck
         if dst.bwPollTimeout == 0:
-            zerotimeouts += 1
-            if zerotimeouts == 100:
+            zero_timeouts += 1
+            if zero_timeouts == 100:
                 raise _IOError("Device stuck after special command request")
         else:
-            zerotimeouts = 0
+            zero_timeouts = 0
 
         if dst.bState != dfu.State.DFU_DOWNLOAD_BUSY:
             break
@@ -300,15 +300,16 @@ def special_command(dif: dfu.DfuIf, address: int,
 
 
 @handle_exceptions(_logger)
-def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int,
-                 transaction: int, rt_opts: RuntimeOptions) -> int:
+def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
+                   transaction: int, rt_opts: RuntimeOptions) -> int:
     """
     Download a chunk of data during DFU download operation.
 
     :param dif: DfuIf object representing the DFU interface
     :param data: Data to be downloaded
     :param size: Size of the data chunk
-    :param transaction: Transaction number
+    :param transaction: Transaction
+    :param rt_opts: RuntimeOptions
     :return: Number of bytes sent or error code
     """
 
@@ -366,9 +367,9 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
         # The device might leave after this request, with or without a response
         download(dif, 0, None, 2)
         # Or it might leave after this request, with or without a response
-        dst = dif.get_status()
+        dif.get_status()
     else:
-        dnload_chunk(dif, None, 0, 2)
+        download_chunk(dif, None, 0, 2)
 
 
 @handle_exceptions(_logger)
@@ -391,7 +392,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile,
 
         segment = find_segment(mem_layout, rt_opts.address)
         if not rt_opts.force and (not segment or not (segment.memtype & DFUSE.READABLE)):
-            raise MissuseError(f"Page at 0x{rt_opts.address:08x} is not readable")
+            raise MissUseError(f"Page at 0x{rt_opts.address:08x} is not readable")
 
         if not upload_limit:
             if segment:
@@ -452,12 +453,12 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile,
 # returns 0 on success, otherwise -EINVAL
 # pylint: disable=invalid-name
 @handle_exceptions(_logger)
-def dnload_element(dif: dfu.DfuIf,
-                   dw_element_address: int,
-                   dw_element_size: int,
-                   data: bytes,
-                   xfer_size: int,
-                   rt_opts: RuntimeOptions) -> int:
+def download_element(dif: dfu.DfuIf,
+                     dw_element_address: int,
+                     dw_element_size: int,
+                     data: bytes,
+                     xfer_size: int,
+                     rt_opts: RuntimeOptions) -> int:
     """
     Download an element in DFU.
 
@@ -469,12 +470,11 @@ def dnload_element(dif: dfu.DfuIf,
     :param rt_opts: dfuse opts
     :return: 0 if successful, error code otherwise
     """
-    ret = 0
 
     # Check at least that we can write to the last address
     segment = find_segment(MEM_LAYOUT, dw_element_address + dw_element_size - 1)
     if not segment or not segment.mem_type & DFUSE.WRITEABLE:
-        raise MissuseError(
+        raise MissUseError(
             f"Error: Last page at 0x{dw_element_address + dw_element_size - 1:08x} "
             f"is not writeable"
         )
@@ -487,7 +487,7 @@ def dnload_element(dif: dfu.DfuIf,
 
         segment = find_segment(dif.mem_layout, address)
         if not rt_opts.force and (not segment or not segment.mem_type & DFUSE.WRITEABLE):
-            raise MissuseError("Page at 0x{address:08x} is not writeable")
+            raise MissUseError("Page at 0x{address:08x} is not writeable")
 
         # If the location is not in the memory map we skip erasing
         # since we wouldn't know the correct page size for flash erase
@@ -535,7 +535,7 @@ def dnload_element(dif: dfu.DfuIf,
         special_command(dif, address, Command.SET_ADDRESS, rt_opts)
 
         # transaction = 2 for no address offset
-        ret = dnload_chunk(dif, data[p:], chunk_size, 2, rt_opts)
+        ret = download_chunk(dif, data[p:], chunk_size, 2, rt_opts)
         if ret != chunk_size:
             raise _IOError(f"Failed to write whole chunk: {ret} of {chunk_size} bytes")
 
@@ -557,7 +557,7 @@ def dfuse_memcpy(dst, src, rem, size):
 
 
 @handle_exceptions(_logger)
-def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: int) -> int:
+def do_bin_download(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: int) -> int:
     """
     Download raw binary file to DfuSe device.
 
@@ -574,7 +574,7 @@ def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: 
 
     data = file.firmware[file.size.prefix:]
 
-    ret = dnload_element(dif, dw_element_address, dw_element_size, data, xfer_size)
+    ret = download_element(dif, dw_element_address, dw_element_size, data, xfer_size)
     if ret == 0:
         _logger.info("File downloaded successfully")
 
@@ -582,8 +582,8 @@ def do_bin_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: 
 
 
 @handle_exceptions(_logger)
-def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int,
-                    file: DFUFile, rt_opts: RuntimeOptions) -> int:
+def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
+                      file: DFUFile, rt_opts: RuntimeOptions) -> int:
     dfu_prefix = bytearray(11)
     target_prefix = bytearray(274)
     element_header = bytearray(8)
@@ -624,19 +624,19 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int,
                      f"(%i elements {dwNbElements}, "
                      f"total size = {target_prefix[266:270]}")
 
-        adif: dfu.DfuIf = dif
-        while adif:
-            if bAlternateSetting == adif.altsetting:
-                adif.dev = dif.dev
-                _logger.info(f"Setting Alternate Interface {adif.altsetting}")
-                ret = adif.dev.set_interface_altsetting(adif.altsetting)
+        a_dif: dfu.DfuIf = dif
+        while a_dif:
+            if bAlternateSetting == a_dif.altsetting:
+                a_dif.dev = dif.dev
+                _logger.info(f"Setting Alternate Interface {a_dif.altsetting}")
+                ret = a_dif.dev.set_interface_altsetting(a_dif.altsetting)
                 if ret < 0:
                     raise _IOError(f"Cannot set alternate interface: {ret}")
 
                 break
-            adif = dif.next
+            a_dif = dif.next
 
-        if not adif:
+        if not a_dif:
             _logger.warning(f"No alternate setting {bAlternateSetting} (skipping elements)")
 
         for element in range(1, dwNbElements + 1):
@@ -655,9 +655,9 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int,
             if dwElementSize > rem:
                 raise DataError("File too small for element size")
 
-            if adif:
-                ret = dnload_element(
-                    adif, dwElementAddress, dwElementSize,
+            if a_dif:
+                ret = download_element(
+                    a_dif, dwElementAddress, dwElementSize,
                     file.firmware, xfer_size, rt_opts
                 )
 
@@ -681,23 +681,23 @@ def do_dfuse_dnload(dif: dfu.DfuIf, xfer_size: int,
 
 
 @handle_exceptions(_logger)
-def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile,
-                    opts: str) -> int:
+def do_download(dif: dfu.DfuIf, xfer_size: int, file: DFUFile,
+                opts: str) -> int:
     rt_opts = parse_options(opts.split()) if opts else RuntimeOptions()
-    adif = dif
-    while adif:
-        adif.mem_layout = parse_memory_layout(adif.alt_name)
-        if not adif.mem_layout:
+    a_dif = dif
+    while a_dif:
+        a_dif.mem_layout = parse_memory_layout(a_dif.alt_name)
+        if not a_dif.mem_layout:
             raise _IOError(f"Failed to parse memory layout "
-                           f"for alternate interface {adif.altsetting}")
+                           f"for alternate interface {a_dif.altsetting}")
 
-        if adif.quirks & QUIRK.DFUSE_LAYOUT:
-            fixup_dfuse_layout(adif, adif.mem_layout)
-        adif = adif.next
+        if a_dif.quirks & QUIRK.DFUSE_LAYOUT:
+            fixup_dfuse_layout(a_dif, a_dif.mem_layout)
+        a_dif = a_dif.next
 
     if rt_opts.unprotect:
         if not rt_opts.force:
-            raise MissuseError("The read unprotect command "
+            raise MissUseError("The read unprotect command "
                                "will erase the flash memory"
                                "and can only be used with force")
         ret = special_command(dif, 0, Command.MASS_ERASE, rt_opts)
@@ -706,28 +706,28 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile,
 
     if rt_opts.mass_erase:
         if not rt_opts.force:
-            raise MissuseError("The mass erase command can only be used with force")
+            raise MissUseError("The mass erase command can only be used with force")
         _logger.info("Performing mass erase, this can take a moment")
-        ret = special_command(dif, 0, Command.MASS_ERASE, rt_opts)
+        special_command(dif, 0, Command.MASS_ERASE, rt_opts)
 
     if not file.name:
         _logger.info("DfuSe command mode")
         ret = 0
     elif rt_opts.address_present:
         if file.name != file.bcdDFU == 0x11a:
-            raise MissuseError("This is a DfuSe file, not meant for raw download")
-        ret = do_bin_dnload(dif, xfer_size, file, rt_opts.address)
+            raise MissUseError("This is a DfuSe file, not meant for raw download")
+        ret = do_bin_download(dif, xfer_size, file, rt_opts.address)
     else:
         if file.bcdDFU != 0x11a:
             _logger.warning("Only DfuSe file version 1.1a is supported")
-            raise MissuseError("(for raw binary download, "
+            raise MissUseError("(for raw binary download, "
                                "use the --dfuse-address option)")
-        ret = do_dfuse_dnload(dif, xfer_size, file, rt_opts)
+        ret = do_dfuse_download(dif, xfer_size, file, rt_opts)
 
-    adif = dif
-    while adif:
-        adif.mem_layout = None
-        adif = adif.next
+    a_dif = dif
+    while a_dif:
+        a_dif.mem_layout = None
+        a_dif = a_dif.next
 
     if rt_opts.will_reset:
         dif.abort_to_idle()
@@ -760,6 +760,6 @@ def multiple_alt(dfu_root: dfu.DfuIf) -> int:
 
 __all__ = (
     'do_upload',
-    'do_dnload',
+    'do_download',
     'multiple_alt'
 )

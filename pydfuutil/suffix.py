@@ -1,5 +1,20 @@
 """
+dfu-suffix
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
 import argparse
@@ -9,7 +24,7 @@ from enum import IntEnum
 
 from pydfuutil import __copyright__
 from pydfuutil.dfu_file import DFUFile, SuffixReq, PrefixReq
-from pydfuutil.exceptions import GeneralError, MissuseError, handle_exceptions
+from pydfuutil.exceptions import GeneralError, MissUseError, handle_exceptions
 from pydfuutil.logger import logger
 
 try:
@@ -36,7 +51,7 @@ def hex2int(string: str) -> float:
     try:
         return int(string, 16)
     except ValueError:
-        raise MissuseError("--vid, --pid, --did must be a 2-byte hex "
+        raise MissUseError("--vid, --pid, --did must be a 2-byte hex "
                            "in 0xFFFF format")
 
 
@@ -122,7 +137,7 @@ def main() -> None:
 
     else:
         parser.print_help()
-        raise MissuseError
+        raise MissUseError
 
     sys.exit(0)
 
