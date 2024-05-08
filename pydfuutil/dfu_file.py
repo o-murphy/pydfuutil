@@ -209,7 +209,6 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
                 raise _IOError(f"Error reading file {file.name}: {e}")
 
     missing_suffix, reason = False, None
-    print(file.size.total)
     if file.size.total < DFU_SUFFIX_LENGTH:
         reason = "File too short for DFU suffix"
         missing_suffix = True
@@ -220,8 +219,6 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
         for byte in file.firmware[:-4]:
             crc = crc32_byte(crc, byte)
 
-        # print(dfu_suffix[8] == b'U', chr(dfu_suffix[9]), chr(dfu_suffix[10]))
-        # print(dfu_suffix[8:11] == b'UFD')
         if dfu_suffix[8:11] != b'UFD':
             reason = "Invalid DFU suffix signature"
             missing_suffix = True
@@ -293,7 +290,7 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
                 addr = file.lmdfu_address // 1024
                 len_payload = file.size.total - file.size.prefix - file.size.suffix
 
-                lmdfu_prefix = bytearray(8)
+                lmdfu_prefix = bytearray(LMDFU_PREFIX_LENGTH)
                 lmdfu_prefix[0] = 0x01  # STELLARIS_DFU_PROG
                 lmdfu_prefix[2:4] = addr.to_bytes(2, 'little')
                 lmdfu_prefix[4:8] = len_payload.to_bytes(4, 'little')
@@ -303,9 +300,13 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
             elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
                 len_payload = (file.size.total - file.size.suffix + 511) // 512
 
-                lpc_dfu_prefix = bytearray(16)
+                lpc_dfu_prefix = bytearray(LPCDFU_PREFIX_LENGTH)
                 lpc_dfu_prefix[0] = 0x1a  # Unencrypted
+                lpc_dfu_prefix[1] = 0x3f  # Reserved
                 lpc_dfu_prefix[2:4] = len_payload.to_bytes(2, 'little')
+
+                for i in range(12, LPCDFU_PREFIX_LENGTH):
+                    lpc_dfu_prefix[i] = 0xff
 
                 crc = _write_crc(file.file_p, crc, lpc_dfu_prefix)
 
