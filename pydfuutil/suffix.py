@@ -28,7 +28,7 @@ class Mode(IntEnum):
     CHECK = 0x4
 
 
-VERSION = (f'pydfuutil-suffix " {__version__} "\n {__copyright__[0]}\n'
+VERSION = (f'pydfuutil-suffix " v{__version__} "\n {__copyright__[0]}\n'
            f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
 
 
