@@ -25,14 +25,15 @@ from enum import Enum
 import usb.util
 from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
 
-from pydfuutil import dfu
+from pydfuutil import dfu, dfu_file
 from pydfuutil.dfu_file import DFUFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
-from pydfuutil.exceptions import GeneralError, MissuseError, _IOError, DataError, NoInputError, ProtocolError
+from pydfuutil.exceptions import GeneralError, MissuseError, _IOError, DataError, NoInputError, ProtocolError, \
+    SoftwareError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
-from pydfuutil.quirks import QUIRK
+from pydfuutil.quirks import QUIRK, fixup_dfuse_layout
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
@@ -191,14 +192,14 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     return status
 
 
-def special_command(dif: dfu.DfuIf, address: int, command: Command, rt_opts: RuntimeOptions) -> int:
+def special_command(dif: dfu.DfuIf, rt_opts: RuntimeOptions, command: Command) -> int:
     """
     Perform DfuSe-specific commands.
     Leaves the device in dfuDNLOAD-IDLE state
     :param dif: DFU interface
     :param address: Address for the command
     :param command: DfuSe command to execute
-    :param rt_opts: RuntimeOptions
+    :param dfuse_fast: fast
     :return: None
     """
     buf = bytearray(5)
@@ -209,7 +210,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command, rt_opts: Run
     zerotimeouts = 0
     polltimeout = 0
     stalls = 0
-
+    address, dfuse_fast = rt_opts.address, rt_opts.fast
     try:
         if command == Command.ERASE_PAGE:
             segment = find_segment(dif.mem_layout, address)
@@ -274,7 +275,7 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command, rt_opts: Run
             # A non-null bwPollTimeout for SET_ADDRESS seems a common bootloader bug
             if command == Command.SET_ADDRESS:
                 polltimeout = 0
-            if not rt_opts.fast and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY:
+            if not dfuse_fast and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY:
                 milli_sleep(polltimeout)
             if command == Command.READ_UNPROTECT:
                 return ret
@@ -300,7 +301,8 @@ def special_command(dif: dfu.DfuIf, address: int, command: Command, rt_opts: Run
         sys.exit(err.exit_code)
 
 
-def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int, transaction: int) -> int:
+def dnload_chunk(dif: dfu.DfuIf, data: bytes, size: int,
+                 transaction: int, rt_opts: RuntimeOptions) -> int:
     """
     Download a chunk of data during DFU download operation.
 
@@ -369,9 +371,81 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
         dnload_chunk(dif, None, 0, 2)
 
 
-def do_upload():
-    # FIXME
-    raise NotImplemented
+def do_upload(dif: dfu.DfuIf, xfer_size: int, fd: int,
+              opts: str) -> int:
+    total_bytes = 0
+    upload_limit = 0
+    ret = 0
+    buf = bytearray(xfer_size)
+
+    rt_opts = parse_options(opts.split()) if opts else RuntimeOptions()
+    if rt_opts.length:
+        upload_limit = rt_opts.length
+    if rt_opts.address_present:
+        mem_layout = parse_memory_layout(dif.alt_name)
+        if not mem_layout:
+            raise _IOError("Failed to parse memory layout")
+        if dif.quirks & QUIRK.DFUSE_LAYOUT:
+            fixup_dfuse_layout(dif, mem_layout)
+
+        segment = find_segment(mem_layout, rt_opts.address)
+        if not rt_opts.force and (not segment or not (segment.memtype & READABLE)):
+            raise MissuseError(f"Page at 0x{rt_opts.address:08x} is not readable")
+
+        if not upload_limit:
+            if segment:
+                upload_limit = segment.end - rt_opts.address + 1
+                _logger.info(f"Limiting upload to end of memory segment, {upload_limit} bytes")
+            else:
+                # unknown segment - i.e. "force" has been used
+                upload_limit = 0x4000
+                _logger.info(f"Limiting upload to {upload_limit} bytes")
+
+        special_command(dif, rt_opts, Command.SET_ADDRESS)
+        dif.abort_to_idle()
+    else:
+        # Bootloader decides the start address, unknown to us
+        # Use a short length to lower risk of running out of bounds
+        if not upload_limit:
+            _logger.warning("Unbound upload not supported on DfuSe devices")
+            upload_limit = 0x4000
+        _logger.info(f"Limiting default upload to {upload_limit} bytes")
+
+    with Progress() as progress:
+        progress.start_task(description="Upload", total=total_bytes)
+        transaction = 2
+
+        while True:
+            # last chunk can be smaller than original xfer_size
+            if upload_limit - total_bytes < xfer_size:
+                xfer_size = upload_limit - total_bytes
+
+            rc = upload(dif, buf, transaction)
+            if rc < 0:
+                ret = rc
+                return ret
+
+            rc = dfu_file.write_crc(fd, 0, buf)
+            total_bytes += rc
+
+            if total_bytes < 0:
+                raise SoftwareError("Received too many bytes")
+
+            if rc < xfer_size or total_bytes >= upload_limit:
+                # last block, return successfully
+                ret = 0
+                break
+
+            progress.update(completed=total_bytes)
+
+        progress.update(completed=total_bytes)
+
+        dif.abort_to_idle()
+        if rt_opts.leave:
+            do_leave(dif, rt_opts)
+
+    return ret
+
 
 
 # Writes an element of any size to the device, taking care of page erases
