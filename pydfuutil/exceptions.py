@@ -1,4 +1,6 @@
 """Pydfuutil exceptions."""
+import sys
+from functools import wraps
 
 
 class GeneralError(Exception):
@@ -54,6 +56,29 @@ class MissuseError(GeneralError):
 class CapabilityError(GeneralError):
     """DFU incompatible usage error."""
     exit_code = 3
+
+
+
+def handle_exceptions(_logger):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if isinstance(e, GeneralWarning):
+                    if e.__str__():
+                        _logger.warning(e)
+                elif isinstance(e, GeneralError):
+                    if e.__str__():
+                        _logger.error(e)
+                    sys.exit(e.exit_code)
+                else:
+                    _logger.exception("Unhandled exception occurred")
+                    raise
+        return wrapper
+    return decorator
+
 
 
 __all__ = (

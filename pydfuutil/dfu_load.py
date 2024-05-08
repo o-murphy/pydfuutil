@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
-from pydfuutil.exceptions import _IOError
+from pydfuutil.exceptions import _IOError, SoftwareError, GeneralError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -65,7 +65,7 @@ def do_upload(dif: dfu.DfuIf,
                 rc = dif.upload(transaction, buf)
 
                 if len(rc) < 0:
-                    _logger.error("Error during upload")
+                    _logger.warning("Error during upload")
                     ret = rc
                     break
 
@@ -74,7 +74,7 @@ def do_upload(dif: dfu.DfuIf,
                 total_bytes += len(rc)
 
                 if total_bytes < 0:
-                    raise _IOError("Received too many bytes (wraparound)")
+                    raise SoftwareError("Received too many bytes (wraparound)")
 
                 transaction += 1
                 progress.update(advance=len(rc), description="Uploading...")
@@ -92,7 +92,7 @@ def do_upload(dif: dfu.DfuIf,
                 _logger.warning("Unexpected number of bytes uploaded from device")
 
             return ret
-    except _IOError as e:
+    except GeneralError as e:
         _logger.error(e)
         return -1
 
@@ -185,7 +185,7 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
                 _logger.info("Done!")
         return bytes_sent
 
-    except _IOError as err:
+    except GeneralError as err:
         _logger.error(err)
         return -1
 

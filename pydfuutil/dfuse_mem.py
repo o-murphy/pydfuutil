@@ -120,10 +120,6 @@ class MemSegment:
             return self.next.find(address)
         return None
 
-    # def free(self) -> None:
-    #     """Useless cause of garbage collector"""
-    #     raise NotImplementedError("Useless cause of garbage collector")
-
 
 def add_segment(segment_stack: [MemSegment, None], segment: MemSegment) -> MemSegment:
     """
@@ -153,11 +149,6 @@ def find_segment(segment_stack: [MemSegment, None], address: int) -> [MemSegment
     if not segment_stack:
         return None
     return segment_stack.find(address)
-
-
-# def free_segment_list(segment_stack: MemSegment) -> None:
-#     """Useless cause of garbage collector"""
-#     raise NotImplementedError("Useless cause of garbage collector")
 
 
 # Parse memory map from interface descriptor string

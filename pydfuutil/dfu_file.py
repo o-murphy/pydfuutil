@@ -28,7 +28,7 @@ from enum import Enum
 from construct import (Struct, Const, ByteSwapped, Default,
                        Int32ub, Int16ub, Int8sb)
 
-from pydfuutil.exceptions import GeneralError, NoInputError, _IOError, DataError
+from pydfuutil.exceptions import GeneralError, NoInputError, _IOError, DataError, handle_exceptions
 from pydfuutil.logger import logger
 
 
@@ -212,6 +212,7 @@ def write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> 
     return crc
 
 
+@handle_exceptions(_logger)
 def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
     file.size.prefix = 0
     file.size.suffix = 0
@@ -222,94 +223,88 @@ def load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -
     file.bcdDevice = 0xffff
 
     file.lmdfu_address = 0
-    try:
-        if file.name == "-":
-            file.firmware = bytearray()
+    if file.name == "-":
+        file.firmware = bytearray()
+        read_bytes = sys.stdin.buffer.read(STDIN_CHUNK_SIZE)
+        while read_bytes:
+            file.firmware.extend(read_bytes)
             read_bytes = sys.stdin.buffer.read(STDIN_CHUNK_SIZE)
-            while read_bytes:
-                file.firmware.extend(read_bytes)
-                read_bytes = sys.stdin.buffer.read(STDIN_CHUNK_SIZE)
-            file.size.total = len(file.firmware)
-            _logger.debug(f"Read {file.size.total} bytes from stdin")
+        file.size.total = len(file.firmware)
+        _logger.debug(f"Read {file.size.total} bytes from stdin")
 
-            check_suffix = PrefixReq.MAYBE_PREFIX
-        else:
-            try:
-                with open(file.name, "rb") as f:
-                    file.firmware = f.read()
-                    file.size.total = len(file.firmware)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    raise NoInputError(f"Could not open file {file.name} for reading")
-                else:
-                    raise _IOError(f"Error reading file {file.name}: {e}")
+        check_suffix = PrefixReq.MAYBE_PREFIX
+    else:
+        try:
+            with open(file.name, "rb") as f:
+                file.firmware = f.read()
+                file.size.total = len(file.firmware)
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                raise NoInputError(f"Could not open file {file.name} for reading")
+            else:
+                raise _IOError(f"Error reading file {file.name}: {e}")
 
-        missing_suffix, reason = False, None
+    missing_suffix, reason = False, None
 
-        if file.size.total < DFU_SUFFIX_LENGTH:
-            reason = "File too short for DFU suffix"
+    if file.size.total < DFU_SUFFIX_LENGTH:
+        reason = "File too short for DFU suffix"
+        missing_suffix = True
+    else:
+        dfu_suffix = file.firmware[-DFU_SUFFIX_LENGTH:]
+
+        crc = 0xffffffff
+        for byte in file.firmware[:-4]:
+            crc = crc32_byte(crc, byte)
+
+        if dfu_suffix[10] != b'D' or dfu_suffix[9] != b'F' or dfu_suffix[8] != b'U':
+            reason = "Invalid DFU suffix signature"
+            missing_suffix = True
+        elif struct.unpack('<I', dfu_suffix[12:])[0] != crc:
+            reason = "DFU suffix CRC does not match"
             missing_suffix = True
         else:
-            dfu_suffix = file.firmware[-DFU_SUFFIX_LENGTH:]
+            file.bcdDFU = struct.unpack('<H', dfu_suffix[6:8])[0]
+            _logger.debug(f"DFU suffix version {file.bcdDFU}")
 
-            crc = 0xffffffff
-            for byte in file.firmware[:-4]:
-                crc = crc32_byte(crc, byte)
+            file.size.suffix = dfu_suffix[11]
+            if file.size.suffix < DFU_SUFFIX_LENGTH:
+                raise DataError(f"Unsupported DFU suffix length {file.size.suffix}")
+            elif file.size.suffix > file.size.total:
+                raise DataError(f"Invalid DFU suffix length {file.size.suffix}")
 
-            if dfu_suffix[10] != b'D' or dfu_suffix[9] != b'F' or dfu_suffix[8] != b'U':
-                reason = "Invalid DFU suffix signature"
-                missing_suffix = True
-            elif struct.unpack('<I', dfu_suffix[12:])[0] != crc:
-                reason = "DFU suffix CRC does not match"
-                missing_suffix = True
-            else:
-                file.bcdDFU = struct.unpack('<H', dfu_suffix[6:8])[0]
-                _logger.debug(f"DFU suffix version {file.bcdDFU}")
+            file.idVendor = struct.unpack('<H', dfu_suffix[4:6])[0]
+            file.idProduct = struct.unpack('<H', dfu_suffix[2:4])[0]
+            file.bcdDevice = struct.unpack('<H', dfu_suffix[0:2])[0]
 
-                file.size.suffix = dfu_suffix[11]
-                if file.size.suffix < DFU_SUFFIX_LENGTH:
-                    raise DataError(f"Unsupported DFU suffix length {file.size.suffix}")
-                elif file.size.suffix > file.size.total:
-                    raise DataError(f"Invalid DFU suffix length {file.size.suffix}")
+    if missing_suffix:
+        if check_suffix == PrefixReq.NEEDS_PREFIX:
+            raise DataError(reason + " Valid DFU suffix needed")
+        elif check_suffix == PrefixReq.MAYBE_PREFIX:
+            _logger.warning(f"{reason}")
+            warnings.warn(
+                "A valid DFU suffix will be required in a future dfu-util release",
+                FutureWarning
+            )
+    else:
+        if check_suffix == PrefixReq.NO_PREFIX:
+            raise DataError("Please remove existing DFU suffix before adding a new one.")
 
-                file.idVendor = struct.unpack('<H', dfu_suffix[4:6])[0]
-                file.idProduct = struct.unpack('<H', dfu_suffix[2:4])[0]
-                file.bcdDevice = struct.unpack('<H', dfu_suffix[0:2])[0]
-
-        if missing_suffix:
-            if check_suffix == PrefixReq.NEEDS_PREFIX:
-                raise DataError(reason + " Valid DFU suffix needed")
-            elif check_suffix == PrefixReq.MAYBE_PREFIX:
-                _logger.warning(f"{reason}")
-                warnings.warn(
-                    "A valid DFU suffix will be required in a future dfu-util release",
-                    FutureWarning
-                )
+    res = probe_prefix(file)
+    if (res or file.size.prefix == 0) and check_prefix == PrefixReq.NEEDS_PREFIX:
+        sys.exit("Valid DFU prefix needed")
+    if file.size.prefix and check_prefix == PrefixReq.NO_PREFIX:
+        sys.exit("A prefix already exists, please delete it first")
+    if file.size.prefix:
+        data = file.firmware
+        if file.prefix_type == PrefixType.LMDFU_PREFIX:
+            _logger.debug(f"Possible TI Stellaris DFU prefix with the following properties\n"
+                          f"Address:        0x{file.lmdfu_address:08x}\n"
+                          f"Payload length: {struct.unpack('<I', data[4:8])[0]}")
+        elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
+            _logger.info(f"Possible unencrypted NXP LPC DFU prefix with the following properties\n"
+                         f"Payload length: {struct.unpack('<H', data[2:4])[0] >> 1} kiByte")
         else:
-            if check_suffix == PrefixReq.NO_PREFIX:
-                raise DataError("Please remove existing DFU suffix before adding a new one.")
-
-        # Placeholder for probe_prefix
-        res = probe_prefix(file)
-        if (res or file.size.prefix == 0) and check_prefix == PrefixReq.NEEDS_PREFIX:
-            sys.exit("Valid DFU prefix needed")
-        if file.size.prefix and check_prefix == PrefixReq.NO_PREFIX:
-            sys.exit("A prefix already exists, please delete it first")
-        if file.size.prefix:
-            data = file.firmware
-            if file.prefix_type == PrefixType.LMDFU_PREFIX:
-                _logger.debug(f"Possible TI Stellaris DFU prefix with the following properties\n"
-                              f"Address:        0x{file.lmdfu_address:08x}\n"
-                              f"Payload length: {struct.unpack('<I', data[4:8])[0]}")
-            elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
-                _logger.info(f"Possible unencrypted NXP LPC DFU prefix with the following properties\n"
-                             f"Payload length: {struct.unpack('<H', data[2:4])[0] >> 1} kiByte")
-            else:
-                raise DataError("Unknown DFU prefix type")
-    except GeneralError as err:
-        if err.__str__():
-            _logger.error(err)
-        sys.exit(err.exit_code)
+            raise DataError("Unknown DFU prefix type")
 
 
 def store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
