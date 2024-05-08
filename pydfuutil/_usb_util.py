@@ -18,7 +18,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
 from dataclasses import dataclass, field
+from typing import Generator
+
 from pydfuutil.dfu import DfuIf, Mode
+import usb.core
+
+from pydfuutil.logger import logger
+
+_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 MAX_DESC_STR_LEN = 253
 MAX_PATH_LEN = 20
@@ -40,9 +47,9 @@ class DfuUtil:
     match_serial: str
     match_serial_dfu: str
 
-    path_buf: bytearray = field(
-        default_factory=lambda: bytearray(MAX_PATH_LEN)
-    )
+    dfu_root: DfuIf = None
+
+    path_buf: str = None
 
 
 def find_descriptor():
@@ -57,29 +64,83 @@ def get_string_descriptor_ascii():
     raise NotImplementedError
 
 
-def probe_configuration():
+def probe_configuration(dev: usb.core.Device, intf: usb.core.Interface):
     raise NotImplementedError
 
 
-def get_path():
-    raise NotImplementedError
+def get_path(dev) -> str:
+    path = None
+    try:
+        # Get the bus and device address
+        bus_num = dev.bus
+        device_num = dev.address
+
+        # Construct the path
+        path = f"{bus_num}-{device_num}"
+
+        # If the device supports port numbers, get them
+        if hasattr(dev, 'port_numbers'):
+            port_nums = dev.port_numbers
+            if port_nums is not None:
+                path += '.' + '.'.join(map(str, port_nums))
+
+    except Exception as e:
+        # Handle any exceptions, like if the device does not support port numbers
+        logger.error(f"Error while getting path: {e}")
+
+    DfuUtil.path_buf = path
+    return path
 
 
-def probe_devices():
-    raise NotImplementedError
+def probe_devices(ctx: Generator[usb.core.Device, None, None]) -> None:
+    for dev in ctx:
+        intf = dev.get_active_configuration().desc
+        path = get_path(dev)
+
+        if DfuUtil.match_path is not None and path != DfuUtil.match_path:
+            continue
+
+        probe_configuration(dev, intf)
+
+        # Claim the interface to perform operations
+        usb.util.claim_interface(dev, intf)
+
+        # Dispose resources after probing
+        usb.util.dispose_resources(dev)
 
 
-def disconnect_devices():
-    raise NotImplementedError
+def disconnect_devices() -> None:
+    pdfu = DfuUtil.dfu_root
+
+    while pdfu is not None:
+        next_dfu = pdfu.next
+
+        usb.util.dispose_resources(pdfu.dev)
+        pdfu.dev = None
+        pdfu.alt_name = None
+        pdfu.serial_name = None
+
+        pdfu = next_dfu
+
+    DfuUtil.dfu_root = None
 
 
-def print_dfu_if():
-    raise NotImplementedError
+def print_dfu_if(dfu_if: DfuIf) -> None:
+    print(f"Found {'DFU' if dfu_if.flags & Mode.IFF_DFU else 'Runtime'}: "
+          f'[{dfu_if.vendor:04x}:{dfu_if.product:04x}] '
+          f'ver={dfu_if.bcdDevice:04x}, devnum={dfu_if.devnum}, '
+          f'cfg={dfu_if.configuration}, intf={dfu_if.interface}, '
+          f'path="{get_path(dfu_if.dev)}", '
+          f'alt={dfu_if.altsetting}, name="{dfu_if.alt_name}", '
+          f'serial="{dfu_if.serial_name}"')
 
 
 # Walk the device tree and print out DFU devices
-def list_dfu_interfaces():
-    raise NotImplementedError
+def list_dfu_interfaces() -> None:
+    pdfu = DfuUtil.dfu_root
+    while pdfu is not None:
+        print_dfu_if(pdfu)
+        pdfu = pdfu.next
 
 
 __all__ = (
