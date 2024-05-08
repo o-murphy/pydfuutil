@@ -9,9 +9,10 @@ import sys
 from enum import IntEnum
 
 from pydfuutil import __copyright__
-from pydfuutil import lmdfu
-from pydfuutil.dfu_file import DFUFile, parse_dfu_suffix
-from pydfuutil.exceptions import GeneralWarning, GeneralError, MissuseError
+# from pydfuutil import lmdfu
+from pydfuutil.dfu_file import DFUFile, SuffixReq, PrefixReq
+# , parse_dfu_suffix)
+from pydfuutil.exceptions import GeneralWarning, GeneralError, MissuseError, handle_exceptions
 from pydfuutil.logger import logger
 
 try:
@@ -30,12 +31,12 @@ class Mode(IntEnum):
     CHECK = 0x4
 
 
-class LmdfuMode(IntEnum):
-    """LMDFU suffix operate mode"""
-    NONE = 0x1
-    ADD = 0x2
-    DEL = 0x3
-    CHECK = 0x4
+# class LmdfuMode(IntEnum):
+#     """LMDFU suffix operate mode"""
+#     NONE = 0x1
+#     ADD = 0x2
+#     DEL = 0x3
+#     CHECK = 0x4
 
 
 VERSION = (f'pydfuutil-suffix " {__version__} "\n {__copyright__[0]}\n'
@@ -95,6 +96,10 @@ def add_suffix(file: DFUFile, pid: int, vid: int, did: int) -> None:
     _logger.info("New DFU suffix added.")
 
 
+def hex2int(string: str) -> float:
+    return int(string, 16)
+
+
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
     """Add cli options"""
     parser.add_argument('-V', '--version', action='version',
@@ -119,22 +124,21 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument('-p', '--pid', action='store', metavar="<productID>",
                         required=False,
-                        type=lambda x: int(x, 16), help='Add product ID into DFU suffix in <file>')
+                        type=hex2int, help='Add product ID into DFU suffix in <file>')
     parser.add_argument('-v', '--vid', action='store', metavar="<vendorID>",
                         required=False,
-                        type=lambda x: int(x, 16), help='Add vendor ID into DFU suffix in <file>')
+                        type=hex2int, help='Add vendor ID into DFU suffix in <file>')
     parser.add_argument('-d', '--did', action='store', metavar="<deviceID>",
                         required=False,
-                        type=lambda x: int(x, 16), help='Add device ID into DFU suffix in <file>')
-    parser.add_argument('-s', '--stellaris-address', dest='lmdfu_flash_address',
-                        metavar="<address>", type=int, help='Specify lmdfu address for LMDFU_ADD')
-    parser.add_argument('-T', '--stellaris', dest='lmdfu_mode', action='store_const',
-                        const=LmdfuMode.CHECK, help='Set lmdfu mode to LMDFU_CHECK')
+                        type=hex2int, help='Add device ID into DFU suffix in <file>')
+    parser.add_argument('-S', '--spec', dest='spec', action='store',
+                        metavar="<specID>", choices=("0x0100", "0x011a"), default="0x0100",
+                        help='Add DFU specification ID into DFU suffix in <file>')
 
 
+@handle_exceptions(_logger)
 def main() -> None:
     """cli entry point for suffix"""
-
     parser = argparse.ArgumentParser(
         prog='pydfuutil-suffix',
         exit_on_error=False,
@@ -147,84 +151,46 @@ def main() -> None:
         parser.print_help()
         raise GeneralError(err)
 
-    lmdfu_mode = LmdfuMode.NONE
-    lmdfu_flash_address: int = 0
-    lmdfu_prefix: int = 0
 
-    empty = 0xffff
+    file = DFUFile(name=args.file.name, file_p=args.file)
+    mode = args.mode
 
-    file = DFUFile(args.file.name)
-    file.file_p, mode = args.file, args.mode
+    try:
+        pid = int(args.pid, 16) if args.pid else 0xffff
+        vid = int(args.vid, 16) if args.vid else 0xffff
+        did = int(args.did, 16) if args.did else 0xffff
+    except:
+        raise MissuseError("--vid, --pid, --did must be an 2-byte hex "
+                           "in 0xFFFF format")
 
-    pid = args.pid if args.pid else empty
-    vid = args.vid if args.vid else empty
-    did = args.did if args.did else empty
+    spec = int(args.spec, 16)
 
-    if args.lmdfu_flash_address:
-        lmdfu_mode, lmdfu_flash_address = LmdfuMode.ADD, args.lmdfu_flash_address
+    if mode == Mode.ADD:
+        file.load(SuffixReq.NO_SUFFIX, PrefixReq.MAYBE_PREFIX)
+        file.idVendor = vid
+        file.idVendor = pid
+        file.bcdDevice = did
+        file.bcdDFU = spec
+        # always write suffix, rewrite prefix if there was one
+        file.dump(True, file.size.prefix != 0)
+        _logger.info("Suffix successfully added to file")
 
-    if args.lmdfu_mode:
-        lmdfu_mode = LmdfuMode.CHECK
+    elif mode == Mode.CHECK:
+        file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.MAYBE_PREFIX)
+        file.show_suffix_and_prefix()
 
-    if mode == Mode.DEL and lmdfu_mode == LmdfuMode.CHECK:
-        lmdfu_mode = LmdfuMode.DEL
+    elif mode == Mode.DEL:
+        file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.MAYBE_PREFIX)
+        file.dump(False, file.size.prefix != 0)
+        if file.size.suffix:
+            _logger.info("Suffix successfully removed from file")
 
-    if mode != Mode.NONE:
-        try:
-            if mode == Mode.ADD:
+    else:
+        parser.print_help()
+        raise MissuseError
 
-                if check_suffix(file):
-                    if lmdfu_prefix:
-                        lmdfu.check_prefix(file)
-                    raise GeneralWarning("Please remove existing DFU suffix before adding a new one.")
-
-                if lmdfu_mode == LmdfuMode.ADD:
-                    if lmdfu.check_prefix(file):
-                        _logger.info("Adding new anyway")
-                    lmdfu.add_prefix(file, lmdfu_flash_address)
-
-                add_suffix(file, pid, vid, did)
-
-            elif mode == Mode.CHECK:
-                # Note: could open read-only here
-                check_suffix(file)
-                if lmdfu_mode == LmdfuMode.CHECK:
-                    lmdfu.check_prefix(file)
-
-            elif mode == Mode.DEL:
-                if (not remove_suffix(file)
-                        and lmdfu_mode == LmdfuMode.DEL
-                        and lmdfu.check_prefix(file)):
-                    lmdfu.remove_prefix(file)
-                    raise GeneralWarning
-
-            else:
-                parser.print_help()
-                raise MissuseError
-
-            if lmdfu_mode == LmdfuMode.DEL and check_suffix(file):
-                raise GeneralWarning(
-                    "DFU suffix exist. "
-                    "Remove suffix before using -T or use it with -D to delete suffix")
-
-            if lmdfu_mode == LmdfuMode.DEL and lmdfu.check_prefix(file):
-                lmdfu.remove_prefix(file)
-
-        except Exception as error:
-            raise GeneralError(error)
+    sys.exit(0)
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except GeneralWarning as warn:
-        if warn.__str__():
-            _logger.warning(warn)
-    except GeneralError as err:
-        if err.__str__():
-            _logger.error(err)
-        sys.exit(err.exit_code)
-    except Exception as err:
-        logger.error(err)
-        sys.exit(1)
-    sys.exit(0)
+    main()
