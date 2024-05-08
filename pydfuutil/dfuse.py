@@ -213,7 +213,7 @@ def special_command(dif: dfu.DfuIf, address: int,
     dst: dfu.StatusRetVal
     firstpoll = 1
     zerotimeouts = 0
-    polltimeout = 0
+    poll_timeout = 0
     stalls = 0
     if command == Command.ERASE_PAGE:
         segment = find_segment(dif.mem_layout, address)
@@ -253,14 +253,14 @@ def special_command(dif: dfu.DfuIf, address: int,
         # This also allows "fast" mode (without poll timeouts) to work
         # with many bootloaders
 
-        if ret == LIBUSB_ERROR_PIPE and polltimeout != 0 and stalls < 3:
+        if ret == LIBUSB_ERROR_PIPE and poll_timeout != 0 and stalls < 3:
             dst.bState = dfu.State.DFU_DOWNLOAD_BUSY
             stalls += 1
             _logger.debug("* Device stalled USB pipe, reusing last poll timeout")
         elif ret < 0:
             raise _IOError(f"Error during special command {command.name} get_status: {ret}")
         else:
-            polltimeout = dst.bwPollTimeout
+            poll_timeout = dst.bwPollTimeout
 
         if firstpoll:
             firstpoll = 0
@@ -270,16 +270,16 @@ def special_command(dif: dfu.DfuIf, address: int,
                 raise ProtocolError(f"Wrong state after command {command.name} download")
             # STM32F405 lies about mass erase timeout
             if command == Command.MASS_ERASE and dst.bwPollTimeout == 100:
-                polltimeout = 35000  # Datasheet says up to 32 seconds
+                poll_timeout = 35000  # Datasheet says up to 32 seconds
                 _logger.info("Setting timeout to 35 seconds")
 
-        _logger.debug(f"Err: Poll timeout {polltimeout} "
+        _logger.debug(f"Err: Poll timeout {poll_timeout} "
                       f"ms on command {command.name} (state={dst.bState.to_string()})")
         # A non-null bwPollTimeout for SET_ADDRESS seems a common bootloader bug
         if command == Command.SET_ADDRESS:
-            polltimeout = 0
+            poll_timeout = 0
         if not rt_opts.fast and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY:
-            milli_sleep(polltimeout)
+            milli_sleep(poll_timeout)
         if command == Command.READ_UNPROTECT:
             return ret
         # Workaround for e.g. Black Magic Probe getting stuck

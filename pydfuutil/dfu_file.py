@@ -302,11 +302,11 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
             elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
                 len_payload = (file.size.total - file.size.suffix + 511) // 512
 
-                lpcdfu_prefix = bytearray(16)
-                lpcdfu_prefix[0] = 0x1a  # Unencrypted
-                lpcdfu_prefix[2:4] = len_payload.to_bytes(2, 'little')
+                lpc_dfu_prefix = bytearray(16)
+                lpc_dfu_prefix[0] = 0x1a  # Unencrypted
+                lpc_dfu_prefix[2:4] = len_payload.to_bytes(2, 'little')
 
-                crc = _write_crc(file.file_p, crc, lpcdfu_prefix)
+                crc = _write_crc(file.file_p, crc, lpc_dfu_prefix)
 
         # Write firmware binary
         crc = _write_crc(file.file_p, crc,
