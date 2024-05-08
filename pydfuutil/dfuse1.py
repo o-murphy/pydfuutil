@@ -386,7 +386,7 @@ def dnload_element(dif: dfu.DfuIf,
     return ret
 
 
-def dfuse_do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
+def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
     """Submitting dfuse leave request"""
 
     if rt_opts.address_present:
@@ -430,94 +430,110 @@ def do_upload():
     raise NotImplemented
 
 
-def dfuse_memcpy(dst, src, rem):
-    size = len(dst)
+def dfuse_memcpy(dst, src, rem, size):
     if size > rem:
-        raise NoInputError(
-            f"Corrupt DfuSe file: Cannot read {size} bytes from {rem} bytes"
-        )
+        raise ValueError("Corrupt DfuSe file: Cannot read {} bytes from {} bytes".format(size, rem))
+
     if dst is not None:
-        dst[:size] = src[:size]
-    src[:] = src[size:]  # Adjust src pointer
+        dst.extend(src[:size])
+
+    src[:] = src[size:]
     rem -= size
     return rem
 
 
 def do_dfuse_dnload(dif, xfer_size, file):
-    def read_data(size):
-        nonlocal data, rem
-        if size > rem:
-            raise ValueError(f"Corrupt DfuSe file: Cannot read {size} bytes from {rem} bytes")
-        chunk = file.file_p.read(size)
-        data += chunk
-        rem -= len(chunk)
-        return chunk
+    dfu_prefix = bytearray(11)
+    target_prefix = bytearray(274)
+    element_header = bytearray(8)
+
+    bFirstAddressSaved = 0
 
     rem = file.size.total - file.size.prefix - file.size.suffix
-    data = file.file_p.read(file.size.prefix)
 
-    dfuprefix = read_data(11)
+    if rem < len(dfu_prefix):
+        raise DataError("File too small for a DfuSe file")
 
-    if dfuprefix[:5] != b'DfuSe':
-        raise ValueError("No valid DfuSe signature")
-    if dfuprefix[5] != 0x01:
-        raise ValueError(f"DFU format revision {dfuprefix[5]} not supported")
+    rem = dfuse_memcpy(dfu_prefix, file.firmware, rem, len(dfu_prefix))
 
-    bTargets = dfuprefix[10]
-    print(f"File contains {bTargets} DFU images")
+    if dfu_prefix[:5] != b'DfuSe':
+        raise DataError("No valid DfuSe signature")
 
-    while bTargets > 0:
-        print(f"Parsing DFU image {bTargets}")
-        targetprefix = read_data(274)
+    if dfu_prefix[5] != 0x01:
+        raise DataError(f"DFU format revision {dfu_prefix[5]} not supported")
 
-        if targetprefix[:6] != b'Target':
-            raise ValueError("No valid target signature")
+    bTargets = dfu_prefix[10]
+    _logger.info(f"File contains {bTargets} DFU images")
 
-        bAlternateSetting = targetprefix[6]
-        print(f"Image for alternate setting {bAlternateSetting}")
+    for image in range(1, bTargets + 1):
+        _logger.info(f"Parsing DFU image {image}")
+        rem = dfuse_memcpy(target_prefix, file.firmware, rem, len(target_prefix))
 
-        dwNbElements = int.from_bytes(targetprefix[266:270], byteorder='little')
-        print(f"({dwNbElements} elements, total size = {int.from_bytes(targetprefix[270:274], byteorder='little')})")
+        if target_prefix[:6] != b"Target":
+            raise DataError("No valid target signature")
 
-        adif = dif
+        bAlternateSetting = target_prefix[6]
+        if target_prefix[7]:
+            _logger.info(f"Target name: {target_prefix[11]}")
+        else:
+            _logger.info("No target name")
+
+        dwNbElements = quad2uint(target_prefix[270:274])
+        _logger.info(f"Image for alternate setting {bAlternateSetting}, "
+                     f"(%i elements {dwNbElements}, "
+                     f"total size = {target_prefix[266:270]}")
+
+        adif = dif.copy()
         while adif:
             if bAlternateSetting == adif.altsetting:
-                print(f"Setting Alternate Interface #{adif.altsetting} ...")
-                # Implement libusb_set_interface_alt_setting here
+                adif.dev = dif.dev
+                _logger.info(f"Setting Alternate Interface {adif.altsetting}")
+                ret = adif.dev.set_altsetting(adif.altsetting)
+                if ret < 0:
+                    raise _IOError(f"Cannot set alternate interface: {ret}")
+
                 break
-            adif = adif.next
-        else:
-            print(f"No alternate setting {bAlternateSetting} (skipping elements)")
+            adif = dif.next()
+
+        if not adif:
+            _logger.warning(f"No alternate setting {bAlternateSetting} (skipping elements)")
 
         for element in range(1, dwNbElements + 1):
-            print(f"Parsing element {element}")
-            elementheader = read_data(8)
+            _logger.info(f"Parsing element {element}")
+            rem = dfuse_memcpy(element_header, file.firmware, rem, len(element_header))
 
-            dwElementAddress = int.from_bytes(elementheader[:4], byteorder='little')
-            dwElementSize = int.from_bytes(elementheader[4:], byteorder='little')
-            print(f"Address = 0x{dwElementAddress:08x}, Size = {dwElementSize}")
+            dwElementAddress = quad2uint(element_header[:4])
+            dwElementSize = quad2uint(element_header[4:8])
+
+            _logger.info(f"address = 0x{dwElementAddress:02X}, size = {dwElementSize}")
+
+            if not bFirstAddressSaved:
+                bFirstAddressSaved = 1
+                dfuse_addr = dwElementAddress  # To rt_opts
 
             if dwElementSize > rem:
-                raise ValueError("File too small for element size")
+                raise DataError("File too small for element size")
 
             if adif:
-                ret = dnload_element(adif, dwElementAddress, dwElementSize, data, xfer_size)
+                ret = dnload_element(
+                    adif, dwElementAddress , dwElementSize, file.firmware, xfer_size)
+
             else:
                 ret = 0
 
-            data = data[dwElementSize:]
-            rem -= dwElementSize
+            # advance read pointer
+            rem = dfuse_memcpy(
+                bytearray(dwElementSize), file.firmware,
+                rem, dwElementSize
+            )
 
             if ret != 0:
                 return ret
 
-        bTargets -= 1
-
     if rem != 0:
-        print(f"{rem} bytes leftover")
+        _logger.warning(f"{rem} bytes leftover")
 
-    print("Done parsing DfuSe file")
-
+    _logger.info("Done parsing DfuSe file")
     return 0
 
 
