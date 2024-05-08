@@ -91,4 +91,5 @@ __all__ = (
     'DataError',
     'UsbIOError',
     '_IOError',
+    'handle_exceptions'
 )

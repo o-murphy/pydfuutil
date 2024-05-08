@@ -25,10 +25,7 @@ import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 
-from construct import (Struct, Const, ByteSwapped, Default,
-                       Int32ub, Int16ub, Int8sb)
-
-from pydfuutil.exceptions import GeneralError, NoInputError, _IOError, DataError, handle_exceptions
+from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions
 from pydfuutil.logger import logger
 
 
@@ -84,38 +81,6 @@ crc32_table = [
     0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 ]
-
-_suffix = ByteSwapped(Struct(
-    dwCRC=Default(Int32ub, 0xffffffff),
-    bLength=Const(DFU_SUFFIX_LENGTH, Int8sb),
-    ucDfuSignature=Const(b'DFU'),
-    bcdDFU=Int16ub,
-    idVendor=Int16ub,
-    idProduct=Int16ub,
-    bcdDevice=Int16ub,
-))
-
-
-# @dataclass
-# class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
-#     """Class to store DFU file data"""
-#     name: [str, None]
-#     file_p: io.FileIO = None
-#     size: int = 0
-#     dwCRC: int = 0
-#     suffix_len: int = 0
-#     bcdDFU: int = 0
-#     idVendor: int = 0xffff  # wildcard value
-#     idProduct: int = 0xffff  # wildcard value
-#     bcdDevice: int = 0xffff  # wildcard value
-
-# def parse_dfu_suffix(self) -> int:
-#     """Bind parse_dfu_suffix to DFUFile instance"""
-#     return parse_dfu_suffix(self)
-#
-# def generate_dfu_suffix(self) -> int:
-#     """Bind generate_dfu_suffix to DFUFile instance"""
-#     return generate_dfu_suffix(self)
 
 
 @dataclass
