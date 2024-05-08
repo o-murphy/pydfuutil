@@ -25,9 +25,8 @@ import warnings
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 
-from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions
+from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions, MissuseError
 from pydfuutil.logger import logger
-
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
@@ -256,9 +255,9 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
 
     res = _probe_prefix(file)
     if (res or file.size.prefix == 0) and check_prefix == PrefixReq.NEEDS_PREFIX:
-        sys.exit("Valid DFU prefix needed")
+        raise MissuseError("Valid DFU prefix needed")
     if file.size.prefix and check_prefix == PrefixReq.NO_PREFIX:
-        sys.exit("A prefix already exists, please delete it first")
+        raise DataError("A prefix already exists, please delete it first")
     if file.size.prefix:
         data = file.firmware
         if file.prefix_type == PrefixType.LMDFU_PREFIX:
@@ -310,7 +309,7 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
 
         # Write firmware binary
         crc = _write_crc(file.file_p, crc,
-                        file.firmware[file.size.prefix:file.size.total - file.size.suffix])
+                         file.firmware[file.size.prefix:file.size.total - file.size.suffix])
 
         # Write suffix, if any
         if write_suffix:
