@@ -17,7 +17,7 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = 'UNKNOWN'
 
-_logger = logger.getChild('prefix')
+_logger = logger.getChild('suffix')
 
 
 class Mode(IntEnum):
@@ -33,7 +33,11 @@ VERSION = (f'pydfuutil-suffix " v{__version__} "\n {__copyright__[0]}\n'
 
 
 def hex2int(string: str) -> float:
-    return int(string, 16)
+    try:
+        return int(string, 16)
+    except ValueError:
+        raise MissuseError("--vid, --pid, --did must be a 2-byte hex "
+                           "in 0xFFFF format")
 
 
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
@@ -90,20 +94,16 @@ def main() -> None:
     file = DFUFile(name=args.file.name, file_p=args.file)
     mode = args.mode
 
-    try:
-        pid = hex2int(args.pid) if args.pid else 0xffff
-        vid = hex2int(args.vid) if args.vid else 0xffff
-        did = hex2int(args.did) if args.did else 0xffff
-    except:
-        raise MissuseError("--vid, --pid, --did must be a 2-byte hex "
-                           "in 0xFFFF format")
+    pid = args.pid if args.pid else 0xffff
+    vid = args.vid if args.vid else 0xffff
+    did = args.did if args.did else 0xffff
 
     spec = int(args.spec, 16)
 
     if mode is Mode.ADD:
         file.load(SuffixReq.NO_SUFFIX, PrefixReq.MAYBE_PREFIX)
         file.idVendor = vid
-        file.idVendor = pid
+        file.idProduct = pid
         file.bcdDevice = did
         file.bcdDFU = spec
         # always write suffix, rewrite prefix if there was one

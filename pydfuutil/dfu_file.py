@@ -209,7 +209,7 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
                 raise _IOError(f"Error reading file {file.name}: {e}")
 
     missing_suffix, reason = False, None
-
+    print(file.size.total)
     if file.size.total < DFU_SUFFIX_LENGTH:
         reason = "File too short for DFU suffix"
         missing_suffix = True
@@ -220,7 +220,9 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
         for byte in file.firmware[:-4]:
             crc = crc32_byte(crc, byte)
 
-        if dfu_suffix[10] != b'D' or dfu_suffix[9] != b'F' or dfu_suffix[8] != b'U':
+        # print(dfu_suffix[8] == b'U', chr(dfu_suffix[9]), chr(dfu_suffix[10]))
+        # print(dfu_suffix[8:11] == b'UFD')
+        if dfu_suffix[8:11] != b'UFD':
             reason = "Invalid DFU suffix signature"
             missing_suffix = True
         elif struct.unpack('<I', dfu_suffix[12:])[0] != crc:
@@ -318,12 +320,13 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
             dfusuffix[2:4] = file.idProduct.to_bytes(2, 'little')
             dfusuffix[4:6] = file.idVendor.to_bytes(2, 'little')
             dfusuffix[6:8] = file.bcdDFU.to_bytes(2, 'little')
-            dfusuffix[8:12] = b'UDF'
-            dfusuffix[12] = file.size.suffix
+            dfusuffix[8:11] = b'UFD'
+            dfusuffix[11] = DFU_SUFFIX_LENGTH
 
-            crc = _write_crc(file.file_p, crc, dfusuffix[:-4])
+            crc = file.write_crc(crc, dfusuffix[:-4])
+
+            dfusuffix[12:16] = crc.to_bytes(4, 'little')
             _write_crc(file.file_p, crc, dfusuffix[12:])
-            # crc = write_crc(file.file_p, crc, dfusuffix[12:])
 
     finally:
         file.file_p.close()
