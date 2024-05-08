@@ -26,14 +26,6 @@ from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
 try:
-    import libusb_package
-    from usb.backend import libusb1
-
-    libusb1.get_backend(libusb_package.find_library)
-finally:
-    pass
-
-try:
     __version__ = importlib.metadata.version("pydfuutil")
 except importlib.metadata.PackageNotFoundError:
     __version__ = 'UNKNOWN'
