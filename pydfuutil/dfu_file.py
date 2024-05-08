@@ -23,7 +23,7 @@ import struct
 import sys
 import warnings
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions, MissuseError
 from pydfuutil.logger import logger
@@ -89,13 +89,13 @@ class DFUFileSize:
     suffix: int = 0
 
 
-class SuffixReq(Enum):
+class SuffixReq(IntEnum):
     NO_SUFFIX = 0
     NEEDS_SUFFIX = 1
     MAYBE_SUFFIX = 2
 
 
-class PrefixReq(Enum):
+class PrefixReq(IntEnum):
     NO_PREFIX = 0
     NEEDS_PREFIX = 1
     MAYBE_PREFIX = 2
