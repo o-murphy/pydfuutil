@@ -66,3 +66,4 @@ test = [
 [project.scripts]
 pydfuutil = "pydfuutil.__main__:main"
 pydfuutil-suffix = "pydfuutil.suffix:main"
+pydfuutil-prefix = "pydfuutil.prefix:main"

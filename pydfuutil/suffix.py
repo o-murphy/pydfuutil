@@ -17,7 +17,7 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = 'UNKNOWN'
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('prefix')
 
 
 class Mode(IntEnum):
@@ -87,21 +87,20 @@ def main() -> None:
         parser.print_help()
         raise GeneralError(err)
 
-
     file = DFUFile(name=args.file.name, file_p=args.file)
     mode = args.mode
 
     try:
-        pid = int(args.pid, 16) if args.pid else 0xffff
-        vid = int(args.vid, 16) if args.vid else 0xffff
-        did = int(args.did, 16) if args.did else 0xffff
+        pid = hex2int(args.pid) if args.pid else 0xffff
+        vid = hex2int(args.vid) if args.vid else 0xffff
+        did = hex2int(args.did) if args.did else 0xffff
     except:
-        raise MissuseError("--vid, --pid, --did must be an 2-byte hex "
+        raise MissuseError("--vid, --pid, --did must be a 2-byte hex "
                            "in 0xFFFF format")
 
     spec = int(args.spec, 16)
 
-    if mode == Mode.ADD:
+    if mode is Mode.ADD:
         file.load(SuffixReq.NO_SUFFIX, PrefixReq.MAYBE_PREFIX)
         file.idVendor = vid
         file.idVendor = pid
@@ -111,11 +110,11 @@ def main() -> None:
         file.dump(True, file.size.prefix != 0)
         _logger.info("Suffix successfully added to file")
 
-    elif mode == Mode.CHECK:
+    elif mode is Mode.CHECK:
         file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.MAYBE_PREFIX)
         file.show_suffix_and_prefix()
 
-    elif mode == Mode.DEL:
+    elif mode is Mode.DEL:
         file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.MAYBE_PREFIX)
         file.dump(False, file.size.prefix != 0)
         if file.size.suffix:

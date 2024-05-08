@@ -23,7 +23,7 @@ import struct
 import sys
 import warnings
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, IntEnum
 
 from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions
 from pydfuutil.logger import logger
@@ -102,7 +102,7 @@ class PrefixReq(Enum):
     MAYBE_PREFIX = 2
 
 
-class PrefixType(Enum):
+class PrefixType(IntEnum):
     ZERO_PREFIX = 0
     LMDFU_PREFIX = 1
     LPCDFU_UNENCRYPTED_PREFIX = 2
@@ -116,7 +116,7 @@ class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     file_p: io.FileIO = None
     size: DFUFileSize = field(default_factory=DFUFileSize)
     lmdfu_address: int = 0
-    prefix_type: PrefixType = None
+    prefix_type: PrefixType = PrefixType.ZERO_PREFIX
     dwCRC: int = 0
     bcdDFU: int = 0
     idVendor: int = 0xffff  # wildcard value
