@@ -47,7 +47,8 @@ VERSION = (f'pydfuutil-suffix " v{__version__} "\n {__copyright__[0]}\n'
            f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
 
 
-def hex2int(string: str) -> float:
+def hex2int(string: str) -> int:
+    """Convert a hexadecimal string to an int"""
     try:
         return int(string, 16)
     except ValueError:

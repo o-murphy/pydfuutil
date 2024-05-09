@@ -264,7 +264,8 @@ def special_command(dif: dfu.DfuIf, address: int,
 
         if first_poll:
             first_poll = 0
-            if dst.bState != dfu.State.DFU_DOWNLOAD_BUSY and dst.bState != dfu.State.DFU_DOWNLOAD_IDLE:
+            if (dst.bState != dfu.State.DFU_DOWNLOAD_BUSY
+                    and dst.bState != dfu.State.DFU_DOWNLOAD_IDLE):
                 _logger.error(f"DFU state({dst.bState}) = {dst.bState.to_string()}, "
                               f"status({dst.bStatus}) = {dst.bStatus.to_string()}")
                 raise ProtocolError(f"Wrong state after command {command.name} download")
@@ -557,7 +558,8 @@ def dfuse_memcpy(dst, src, rem, size):
 
 
 @handle_exceptions(_logger)
-def do_bin_download(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address: int) -> int:
+def do_bin_download(dif: dfu.DfuIf, xfer_size: int,
+                    file: DFUFile, start_address: int) -> int:
     """
     Download raw binary file to DfuSe device.
 
@@ -570,7 +572,8 @@ def do_bin_download(dif: dfu.DfuIf, xfer_size: int, file: DFUFile, start_address
     dw_element_address = start_address
     dw_element_size = file.size.total - file.size.suffix - file.size.prefix
 
-    _logger.info(f"Downloading element to address = 0x{dw_element_address:08x}, size = {dw_element_size}")
+    _logger.info(f"Downloading element to "
+                 f"address = 0x{dw_element_address:08x}, size = {dw_element_size}")
 
     data = file.firmware[file.size.prefix:]
 

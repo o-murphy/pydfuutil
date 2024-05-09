@@ -54,9 +54,6 @@ class State(IntEnum):
         """
         return _state_to_string(self)
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:04x}>"
-
 
 class Status(IntEnum):
     """Dfu statuses"""
@@ -82,9 +79,6 @@ class Status(IntEnum):
         :return: Status.self name by Status Enum
         """
         return _status_to_string(self)
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:04x}>"
 
 
 class Command(IntEnum):

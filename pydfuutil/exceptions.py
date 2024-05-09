@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
+import logging
 import sys
 from functools import wraps
 
@@ -32,32 +33,39 @@ class GeneralError(Exception):
 
 
 class DataError(GeneralError, ValueError, TypeError):
+    """EX_DATAERR"""
     exit_code = 65
 
 
 class SoftwareError(GeneralError):
+    """EX_SOFTWARE"""
     exit_code = 70
 
 
 class ProtocolError(GeneralError):
+    """EX_PROTOCOL"""
     exit_code = 76
 
 
 class _IOError(GeneralError, IOError):
+    """EX_IOERR"""
     exit_code = 74
 
 
 class NoInputError(GeneralError, OSError):
+    """EX_NOINPUT"""
     exit_code = 66
 
 
 class UsbIOError(_IOError):
+    """USB IOError"""
     exit_code = 1
 
 
 class GeneralWarning(GeneralError):
     """
     Usually indicates a general warning
+    FIXME: deprecated
     """
 
 
@@ -82,17 +90,13 @@ def handle_exceptions(_logger):
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
+            except GeneralError as e:
+                if str(e):
+                    _logger.error(e)
+                sys.exit(e.exit_code)
             except Exception as e:
-                if isinstance(e, GeneralWarning):
-                    if e.__str__():
-                        _logger.warning(e)
-                elif isinstance(e, GeneralError):
-                    if e.__str__():
-                        _logger.error(e)
-                    sys.exit(e.exit_code)
-                else:
-                    _logger.exception("Unhandled exception occurred")
-                    raise
+                _logger.error(f"Unhandled exception occurred: {e}")
+                sys.exit(1)
 
         return wrapper
 

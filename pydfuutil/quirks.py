@@ -29,6 +29,7 @@ GD32VF103_FLASH_BASE = 0x08000000
 
 
 class VENDOR(IntEnum):
+    """Vendor IDs"""
     OPENMOKO = 0x1d50  # Openmoko Freerunner / GTA02
     FIC = 0x1d50  # Openmoko Freerunner / GTA02
     VOTI = 0x16c0  # OpenPCD Reader
@@ -39,6 +40,7 @@ class VENDOR(IntEnum):
 
 
 class PRODUCT(IntEnum):
+    """Product IDs"""
     FREERUNNER_FIRST = 0x5117
     FREERUNNER_LAST = 0x5126
     SIMTRACE = 0x0762
@@ -52,6 +54,7 @@ class PRODUCT(IntEnum):
 
 
 class QUIRK(IntFlag):
+    """Quirk flags"""
     POLLTIMEOUT = 1 << 0
     FORCE_DFU11 = 1 << 1
     UTF8_SERIAL = 1 << 2
@@ -109,6 +112,7 @@ def get_quirks(vendor: int, product: int, bcdDevice: int) -> [int, QUIRK]:
 
 
 def fixup_dfuse_layout(dif, segment_list: MemSegment):
+    """fixup dfuse layout for specific device"""
     if (dif.vendor == VENDOR.GIGADEVICE and
             dif.product == PRODUCT.GD32 and
             dif.altsetting == 0 and
@@ -140,7 +144,8 @@ def fixup_dfuse_layout(dif, segment_list: MemSegment):
         elif dif.serial_name[2] == '4':
             count = 16
         else:
-            logger.warning(f"Unknown flash size '{dif.serial_name[2]}' in part number; defaulting to 128KB.")
+            logger.warning(f"Unknown flash size '{dif.serial_name[2]}' "
+                           f"in part number; defaulting to 128KB.")
             count = 128
 
         seg.end = seg.start + (count * seg.pagesize) - 1

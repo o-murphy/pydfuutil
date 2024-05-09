@@ -84,30 +84,34 @@ crc32_table = [
 
 @dataclass
 class DFUFileSize:
+    """Dfu file size struct"""
     total: int = 0
     prefix: int = 0
     suffix: int = 0
 
 
 class SuffixReq(IntEnum):
+    """Suffix requirement"""
     NO_SUFFIX = 0
     NEEDS_SUFFIX = 1
     MAYBE_SUFFIX = 2
 
 
 class PrefixReq(IntEnum):
+    """Prefix requirement"""
     NO_PREFIX = 0
     NEEDS_PREFIX = 1
     MAYBE_PREFIX = 2
 
 
 class PrefixType(IntEnum):
+    """Dfu prefix type"""
     ZERO_PREFIX = 0
     LMDFU_PREFIX = 1
     LPCDFU_UNENCRYPTED_PREFIX = 2
 
 
-@dataclass  # TODO: reimplement as io.FileIO
+@dataclass
 class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     """Class to store DFU file data"""
     name: [str, None]
@@ -123,15 +127,19 @@ class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     bcdDevice: int = 0xffff  # wildcard value
 
     def dump(self, write_suffix: bool, write_prefix: bool) -> None:
+        """writes suffix and/or prefix to dfu file"""
         return _store_file(self, write_suffix, write_prefix)
 
     def load(self, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
+        """loads suffix and/or prefix from dfu file"""
         return _load_file(self, check_suffix, check_prefix)
 
     def write_crc(self, crc: int, buf: [bytes, bytearray]) -> int:
+        """writes desired data to dfu file"""
         return _write_crc(self.file_p, crc, buf)
 
     def show_suffix_and_prefix(self) -> None:
+        """Prints suffix and prefix of dfu file"""
         _show_suffix_and_prefix(self)
 
 
@@ -164,6 +172,8 @@ def _probe_prefix(file: DFUFile):
 
 
 def _write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> int:
+    """writes desired data to dfu file"""
+
     # compute CRC
     size = len(buf)
     for x in range(0, size):
@@ -178,6 +188,8 @@ def _write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) ->
 
 @handle_exceptions(_logger)
 def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
+    """loads suffix and/or prefix from dfu file"""
+
     file.size.prefix = 0
     file.size.suffix = 0
 
@@ -204,9 +216,10 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
                 file.size.total = len(file.firmware)
         except IOError as e:
             if e.errno == errno.ENOENT:
-                raise NoInputError(f"Could not open file {file.name} for reading")
-            else:
-                raise _IOError(f"Error reading file {file.name}: {e}")
+                raise NoInputError(f"Could not open file {file.name} for reading") from e
+            if e.errno == errno.EACCES:
+                raise _IOError(f"Permission denied: {file.name}") from e
+            raise _IOError(f"Error reading file {file.name}: {e}") from e
 
     missing_suffix, reason = False, None
     if file.size.total < DFU_SUFFIX_LENGTH:
@@ -232,7 +245,7 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
             file.size.suffix = dfu_suffix[11]
             if file.size.suffix < DFU_SUFFIX_LENGTH:
                 raise DataError(f"Unsupported DFU suffix length {file.size.suffix}")
-            elif file.size.suffix > file.size.total:
+            if file.size.suffix > file.size.total:
                 raise DataError(f"Invalid DFU suffix length {file.size.suffix}")
 
             file.idVendor = struct.unpack('<H', dfu_suffix[4:6])[0]
@@ -242,7 +255,7 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
     if missing_suffix:
         if check_suffix == PrefixReq.NEEDS_PREFIX:
             raise DataError(reason + " Valid DFU suffix needed")
-        elif check_suffix == PrefixReq.MAYBE_PREFIX:
+        if check_suffix == PrefixReq.MAYBE_PREFIX:
             _logger.warning(f"{reason}")
             warnings.warn(
                 "A valid DFU suffix will be required in a future dfu-util release",
@@ -270,70 +283,71 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
             raise DataError("Unknown DFU prefix type")
 
 
+@handle_exceptions(_logger)
 def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
+    """writes suffix and/or prefix to dfu file"""
+
     crc = 0xffffffff
 
     try:
-        file.file_p = open(file.name, 'wb')
+        with open(file.name, 'wb') as file.file_p:
+
+            # Write prefix, if any
+            if write_prefix:
+                if file.prefix_type == PrefixType.LMDFU_PREFIX:
+                    addr = file.lmdfu_address // 1024
+                    len_payload = file.size.total - file.size.prefix - file.size.suffix
+
+                    lmdfu_prefix = bytearray(LMDFU_PREFIX_LENGTH)
+                    lmdfu_prefix[0] = 0x01  # STELLARIS_DFU_PROG
+                    lmdfu_prefix[2:4] = addr.to_bytes(2, 'little')
+                    lmdfu_prefix[4:8] = len_payload.to_bytes(4, 'little')
+
+                    crc = _write_crc(file.file_p, crc, lmdfu_prefix)
+
+                elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
+                    len_payload = (file.size.total - file.size.suffix + 511) // 512
+
+                    lpc_dfu_prefix = bytearray(LPCDFU_PREFIX_LENGTH)
+                    lpc_dfu_prefix[0] = 0x1a  # Unencrypted
+                    lpc_dfu_prefix[1] = 0x3f  # Reserved
+                    lpc_dfu_prefix[2:4] = len_payload.to_bytes(2, 'little')
+
+                    for i in range(12, LPCDFU_PREFIX_LENGTH):
+                        lpc_dfu_prefix[i] = 0xff
+
+                    crc = _write_crc(file.file_p, crc, lpc_dfu_prefix)
+
+            # Write firmware binary
+            crc = _write_crc(file.file_p, crc,
+                             file.firmware[file.size.prefix:file.size.total - file.size.suffix])
+
+            # Write suffix, if any
+            if write_suffix:
+                dfu_suffix = bytearray(16)
+                dfu_suffix[0:2] = file.bcdDevice.to_bytes(2, 'little')
+                dfu_suffix[2:4] = file.idProduct.to_bytes(2, 'little')
+                dfu_suffix[4:6] = file.idVendor.to_bytes(2, 'little')
+                dfu_suffix[6:8] = file.bcdDFU.to_bytes(2, 'little')
+                dfu_suffix[8:11] = b'UFD'
+                dfu_suffix[11] = DFU_SUFFIX_LENGTH
+
+                crc = file.write_crc(crc, dfu_suffix[:-4])
+
+                dfu_suffix[12:16] = crc.to_bytes(4, 'little')
+                _write_crc(file.file_p, crc, dfu_suffix[12:])
+
     except IOError as e:
         if e.errno == errno.ENOENT:
-            raise _IOError(errno.ENOENT, f"Could not open file {file.name} for writing")
-        elif e.errno == errno.EACCES:
-            raise _IOError(errno.EACCES, f"Permission denied: {file.name}")
-        else:
-            raise _IOError(f"Error opening file {file.name}: {e}")
-
-    try:
-        # Write prefix, if any
-        if write_prefix:
-            if file.prefix_type == PrefixType.LMDFU_PREFIX:
-                addr = file.lmdfu_address // 1024
-                len_payload = file.size.total - file.size.prefix - file.size.suffix
-
-                lmdfu_prefix = bytearray(LMDFU_PREFIX_LENGTH)
-                lmdfu_prefix[0] = 0x01  # STELLARIS_DFU_PROG
-                lmdfu_prefix[2:4] = addr.to_bytes(2, 'little')
-                lmdfu_prefix[4:8] = len_payload.to_bytes(4, 'little')
-
-                crc = _write_crc(file.file_p, crc, lmdfu_prefix)
-
-            elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
-                len_payload = (file.size.total - file.size.suffix + 511) // 512
-
-                lpc_dfu_prefix = bytearray(LPCDFU_PREFIX_LENGTH)
-                lpc_dfu_prefix[0] = 0x1a  # Unencrypted
-                lpc_dfu_prefix[1] = 0x3f  # Reserved
-                lpc_dfu_prefix[2:4] = len_payload.to_bytes(2, 'little')
-
-                for i in range(12, LPCDFU_PREFIX_LENGTH):
-                    lpc_dfu_prefix[i] = 0xff
-
-                crc = _write_crc(file.file_p, crc, lpc_dfu_prefix)
-
-        # Write firmware binary
-        crc = _write_crc(file.file_p, crc,
-                         file.firmware[file.size.prefix:file.size.total - file.size.suffix])
-
-        # Write suffix, if any
-        if write_suffix:
-            dfu_suffix = bytearray(16)
-            dfu_suffix[0:2] = file.bcdDevice.to_bytes(2, 'little')
-            dfu_suffix[2:4] = file.idProduct.to_bytes(2, 'little')
-            dfu_suffix[4:6] = file.idVendor.to_bytes(2, 'little')
-            dfu_suffix[6:8] = file.bcdDFU.to_bytes(2, 'little')
-            dfu_suffix[8:11] = b'UFD'
-            dfu_suffix[11] = DFU_SUFFIX_LENGTH
-
-            crc = file.write_crc(crc, dfu_suffix[:-4])
-
-            dfu_suffix[12:16] = crc.to_bytes(4, 'little')
-            _write_crc(file.file_p, crc, dfu_suffix[12:])
-
-    finally:
-        file.file_p.close()
+            raise _IOError(f"Could not open file {file.name} for writing") from e
+        if e.errno == errno.EACCES:
+            raise _IOError(f"Permission denied: {file.name}") from e
+        raise _IOError(f"Error opening file {file.name}: {e}") from e
 
 
 def _show_suffix_and_prefix(file: DFUFile) -> None:
+    """Prints suffix and prefix of dfu file"""
+
     if file.size.prefix == LPCDFU_PREFIX_LENGTH:
         print(f"The file {file.name} contains a TI Stellaris "
               f"DFU prefix with the following properties:")

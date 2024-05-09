@@ -102,9 +102,9 @@ def main():
 
     try:
         args = parser.parse_args()
-    except argparse.ArgumentError as err:
+    except argparse.ArgumentError as e:
         parser.print_help()
-        raise GeneralError(err)
+        raise GeneralError(e) from e
 
     file = DFUFile(name=args.file.name, file_p=args.file)
     mode = args.mode
@@ -112,9 +112,9 @@ def main():
 
     try:
         lmdfu_flash_address = hex2int(args.s) if args.s else 0
-    except ValueError:
+    except ValueError as e:
         raise MissUseError("--stellaris-address must be a 2-byte hex "
-                           "in 0xFFFF format")
+                           "in 0xFFFF format") from e
 
     if not file.name:
         _logger.error("You need to specify a filename")
