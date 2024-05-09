@@ -225,8 +225,8 @@ def main():
 
     try:
         args = parser.parse_args()
-    except (argparse.ArgumentError, argparse.ArgumentTypeError) as err:
-        raise GeneralError(err)
+    except (argparse.ArgumentError, argparse.ArgumentTypeError) as e:
+        raise GeneralError(e) from e
 
     if args.help:
         parser.print_help()

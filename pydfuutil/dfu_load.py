@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DFUFile
-from pydfuutil.exceptions import _IOError, SoftwareError, GeneralError, handle_exceptions
+from pydfuutil.exceptions import _IOError, SoftwareError, handle_exceptions
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -87,7 +87,7 @@ def do_upload(dif: dfu.DfuIf,
 
         _logger.debug(f"Received a total of {total_bytes} bytes")
 
-        if expected_size != 0 and total_bytes != expected_size:
+        if expected_size not in (0, total_bytes):
             _logger.warning("Unexpected number of bytes uploaded from device")
 
         return ret

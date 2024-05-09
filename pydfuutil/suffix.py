@@ -51,9 +51,9 @@ def hex2int(string: str) -> int:
     """Convert a hexadecimal string to an int"""
     try:
         return int(string, 16)
-    except ValueError:
+    except ValueError as e:
         raise MissUseError("--vid, --pid, --did must be a 2-byte hex "
-                           "in 0xFFFF format")
+                           "in 0xFFFF format") from e
 
 
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
@@ -103,9 +103,9 @@ def main() -> None:
     print(f"v{__version__}")
     try:
         args = parser.parse_args()
-    except argparse.ArgumentError as err:
+    except argparse.ArgumentError as e:
         parser.print_help()
-        raise GeneralError(err)
+        raise GeneralError(e) from e
 
     file = DFUFile(name=args.file.name, file_p=args.file)
     mode = args.mode

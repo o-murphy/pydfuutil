@@ -38,6 +38,7 @@ VERSION = (f'pydfuutil-prefix " v{__version__} "\n {__copyright__[0]}\n'
 
 
 def hex2int(string: str) -> float:
+    """Convert a hexadecimal string to an int"""
     return int(string, 16)
 
 
