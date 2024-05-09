@@ -22,8 +22,9 @@ import importlib.metadata
 import sys
 from typing import Generator
 
-import usb.core
 import usb._lookup as _lu
+import usb.core
+from usb.core import _try_lookup
 from pydfuutil import __copyright__
 from pydfuutil.logger import logger
 from pydfuutil.exceptions import handle_exceptions, GeneralError
@@ -39,82 +40,88 @@ VERSION = (f'pydfuutil-lsusb " v{__version__} "\n {__copyright__[0]}\n'
            f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
 
 
+class VidPidAction(argparse.Action):
+    """Parser for -d option"""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        def validate_int(val, base: int = 10):
+            try:
+                return int(val, base) if val not in (None, '') else None
+            except ValueError:
+                parser.print_help()
+                return parser.error("-d format should be vendor:[product] "
+                                    "vendor and product ID numbers (in hexadecimal)")
+
+        if values.count(":") > 1:
+            validate_int(None)
+        vid, pid = None, None
+        if ":" in values:
+            vid, pid = values.split(":")
+        elif values.startswith(":"):
+            pid = values[1:]
+        elif values.endswith(":"):
+            vid = values[:-1]
+        else:
+            vid = values
+        setattr(namespace, "vid", validate_int(vid, 16))
+        setattr(namespace, "pid", validate_int(pid, 16))
+
+
+class BusDevAction(argparse.Action):
+    """Parser for -s option"""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+
+        def validate_int(val, base: int = 10):
+            try:
+                return int(val, base) if val not in (None, '') else None
+            except ValueError:
+                parser.print_help()
+                return parser.error("-s format should be [[bus]:][devnum] "
+                                    "device and/or bus numbers (in decimal)")
+
+        if values.count(":") > 1:
+            validate_int(None)
+        bus, devnum = None, None
+        if ":" in values:
+            bus, devnum = values.split(":")
+        elif values.startswith(":"):
+            devnum = values[1:]
+        elif values.endswith(":"):
+            bus = values[:-1]
+        elif values == ":":
+            pass
+        else:
+            devnum = values
+        setattr(namespace, "bus", validate_int(bus))
+        setattr(namespace, "address", validate_int(devnum))
+
+
+class SimulateUnixPath(argparse.Action):
+    """Parser for -D option"""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        def validate_int(val, base: int = 10):
+            try:
+                return int(val, base) if val not in (None, '') else None
+            except ValueError:
+                parser.print_help()
+                return parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
+
+        setattr(namespace, "D", values)
+        if not values.startswith('/dev/bus/usb/'):
+            parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
+        bus_devnum = values.split('/')[4:]
+        if 1 > len(bus_devnum) > 2:
+            parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
+        bus, devnum = bus_devnum
+        setattr(namespace, "bus", validate_int(bus))
+        setattr(namespace, "address", validate_int(devnum))
+
+
 @handle_exceptions(_logger)
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
     """Add cli options"""
-
-    class VidPidAction(argparse.Action):
-        """Parser for -d option"""
-        def __call__(self, parser, namespace, values, option_string=None):
-            def validate_int(val, base: int = 10):
-                try:
-                    return int(val, base) if val not in (None, '') else None
-                except ValueError:
-                    parser.print_help()
-                    return parser.error("-d format should be vendor:[product] "
-                                 "vendor and product ID numbers (in hexadecimal)")
-
-            if values.count(":") > 1:
-                validate_int(None)
-            vid, pid = None, None
-            if ":" in values:
-                vid, pid = values.split(":")
-            elif values.startswith(":"):
-                pid = values[1:]
-            elif values.endswith(":"):
-                vid = values[:-1]
-            else:
-                vid = values
-            setattr(namespace, "vid", validate_int(vid, 16))
-            setattr(namespace, "pid", validate_int(pid, 16))
-
-    class BusDevAction(argparse.Action):
-        """Parser for -s option"""
-        def __call__(self, parser, namespace, values, option_string=None):
-
-            def validate_int(val, base: int = 10):
-                try:
-                    return int(val, base) if val not in (None, '') else None
-                except ValueError:
-                    parser.print_help()
-                    return parser.error("-s format should be [[bus]:][devnum] "
-                                 "device and/or bus numbers (in decimal)")
-
-            if values.count(":") > 1:
-                validate_int(None)
-            bus, devnum = None, None
-            if ":" in values:
-                bus, devnum = values.split(":")
-            elif values.startswith(":"):
-                devnum = values[1:]
-            elif values.endswith(":"):
-                bus = values[:-1]
-            elif values == ":":
-                pass
-            else:
-                devnum = values
-            setattr(namespace, "bus", validate_int(bus))
-            setattr(namespace, "address", validate_int(devnum))
-
-    class SimulateUnixPath(argparse.Action):
-        """Parser for -D option"""
-        def __call__(self, parser, namespace, values, option_string=None):
-            def validate_int(val, base: int = 10):
-                try:
-                    return int(val, base) if val not in (None, '') else None
-                except ValueError:
-                    parser.print_help()
-                    return parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
-
-            setattr(namespace, "D", values)
-            if not values.startswith('/dev/bus/usb/'):
-                parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
-            bus_devnum = values.split('/')[4:]
-            if 1 > len(bus_devnum) > 2:
-                parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
-            bus, devnum = bus_devnum
-            setattr(namespace, "bus", validate_int(bus))
-            setattr(namespace, "address", validate_int(devnum))
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Increase verbosity (show descriptors)')
@@ -173,6 +180,7 @@ def list_devices(vid: int = None,
                  address: int = None,
                  verbose=False) -> None:
     """Prints out founded devices list"""
+
     def custom_match(dev):
         return device_find_filter(dev, vid, pid, bus, address)
 
@@ -185,6 +193,7 @@ def iter_devices(vid: int = None,
                  bus: int = None,
                  address: int = None) -> Generator[usb.core.Device, None, None]:
     """Returns a context if fultered devices"""
+
     def custom_match(dev):
         return device_find_filter(dev, vid, pid, bus, address)
 
@@ -199,7 +208,7 @@ def sym_unix_dev_tree(vid: int = None,
     """Simulates UNIX device tree"""
     ctx = iter_devices(vid, pid, bus, address)
     for dev in ctx:
-        dev_class = usb.core._try_lookup(_lu.device_classes, dev.bDeviceClass)
+        dev_class = _try_lookup(_lu.device_classes, dev.bDeviceClass)
         # dev_driver =
         manufacturer = usb.util.get_string(dev, dev.iManufacturer)
         product = usb.util.get_string(dev, dev.iProduct)
