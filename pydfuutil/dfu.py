@@ -54,6 +54,9 @@ class State(IntEnum):
         """
         return _state_to_string(self)
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:04x}>"
+
 
 class Status(IntEnum):
     """Dfu statuses"""
@@ -80,6 +83,9 @@ class Status(IntEnum):
         """
         return _status_to_string(self)
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:04x}>"
+
 
 class Command(IntEnum):
     """Dfu commands"""
@@ -93,18 +99,21 @@ class Command(IntEnum):
 
 
 # /* DFU interface */
-class Mode(IntFlag):
+class IFF(IntFlag):
     """Dfu modes"""
-    IFF_DFU = 0x0001  # /* DFU Mode, (not Runtime) */
-    IFF_VENDOR = 0x0100
-    IFF_PRODUCT = 0x0200
-    IFF_CONFIG = 0x0400
-    IFF_IFACE = 0x0800
-    IFF_ALT = 0x1000
-    IFF_DEVNUM = 0x2000
-    IFF_PATH = 0x4000
+    DFU = 0x0001  # /* DFU Mode, (not Runtime) */
+    VENDOR = 0x0100
+    PRODUCT = 0x0200
+    CONFIG = 0x0400
+    IFACE = 0x0800
+    ALT = 0x1000
+    DEVNUM = 0x2000
+    PATH = 0x4000
     # DFU_IFF_DFU = 0x0001  /* DFU Mode, (not Runtime) */
     # DFU_IFF_ALT = 0x0002  /* Multiple alternate settings */
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:04x}>"
 
 
 @dataclass
@@ -164,16 +173,18 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
     alt_name: str = None
     bus: int = None
     devnum: int = None
-    path: [str, int] = None
-    flags: [Mode, int] = 0
-    count: int = None
+    path: [str, int] = None  # FIXME: deprecated
+    flags: [IFF, int] = 0
+    count: int = None  # FIXME: deprecated
     dev: usb.core.Device = None
     quirks: int = None
     bwPollTimeout: int = 0
+    bMaxPacketSize0: int = 0
     serial_name: str = ""
-    usb_dfu_func_desc: FuncDescriptor = None
+    func_dfu: FuncDescriptor = None
     next: 'DfuIf' = None
     mem_layout: MemSegment = None
+
 
     @property
     def device_ids(self) -> dict:
@@ -542,6 +553,6 @@ __all__ = (
     "State",
     "StatusRetVal",
     "DfuIf",
-    'Mode',
+    'IFF',
     'init'
 )

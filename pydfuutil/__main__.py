@@ -129,9 +129,9 @@ def get_first_dfu_if(dev: usb.core.Device) -> dfu.DfuIf:
 
 
 def _check_match_cb(dif: dfu.DfuIf, other: dfu.DfuIf):
-    if other.flags & dfu.Mode.IFF_IFACE and dif.interface != other.interface:
+    if other.flags & dfu.IFF.IFACE and dif.interface != other.interface:
         return 0
-    if other.flags & dfu.Mode.IFF_ALT and dif.altsetting != other.altsetting:
+    if other.flags & dfu.IFF.ALT and dif.altsetting != other.altsetting:
         return 0
     return 1
 
@@ -195,7 +195,7 @@ def print_dfu_if(dfu_if: dfu.DfuIf) -> int:
     :return: Always returns 0.
     """
     name = get_alt_name(dfu_if) or "UNDEFINED"
-    logger.info(f"Found {'DFU' if dfu_if.flags & dfu.Mode.IFF_DFU else 'Runtime'}: "
+    logger.info(f"Found {'DFU' if dfu_if.flags & dfu.IFF.DFU else 'Runtime'}: "
                 f"[{dfu_if.vendor:04x}:{dfu_if.product:04x}] "
                 f"devnum={dfu_if.devnum}, cfg={dfu_if.configuration}, "
                 f"intf={dfu_if.interface}, alt={dfu_if.altsetting}, "
@@ -254,12 +254,12 @@ def iterate_dfu_devices(ctx: list[usb.core.Device], dif: dfu.DfuIf) -> list[usb.
     retval = []
     for dev in ctx:
         if dif:
-            if ((dif.flags & dfu.Mode.IFF_DEVNUM)
+            if ((dif.flags & dfu.IFF.DEVNUM)
                     and (dev.bus != dif.bus or dev.address != dif.devnum)):
                 continue
-            if (dif.flags & dfu.Mode.IFF_VENDOR) and dev.idVendor != dif.vendor:
+            if (dif.flags & dfu.IFF.VENDOR) and dev.idVendor != dif.vendor:
                 continue
-            if (dif.flags & dfu.Mode.IFF_PRODUCT) and dev.idProduct != dif.product:
+            if (dif.flags & dfu.IFF.PRODUCT) and dev.idProduct != dif.product:
                 continue
         if count_dfu_interfaces(dev):
             retval.append(dev)
@@ -329,7 +329,7 @@ def resolve_device_path(dif: dfu.DfuIf) -> int:
 
         dif.bus = atoi(dif.path)
         dif.devnum = res
-        dif.flags |= dfu.Mode.IFF_DEVNUM
+        dif.flags |= dfu.IFF.DEVNUM
         logger.debug(f"DIF PATH: {dif.path}: {dif.bus}")
         return res
     except SystemError as err:
@@ -611,7 +611,7 @@ def main() -> None:
 
     if args.path:
         dif.path = args.path
-        dif.flags |= dfu.Mode.IFF_PATH
+        dif.flags |= dfu.IFF.PATH
         if ret := resolve_device_path(dif):
             raise MissUseError(f"unable to parse {args.path}")
         if not ret:
@@ -619,11 +619,11 @@ def main() -> None:
 
     if args.cfg:
         dif.configuration = atoi(args.cfg)
-        dif.flags |= dfu.Mode.IFF_CONFIG
+        dif.flags |= dfu.IFF.CONFIG
 
     if args.intf:
         dif.interface = atoi(args.intf)
-        dif.flags |= dfu.Mode.IFF_IFACE
+        dif.flags |= dfu.IFF.IFACE
 
     if args.alt:
         altsetting = int(args.alt, 0)
@@ -631,7 +631,7 @@ def main() -> None:
             dif.altsetting = altsetting
         else:
             alt_name = args.alt
-        dif.flags |= dfu.Mode.IFF_ALT
+        dif.flags |= dfu.IFF.ALT
 
     if args.transfer_size:
         transfer_size = atoi(args.transfer_size)
@@ -659,9 +659,9 @@ def main() -> None:
         dif.vendor, dif.product = parse_vid_pid(device_id_filter)
         logger.info(f"Filter on VID = 0x{dif.vendor:04X} PID = 0x{dif.product:04X}\n")
         if dif.vendor:
-            dif.flags |= dfu.Mode.IFF_VENDOR
+            dif.flags |= dfu.IFF.VENDOR
         if dif.product:
-            dif.flags |= dfu.Mode.IFF_PRODUCT
+            dif.flags |= dfu.IFF.PRODUCT
 
     apply_all = args.yes_to_all
 
@@ -731,7 +731,7 @@ def main() -> None:
             milli_sleep(status_.bwPollTimeout)
         return status_
 
-    if not _rt_dif.flags & dfu.Mode.IFF_DFU:
+    if not _rt_dif.flags & dfu.IFF.DFU:
         # In the 'first round' during runtime mode, there can only be one
         # DFU Interface descriptor according to the DFU Spec.
         # Note: future warning: check if the selected device really has only one
@@ -780,7 +780,7 @@ def main() -> None:
             usb.util.dispose_resources(_rt_dif.dev)
             sys.exit(0)
 
-        if dif.flags & dfu.Mode.IFF_PATH:
+        if dif.flags & dfu.IFF.PATH:
             ret = resolve_device_path(dif)
             if not ret:
                 raise GeneralError("Cannot resolve path after RESET?")
