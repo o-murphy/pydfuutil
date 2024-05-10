@@ -25,7 +25,7 @@ import warnings
 from dataclasses import dataclass, field
 from enum import IntEnum
 
-from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_errx_n_exit_safe, MissUseError
+from pydfuutil.exceptions import NoInputError, _IOError, DataError, except_and_safe_exit, MissUseError
 from pydfuutil.logger import logger
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
@@ -186,7 +186,7 @@ def _write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) ->
     return crc
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
     """loads suffix and/or prefix from dfu file"""
 
@@ -283,7 +283,7 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
             raise DataError("Unknown DFU prefix type")
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def _store_file(file: DfuFile, write_suffix: bool, write_prefix: bool) -> None:
     """writes suffix and/or prefix to dfu file"""
 

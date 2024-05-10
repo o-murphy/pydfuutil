@@ -29,7 +29,7 @@ from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
 from pydfuutil.exceptions import (MissUseError, _IOError, DataError, ProtocolError,
-                                  SoftwareError, handle_errx_n_exit_safe)
+                                  SoftwareError, except_and_safe_exit)
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -73,7 +73,7 @@ def quad2uint(p: bytes) -> int:
     return int.from_bytes(p, byteorder='little', signed=False)
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def parse_options(options: list[str]) -> RuntimeOptions:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter
@@ -195,7 +195,7 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
     return status
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def special_command(dif: dfu.DfuIf, address: int,
                     command: Command, rt_opts: RuntimeOptions) -> int:
     """
@@ -300,7 +300,7 @@ def special_command(dif: dfu.DfuIf, address: int,
     return 0
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
                    transaction: int, rt_opts: RuntimeOptions) -> int:
     """
@@ -357,7 +357,7 @@ def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
     return bytes_sent
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
     """Submitting dfuse leave request"""
 
@@ -373,7 +373,7 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
         download_chunk(dif, None, 0, 2)
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
               opts: str) -> int:
     total_bytes = 0
@@ -453,7 +453,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
 # Writes an element of any size to the device, taking care of page erases
 # returns 0 on success, otherwise -EINVAL
 # pylint: disable=invalid-name
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def download_element(dif: dfu.DfuIf,
                      dw_element_address: int,
                      dw_element_size: int,
@@ -544,7 +544,7 @@ def download_element(dif: dfu.DfuIf,
     return 0
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def dfuse_memcpy(dst, src, rem, size):
     if size > rem:
         raise DataError("Corrupt DfuSe file: Cannot read {} bytes from {} bytes".format(size, rem))
@@ -557,7 +557,7 @@ def dfuse_memcpy(dst, src, rem, size):
     return rem
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_bin_download(dif: dfu.DfuIf, xfer_size: int,
                     file: DfuFile, start_address: int) -> int:
     """
@@ -584,7 +584,7 @@ def do_bin_download(dif: dfu.DfuIf, xfer_size: int,
     return ret
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
                       file: DfuFile, rt_opts: RuntimeOptions) -> int:
     dfu_prefix = bytearray(11)
@@ -683,7 +683,7 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
     return 0
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
                 opts: str) -> int:
     rt_opts = parse_options(opts.split()) if opts else RuntimeOptions()
@@ -741,7 +741,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
     return ret
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def multiple_alt(dfu_root: dfu.DfuIf) -> int:
     """
     Check if we have one interface, possibly multiple alternate interfaces.

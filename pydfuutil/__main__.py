@@ -36,7 +36,7 @@ from pydfuutil import dfu_load
 from pydfuutil import dfuse
 from pydfuutil import quirks
 from pydfuutil import usb_dfu
-from pydfuutil.exceptions import Errx, MissUseError, CapabilityError, handle_errx_n_exit_safe
+from pydfuutil.exceptions import Errx, MissUseError, CompatibilityError, except_and_safe_exit
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
@@ -568,7 +568,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help="Say yes to all prompts")
 
 
-@handle_errx_n_exit_safe(logger)
+@except_and_safe_exit(logger)
 def main() -> None:
     """Cli entry point"""
 
@@ -683,13 +683,13 @@ def main() -> None:
         # with same vendor/product ID, since during DFU we need to do
         # a USB bus reset, after which the target device will get a
         # new address */
-        raise CapabilityError("More than one DFU capable USB device found, "
+        raise CompatibilityError("More than one DFU capable USB device found, "
                               "you might try `--list' and then disconnect all but one "
                               "device")
 
     # get_first_dfu_device
     if not (dev := dfu_capable[0]):
-        raise CapabilityError("Can't get DFU capable USB device")
+        raise CompatibilityError("Can't get DFU capable USB device")
 
     # We have exactly one device. Its libusb_device is now in dif->dev
     logger.info("Opening DFU capable USB device... ")

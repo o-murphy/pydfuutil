@@ -24,7 +24,7 @@ from enum import IntEnum
 
 from pydfuutil import __copyright__
 from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
-from pydfuutil.exceptions import Errx, MissUseError, handle_errx_n_exit_safe
+from pydfuutil.exceptions import Errx, MissUseError, except_and_safe_exit
 from pydfuutil.logger import logger
 
 try:
@@ -92,7 +92,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help='Add DFU specification ID into DFU suffix in <file>')
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def main() -> None:
     """cli entry point for suffix"""
     parser = argparse.ArgumentParser(

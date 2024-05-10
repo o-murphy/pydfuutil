@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
-from pydfuutil.exceptions import _IOError, SoftwareError, handle_errx_n_exit_safe
+from pydfuutil.exceptions import _IOError, SoftwareError, except_and_safe_exit
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -34,7 +34,7 @@ from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_upload(dif: dfu.DfuIf,
               xfer_size: int,
               file: DfuFile = None,
@@ -94,7 +94,7 @@ def do_upload(dif: dfu.DfuIf,
 
 
 # pylint: disable=too-many-branches
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
     """
     :param dif: DfuIf instance

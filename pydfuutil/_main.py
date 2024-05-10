@@ -33,7 +33,7 @@ from usb.backend.libusb1 import LIBUSB_ERROR_PIPE
 from pydfuutil import dfuse, dfu
 from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
 from pydfuutil.dfu_util import DfuUtil, probe_devices, list_dfu_interfaces, disconnect_devices
-from pydfuutil.exceptions import MissUseError, _IOError, handle_errx_n_exit_safe
+from pydfuutil.exceptions import MissUseError, _IOError, except_and_safe_exit
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.usb_dfu import BmAttributes
@@ -236,7 +236,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
         parser.add_argument(*args, **opt)
 
 
-@handle_errx_n_exit_safe(logger)
+@except_and_safe_exit(logger)
 def main():
     """Cli entry point"""
 

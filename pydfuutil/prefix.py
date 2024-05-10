@@ -23,7 +23,7 @@ from enum import IntEnum
 
 from pydfuutil import __copyright__
 from pydfuutil.dfu_file import DfuFile, PrefixType, SuffixReq, PrefixReq
-from pydfuutil.exceptions import handle_errx_n_exit_safe, Errx, MissUseError, DataError
+from pydfuutil.exceptions import except_and_safe_exit, Errx, MissUseError, DataError
 from pydfuutil.logger import logger
 
 try:
@@ -91,7 +91,7 @@ class Mode(IntEnum):
     CHECK = 0x4
 
 
-@handle_errx_n_exit_safe(_logger)
+@except_and_safe_exit(_logger)
 def main():
     """cli entry point for prefix"""
     parser = argparse.ArgumentParser(
