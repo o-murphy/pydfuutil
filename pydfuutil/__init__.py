@@ -25,7 +25,6 @@ __copyright__ = ('2023 Yaroshenko Dmytro (https://github.com/o-murphy)',)
 try:
     import libusb_package
     from usb.backend import libusb1
-
     libusb1.get_backend(libusb_package.find_library)
 finally:
     pass

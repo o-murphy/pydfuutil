@@ -22,8 +22,8 @@ import sys
 from enum import IntEnum
 
 from pydfuutil import __copyright__
-from pydfuutil.dfu_file import DFUFile, PrefixType, SuffixReq, PrefixReq
-from pydfuutil.exceptions import handle_exceptions, GeneralError, MissUseError, DataError
+from pydfuutil.dfu_file import DfuFile, PrefixType, SuffixReq, PrefixReq
+from pydfuutil.exceptions import handle_errx_n_exit_safe, Errx, MissUseError, DataError
 from pydfuutil.logger import logger
 
 try:
@@ -91,7 +91,7 @@ class Mode(IntEnum):
     CHECK = 0x4
 
 
-@handle_exceptions(_logger)
+@handle_errx_n_exit_safe(_logger)
 def main():
     """cli entry point for prefix"""
     parser = argparse.ArgumentParser(
@@ -105,9 +105,9 @@ def main():
         args = parser.parse_args()
     except argparse.ArgumentError as e:
         parser.print_help()
-        raise GeneralError(e) from e
+        raise Errx(e) from e
 
-    file = DFUFile(name=args.file.name, file_p=args.file)
+    file = DfuFile(name=args.file.name, file_p=args.file)
     mode = args.mode
     prefix_type = args.type if args.type else PrefixType.ZERO_PREFIX
 

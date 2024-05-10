@@ -24,8 +24,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
 from pydfuutil import dfu
-from pydfuutil.dfu_file import DFUFile
-from pydfuutil.exceptions import _IOError, SoftwareError, handle_exceptions
+from pydfuutil.dfu_file import DfuFile
+from pydfuutil.exceptions import _IOError, SoftwareError, handle_errx_n_exit_safe
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
@@ -34,16 +34,16 @@ from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 
-@handle_exceptions(_logger)
+@handle_errx_n_exit_safe(_logger)
 def do_upload(dif: dfu.DfuIf,
               xfer_size: int,
-              file: DFUFile = None,
+              file: DfuFile = None,
               expected_size: int = -1) -> [int, bytes]:
     """
     Uploads data from DFU device from special page
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
-    :param file: optional - DFUFile object
+    :param file: optional - DfuFile object
     :param expected_size: optional - total bytes expected to be uploaded
     :return: uploaded bytes or error code
     """
@@ -94,12 +94,12 @@ def do_upload(dif: dfu.DfuIf,
 
 
 # pylint: disable=too-many-branches
-@handle_exceptions(_logger)
-def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DFUFile) -> int:
+@handle_errx_n_exit_safe(_logger)
+def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
     """
     :param dif: DfuIf instance
     :param xfer_size: transaction size
-    :param file: DFUFile instance
+    :param file: DfuFile instance
     verbose: is verbose useless cause of using python's logging
     :return:
     """

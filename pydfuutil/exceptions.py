@@ -16,12 +16,27 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
-
+import os
 import sys
+from enum import IntEnum
 from functools import wraps
 
 
-class GeneralError(Exception):
+if sys.platform.startswith('win'):
+    os.EX_USAGE = 2
+    os.EX_DATAERR = 65
+    os.EX_IOERR = 74
+
+
+class EX(IntEnum):
+    OK = os.EX_OK
+    UNDEFINED = 1
+    USAGE = os.EX_USAGE
+    DATAERR = os.EX_DATAERR
+    IOERR = os.EX_IOERR
+
+
+class Errx(Exception):
     """
     Usually indicates a general error.
     This can be used to indicate that the program
@@ -29,30 +44,34 @@ class GeneralError(Exception):
     that prevented it from completing its task successfully.
     It can also be used as a catch-all for unspecified errors.
     """
-    exit_code = 1
+    exit_code = EX.UNDEFINED
+    def __init__(self, message, exit_code: EX = None):
+        super().__init__(message)
+        if isinstance(exit_code, EX):
+            self.exit_code = exit_code
 
 
-class DataError(GeneralError, ValueError, TypeError):
+class DataError(Errx, ValueError, TypeError):
     """EX_DATAERR"""
     exit_code = 65
 
 
-class SoftwareError(GeneralError):
+class SoftwareError(Errx):
     """EX_SOFTWARE"""
     exit_code = 70
 
 
-class ProtocolError(GeneralError):
+class ProtocolError(Errx):
     """EX_PROTOCOL"""
     exit_code = 76
 
 
-class _IOError(GeneralError, IOError):
+class _IOError(Errx, IOError):
     """EX_IOERR"""
     exit_code = 74
 
 
-class NoInputError(GeneralError, OSError):
+class NoInputError(Errx, OSError):
     """EX_NOINPUT"""
     exit_code = 66
 
@@ -62,14 +81,7 @@ class UsbIOError(_IOError):
     exit_code = 1
 
 
-class GeneralWarning(GeneralError):
-    """
-    Usually indicates a general warning
-    FIXME: deprecated
-    """
-
-
-class MissUseError(GeneralError):
+class MissUseError(Errx):
     """
     Often used to indicate misuse or incorrect usage of the program.
     For example, if the program receives
@@ -79,27 +91,28 @@ class MissUseError(GeneralError):
     exit_code = 2
 
 
-class CapabilityError(GeneralError):
+class CapabilityError(Errx):
     """DFU incompatible usage error."""
     exit_code = 3
 
 
-def handle_exceptions(_logger):
+def handle_errx_n_exit_safe(_logger=None):
     """decorator to handle exceptions
-    inherited from GeneralError"""
+    inherited from Errx"""
 
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except GeneralError as e:
-                if str(e):
+            except Errx as e:
+                if str(e) and _logger:
                     _logger.error(e)
                 sys.exit(e.exit_code)
             # pylint: disable=broad-exception-caught
             except Exception as e:
-                _logger.error(f"Unhandled exception occurred: {e}")
+                if _logger:
+                    _logger.error(f"Unhandled exception occurred: {e}")
                 sys.exit(1)
 
         return wrapper
@@ -108,8 +121,7 @@ def handle_exceptions(_logger):
 
 
 __all__ = (
-    'GeneralError',
-    'GeneralWarning',
+    'Errx',
     'NoInputError',
     'UsbIOError',
     'MissUseError',
@@ -119,5 +131,5 @@ __all__ = (
     'DataError',
     'UsbIOError',
     '_IOError',
-    'handle_exceptions'
+    'handle_errx_n_exit_safe'
 )

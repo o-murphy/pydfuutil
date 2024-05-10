@@ -17,7 +17,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 import struct
-import sys
 from dataclasses import dataclass
 from typing import Generator
 
@@ -27,9 +26,7 @@ from pydfuutil import dfu
 from pydfuutil.dfu import DfuIf, IFF
 from pydfuutil.logger import logger
 from pydfuutil.quirks import get_quirks, QUIRK
-from pydfuutil.usb_dfu import USB_DT_DFU, USB_DT_DFU_SIZE, FuncDescriptor, BmAttributes
-
-
+from pydfuutil.usb_dfu import FuncDescriptor, BmAttributes
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
@@ -37,8 +34,15 @@ MAX_DESC_STR_LEN = 253
 MAX_PATH_LEN = 20
 
 
+class DfuUtilMeta(type):
+    def __repr__(cls):
+        _fields = ', '.join(f'{field}={getattr(cls, field)!r}'
+                            for field in getattr(cls, '__dataclass_fields__'))
+        return f"DfuUtil({_fields})"
+
+
 @dataclass
-class DfuUtil:
+class DfuUtil(metaclass=DfuUtilMeta):
     dfu_if: DfuIf = None
     match_path: str = None
     match_vendor: int = -1
@@ -317,15 +321,15 @@ def probe_configuration(dev: usb.core.Device):
                             and DfuUtil.match_serial_dfu != serial_name):
                         continue
                 elif (DfuUtil.match_serial is not None
-                            and DfuUtil.match_serial != serial_name):
+                      and DfuUtil.match_serial != serial_name):
                     continue
 
                 pdfu = DfuIf(
                     dev=dev,
-                    vendor = dev.idVendor,
-                    product = dev.idProduct,
-                    bcdDevice = dev.bcdDevice,
-                    configuration = cfg.bConfigurationValue,
+                    vendor=dev.idVendor,
+                    product=dev.idProduct,
+                    bcdDevice=dev.bcdDevice,
+                    configuration=cfg.bConfigurationValue,
                     interface=intf.bInterfaceNumber,
                     altsetting=intf.bAlternateSetting,
                     alt_name=alt_name,
@@ -336,8 +340,8 @@ def probe_configuration(dev: usb.core.Device):
                     # path=None,
                     # count=None,
                     # bwPollTimeout = 0,
-                    serial_name = serial_name,
-                    func_dfu = func_dfu,
+                    serial_name=serial_name,
+                    func_dfu=func_dfu,
                     # next = None,
                     # mem_layout = None
                 )
@@ -363,7 +367,6 @@ def probe_configuration(dev: usb.core.Device):
                     last.next = pdfu
             # usb.util.claim_interface(dev, intf)
         usb.util.dispose_resources(dev)
-
 
     cfgs = dev.configurations()
     for cfg in cfgs:
@@ -423,9 +426,9 @@ __all__ = (
     'list_dfu_interfaces',
 )
 
-
 if __name__ == '__main__':
     import logging
+
     _logger.setLevel(logging.DEBUG)
     ctx = usb.core.find(find_all=True)
     probe_devices(ctx)

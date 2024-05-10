@@ -5,8 +5,8 @@ import unittest
 from unittest.mock import patch, Mock, MagicMock, mock_open
 
 from pydfuutil.dfu_file import *
-from pydfuutil.dfu_file import crc32_byte, DFUFile
-from pydfuutil.exceptions import GeneralError, _IOError
+from pydfuutil.dfu_file import crc32_byte, DfuFile
+from pydfuutil.exceptions import Errx, _IOError
 
 
 class TestDFUFile(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestDFUFile(unittest.TestCase):
 class TestLoadFile(unittest.TestCase):
     def setUp(self):
         self.sample_file_path = os.path.join(os.path.dirname(__file__), "sample_file.bin")
-        self.file = DFUFile(self.sample_file_path)
+        self.file = DfuFile(self.sample_file_path)
         self.file_size = os.path.getsize(self.sample_file_path)
         self.file.size.total = self.file_size
 
@@ -65,7 +65,7 @@ class TestLoadFile(unittest.TestCase):
 
     @patch("sys.stdin.buffer.read", side_effect=[b"abc", b"def", b""])
     def test_load_file_from_stdin(self, mock_read):
-        file = DFUFile("-")
+        file = DfuFile("-")
         file_size = os.path.getsize(self.sample_file_path)
         file.size.total = file_size
         file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
@@ -84,20 +84,20 @@ class TestLoadFile(unittest.TestCase):
     @patch("builtins.open", side_effect=IOError(errno.ENOENT, "File not found"))
     def test_load_file_file_not_found(self, mock_open):
         with self.assertRaises(SystemExit):
-            with self.assertRaises(GeneralError):
+            with self.assertRaises(Errx):
                 self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
 
     @patch("builtins.open", side_effect=IOError(errno.EACCES, "Permission denied"))
     def test_load_file_permission_denied(self, mock_open):
         with self.assertRaises(SystemExit):
-            with self.assertRaises(GeneralError):
+            with self.assertRaises(Errx):
                 self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
     @patch("builtins.open", side_effect=IOError("Other error"))
     def test_load_file_other_io_error(self, mock_open):
         with self.assertRaises(SystemExit):
-            with self.assertRaises(GeneralError):
+            with self.assertRaises(Errx):
                 self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts size automatically")
@@ -105,7 +105,7 @@ class TestLoadFile(unittest.TestCase):
         self.file.size.total = 5
         self.file.size.suffix = 10
         with self.assertRaises(SystemExit):
-            with self.assertRaises(GeneralError):
+            with self.assertRaises(Errx):
                 self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts firmware and size automatically")
@@ -113,21 +113,21 @@ class TestLoadFile(unittest.TestCase):
         self.file.size.total = 20
         self.file.read = Mock(return_value=b"abcdef" + b"DFUU" + b"12345678")
         self.file.firmware = bytearray(b"abcdef" + b"DFUU" + b"12345678")
-        with self.assertRaises(GeneralError):
+        with self.assertRaises(Errx):
             self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts firmware and size automatically")
     def test_load_file_invalid_suffix_crc(self):
         self.file.size.total = 20
         self.file.firmware = bytearray(b"abcdef" + b"DFUD" + b"12345678")
-        with self.assertRaises(GeneralError):
+        with self.assertRaises(Errx):
             self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
 
 class TestStoreFile(unittest.TestCase):
     def setUp(self):
         self.sample_file_path = os.path.join(os.path.dirname(__file__), "output_file.bin")
-        self.file = DFUFile(self.sample_file_path)
+        self.file = DfuFile(self.sample_file_path)
         self.file.size.total = 100
         self.file.size.prefix = 10
         self.file.size.suffix = 10
@@ -187,13 +187,13 @@ class TestStoreFile(unittest.TestCase):
 
 
     # def test_parse_dfu_suffix(self):
-    #     dfu_file = DFUFile(self.sample_file_path)
+    #     dfu_file = DfuFile(self.sample_file_path)
     #     result = parse_dfu_suffix(dfu_file)
     #     # Adjust the expected result based on the expected behavior of parse_dfu_suffix
     #     self.assertTrue(result >= 0)
     #
     # def test_generate_dfu_suffix(self):
-    #     dfu_file = DFUFile(self.output_file_path)
+    #     dfu_file = DfuFile(self.output_file_path)
     #     dfu_file.bcdDevice = 0x0100
     #     dfu_file.idProduct = 0x1234
     #     dfu_file.idVendor = 0x5678

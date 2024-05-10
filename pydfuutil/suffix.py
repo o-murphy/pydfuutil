@@ -23,8 +23,8 @@ import sys
 from enum import IntEnum
 
 from pydfuutil import __copyright__
-from pydfuutil.dfu_file import DFUFile, SuffixReq, PrefixReq
-from pydfuutil.exceptions import GeneralError, MissUseError, handle_exceptions
+from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
+from pydfuutil.exceptions import Errx, MissUseError, handle_errx_n_exit_safe
 from pydfuutil.logger import logger
 
 try:
@@ -92,7 +92,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help='Add DFU specification ID into DFU suffix in <file>')
 
 
-@handle_exceptions(_logger)
+@handle_errx_n_exit_safe(_logger)
 def main() -> None:
     """cli entry point for suffix"""
     parser = argparse.ArgumentParser(
@@ -105,9 +105,9 @@ def main() -> None:
         args = parser.parse_args()
     except argparse.ArgumentError as e:
         parser.print_help()
-        raise GeneralError(e) from e
+        raise Errx(e) from e
 
-    file = DFUFile(name=args.file.name, file_p=args.file)
+    file = DfuFile(name=args.file.name, file_p=args.file)
     mode = args.mode
 
     pid = args.pid if args.pid else 0xffff

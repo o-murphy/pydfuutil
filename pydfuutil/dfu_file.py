@@ -25,7 +25,7 @@ import warnings
 from dataclasses import dataclass, field
 from enum import IntEnum
 
-from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_exceptions, MissUseError
+from pydfuutil.exceptions import NoInputError, _IOError, DataError, handle_errx_n_exit_safe, MissUseError
 from pydfuutil.logger import logger
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
@@ -112,7 +112,7 @@ class PrefixType(IntEnum):
 
 
 @dataclass
-class DFUFile:  # pylint: disable=too-many-instance-attributes, invalid-name
+class DfuFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     """Class to store DFU file data"""
     name: [str, None]
     firmware: [bytearray, bytes] = field(default_factory=bytearray)
@@ -148,7 +148,7 @@ def crc32_byte(accum: int, delta: int):
     return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8)
 
 
-def _probe_prefix(file: DFUFile):
+def _probe_prefix(file: DfuFile):
     prefix = file.firmware
 
     if file.size.total < LMDFU_PREFIX_LENGTH:
@@ -186,8 +186,8 @@ def _write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) ->
     return crc
 
 
-@handle_exceptions(_logger)
-def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
+@handle_errx_n_exit_safe(_logger)
+def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) -> None:
     """loads suffix and/or prefix from dfu file"""
 
     file.size.prefix = 0
@@ -283,8 +283,8 @@ def _load_file(file: DFUFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
             raise DataError("Unknown DFU prefix type")
 
 
-@handle_exceptions(_logger)
-def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
+@handle_errx_n_exit_safe(_logger)
+def _store_file(file: DfuFile, write_suffix: bool, write_prefix: bool) -> None:
     """writes suffix and/or prefix to dfu file"""
 
     crc = 0xffffffff
@@ -345,7 +345,7 @@ def _store_file(file: DFUFile, write_suffix: bool, write_prefix: bool) -> None:
         raise _IOError(f"Error opening file {file.name}: {e}") from e
 
 
-def _show_suffix_and_prefix(file: DFUFile) -> None:
+def _show_suffix_and_prefix(file: DfuFile) -> None:
     """Prints suffix and prefix of dfu file"""
 
     if file.size.prefix == LPCDFU_PREFIX_LENGTH:
@@ -372,7 +372,7 @@ def _show_suffix_and_prefix(file: DFUFile) -> None:
 
 
 __all__ = (
-    'DFUFile',
+    'DfuFile',
     'SuffixReq',
     'PrefixReq',
     'PrefixType',

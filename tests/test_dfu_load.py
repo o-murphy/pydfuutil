@@ -2,14 +2,14 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock
 
 from pydfuutil import dfu
-from pydfuutil.dfu_load import DFUFile, do_upload, do_dnload
+from pydfuutil.dfu_load import DfuFile, do_upload, do_dnload
 
 
 class TestDFULoader(unittest.TestCase):
 
     def test_dfu_load_do_upload(self):
         xfer_size = 256
-        file = DFUFile(name='test_file', file_p=Mock())  # Provide a mock file object
+        file = DfuFile(name='test_file', file_p=Mock())  # Provide a mock file object
         total_size = 4096
 
         dif = Mock()
@@ -32,7 +32,7 @@ class TestDFULoader(unittest.TestCase):
         dif.download.return_value = xfer_size
         dif.get_status.return_value = result
 
-        file = DFUFile(name='test_file', file_p=Mock())
+        file = DfuFile(name='test_file', file_p=Mock())
         file.size.total = xfer_size * 10
         file.size.suffix = 0
         dif.quirks = 0

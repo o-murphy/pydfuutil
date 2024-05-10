@@ -27,7 +27,7 @@ import usb.core
 from usb.core import _try_lookup
 from pydfuutil import __copyright__
 from pydfuutil.logger import logger
-from pydfuutil.exceptions import handle_exceptions, GeneralError
+from pydfuutil.exceptions import handle_errx_n_exit_safe, Errx
 
 try:
     __version__ = importlib.metadata.version("pydfuutil")
@@ -119,7 +119,7 @@ class SimulateUnixPath(argparse.Action):
         setattr(namespace, "address", validate_int(devnum))
 
 
-@handle_exceptions(_logger)
+@handle_errx_n_exit_safe(_logger)
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
     """Add cli options"""
 
@@ -219,7 +219,7 @@ def sym_unix_dev_tree(vid: int = None,
                   f"{manufacturer}, {product}")
 
 
-@handle_exceptions(_logger)
+@handle_errx_n_exit_safe(_logger)
 def main():
     """cli entry point for lsusb"""
     parser = argparse.ArgumentParser(
@@ -235,7 +235,7 @@ def main():
     try:
         args = parser.parse_args()
     except (argparse.ArgumentError, argparse.ArgumentTypeError) as e:
-        raise GeneralError(e) from e
+        raise Errx(e) from e
 
     if args.help:
         parser.print_help()
