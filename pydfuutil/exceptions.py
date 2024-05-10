@@ -191,6 +191,3 @@ import errno
 #     handle_error(e)
 
 # print(errno.__dict__)
-
-import errno
-print(errno.E)
