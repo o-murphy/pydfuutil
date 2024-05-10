@@ -29,6 +29,8 @@ from pydfuutil.logger import logger
 from pydfuutil.quirks import get_quirks, QUIRK
 from pydfuutil.usb_dfu import USB_DT_DFU, USB_DT_DFU_SIZE, FuncDescriptor, BmAttributes
 
+
+
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
 
 MAX_DESC_STR_LEN = 253
@@ -413,6 +415,7 @@ def probe_configuration(dev: usb.core.Device):
 
 __all__ = (
     'IFF',
+    'DfuUtil',
     'MAX_DESC_STR_LEN',
     'probe_devices',
     'disconnect_devices',

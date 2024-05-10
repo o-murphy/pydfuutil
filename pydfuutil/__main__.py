@@ -45,6 +45,9 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = 'UNKNOWN'
 
+VERSION = (f"pydfuutil {__version__}\n\n"
+           f"2023 Yaroshenko Dmytro (https://github.com/o-murphy)\n")
+
 usb_logger = logging.getLogger('usb')
 MAX_DESC_STR_LEN = 253
 HAVE_GET_PAGESIZE = sys.platform != 'win32'
@@ -469,10 +472,6 @@ def get_cached_extra_descriptor(dfu_if: dfu.DfuIf,
         logger.debug("Did not find cached descriptor")
 
     return ret
-
-
-VERSION = (f"pydfuutil {__version__}\n\n"
-           f"2023 Yaroshenko Dmytro (https://github.com/o-murphy)\n")
 
 
 class Mode(Enum):
