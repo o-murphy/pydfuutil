@@ -25,7 +25,7 @@ import warnings
 from dataclasses import dataclass, field
 from enum import IntEnum
 
-from pydfuutil.exceptions import NoInputError, _IOError, DataError, except_and_safe_exit, MissUseError
+from pydfuutil.exceptions import NoInputError, _IOError, DataError, except_and_safe_exit, UsageError
 from pydfuutil.logger import logger
 
 _logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
@@ -267,7 +267,7 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
 
     res = _probe_prefix(file)
     if (res or file.size.prefix == 0) and check_prefix == PrefixReq.NEEDS_PREFIX:
-        raise MissUseError("Valid DFU prefix needed")
+        raise UsageError("Valid DFU prefix needed")
     if file.size.prefix and check_prefix == PrefixReq.NO_PREFIX:
         raise DataError("A prefix already exists, please delete it first")
     if file.size.prefix:

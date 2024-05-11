@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock
 
 from pydfuutil import dfu
-from pydfuutil.dfu_load import DfuFile, do_upload, do_dnload
+from pydfuutil.dfu_load import DfuFile, do_upload, do_download
 
 
 class TestDFULoader(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestDFULoader(unittest.TestCase):
 
         # Mock file_p.readinto to return the length of the data read
         with patch.object(file.file_p, 'readinto', return_value=xfer_size) as mock_readinto:
-            result = do_dnload(dif, xfer_size, file)
+            result = do_download(dif, xfer_size, file)
 
         # Assertions
         self.assertEqual(result, file.size.total)  # Assuming xfer_size bytes are sent

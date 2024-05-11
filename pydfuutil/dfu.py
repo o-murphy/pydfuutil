@@ -213,6 +213,9 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
         """Binds self to dfu.get_status()"""
         return _get_status(self.dev, self.interface)
 
+    def clear_status(self) -> int:
+        return _clear_status(self.dev, self.interface)
+
     def get_state(self) -> State:
         """Binds self to dfu.get_state()"""
         return _get_state(self.dev, self.interface)

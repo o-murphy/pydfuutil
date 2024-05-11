@@ -95,7 +95,7 @@ def do_upload(dif: dfu.DfuIf,
 
 # pylint: disable=too-many-branches
 @except_and_safe_exit(_logger)
-def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
+def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
     """
     :param dif: DfuIf instance
     :param xfer_size: transaction size
@@ -184,5 +184,5 @@ def do_dnload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
 
 __all__ = (
     'do_upload',
-    'do_dnload'
+    'do_download'
 )

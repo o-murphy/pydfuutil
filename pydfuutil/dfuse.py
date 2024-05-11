@@ -28,7 +28,7 @@ from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
 from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
-from pydfuutil.exceptions import (MissUseError, _IOError, DataError, ProtocolError,
+from pydfuutil.exceptions import (UsageError, _IOError, DataError, ProtocolError,
                                   SoftwareError, except_and_safe_exit)
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
@@ -119,7 +119,7 @@ def parse_options(options: list[str]) -> RuntimeOptions:
             rt_opts.address_present = True
             opts.pop(0)
         else:
-            raise MissUseError(f"Invalid dfuse address: {opts[0]}")
+            raise UsageError(f"Invalid dfuse address: {opts[0]}")
 
     # Parse other options if any
     for opt in ("force", "leave", "mass_erase", "unprotect", 'will_reset'):
@@ -128,13 +128,13 @@ def parse_options(options: list[str]) -> RuntimeOptions:
             opts.pop(opts.index(opt))
 
     if len(opts) > 1:
-        raise MissUseError(f"Too many unexpected dfuse arguments {opts}")
+        raise UsageError(f"Too many unexpected dfuse arguments {opts}")
 
     if len(opts) == 1:
         if length := atoi(opts[0]):
             rt_opts.length = length
         else:
-            raise MissUseError(f"Wrong dfuse length: {opts[0]}")
+            raise UsageError(f"Wrong dfuse length: {opts[0]}")
     return rt_opts
 
 
@@ -219,7 +219,7 @@ def special_command(dif: dfu.DfuIf, address: int,
         segment = find_segment(dif.mem_layout, address)
 
         if not segment or not segment.mem_type & DFUSE.ERASABLE:
-            raise MissUseError(f"Page at 0x{address:08x} cannot be erased")
+            raise UsageError(f"Page at 0x{address:08x} cannot be erased")
 
         page_size = segment.pagesize
         _logger.debug(
@@ -235,7 +235,7 @@ def special_command(dif: dfu.DfuIf, address: int,
     elif command == Command.READ_UNPROTECT:
         buf[0], length = 0x92, 1
     else:
-        raise MissUseError(f"Non-supported special command {command}")
+        raise UsageError(f"Non-supported special command {command}")
 
     buf[1] = address & 0xff
     buf[2] = (address >> 8) & 0xff
@@ -393,7 +393,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
 
         segment = find_segment(mem_layout, rt_opts.address)
         if not rt_opts.force and (not segment or not (segment.memtype & DFUSE.READABLE)):
-            raise MissUseError(f"Page at 0x{rt_opts.address:08x} is not readable")
+            raise UsageError(f"Page at 0x{rt_opts.address:08x} is not readable")
 
         if not upload_limit:
             if segment:
@@ -475,7 +475,7 @@ def download_element(dif: dfu.DfuIf,
     # Check at least that we can write to the last address
     segment = find_segment(MEM_LAYOUT, dw_element_address + dw_element_size - 1)
     if not segment or not segment.mem_type & DFUSE.WRITEABLE:
-        raise MissUseError(
+        raise UsageError(
             f"Error: Last page at 0x{dw_element_address + dw_element_size - 1:08x} "
             f"is not writeable"
         )
@@ -488,7 +488,7 @@ def download_element(dif: dfu.DfuIf,
 
         segment = find_segment(dif.mem_layout, address)
         if not rt_opts.force and (not segment or not segment.mem_type & DFUSE.WRITEABLE):
-            raise MissUseError("Page at 0x{address:08x} is not writeable")
+            raise UsageError("Page at 0x{address:08x} is not writeable")
 
         # If the location is not in the memory map we skip erasing
         # since we wouldn't know the correct page size for flash erase
@@ -700,7 +700,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
 
     if rt_opts.unprotect:
         if not rt_opts.force:
-            raise MissUseError("The read unprotect command "
+            raise UsageError("The read unprotect command "
                                "will erase the flash memory"
                                "and can only be used with force")
         ret = special_command(dif, 0, Command.MASS_ERASE, rt_opts)
@@ -709,7 +709,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
 
     if rt_opts.mass_erase:
         if not rt_opts.force:
-            raise MissUseError("The mass erase command can only be used with force")
+            raise UsageError("The mass erase command can only be used with force")
         _logger.info("Performing mass erase, this can take a moment")
         special_command(dif, 0, Command.MASS_ERASE, rt_opts)
 
@@ -718,12 +718,12 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
         ret = 0
     elif rt_opts.address_present:
         if file.name != file.bcdDFU == 0x11a:
-            raise MissUseError("This is a DfuSe file, not meant for raw download")
+            raise UsageError("This is a DfuSe file, not meant for raw download")
         ret = do_bin_download(dif, xfer_size, file, rt_opts.address)
     else:
         if file.bcdDFU != 0x11a:
             _logger.warning("Only DfuSe file version 1.1a is supported")
-            raise MissUseError("(for raw binary download, "
+            raise UsageError("(for raw binary download, "
                                "use the --dfuse-address option)")
         ret = do_dfuse_download(dif, xfer_size, file, rt_opts)
 

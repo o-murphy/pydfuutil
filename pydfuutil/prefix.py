@@ -23,7 +23,7 @@ from enum import IntEnum
 
 from pydfuutil import __copyright__
 from pydfuutil.dfu_file import DfuFile, PrefixType, SuffixReq, PrefixReq
-from pydfuutil.exceptions import except_and_safe_exit, Errx, MissUseError, DataError
+from pydfuutil.exceptions import except_and_safe_exit, Errx, UsageError, DataError
 from pydfuutil.logger import logger
 
 try:
@@ -114,17 +114,17 @@ def main():
     try:
         lmdfu_flash_address = hex2int(args.s) if args.s else 0
     except ValueError as e:
-        raise MissUseError("--stellaris-address must be a 2-byte hex "
+        raise UsageError("--stellaris-address must be a 2-byte hex "
                            "in 0xFFFF format") from e
 
     if not file.name:
         _logger.error("You need to specify a filename")
         parser.print_help()
-        raise MissUseError
+        raise UsageError
 
     if mode is Mode.ADD:
         if prefix_type is PrefixType.ZERO_PREFIX:
-            raise MissUseError("Prefix type must be specified")
+            raise UsageError("Prefix type must be specified")
         file.load(SuffixReq.MAYBE_SUFFIX, PrefixReq.NO_PREFIX)
         file.lmdfu_address = lmdfu_flash_address
         file.prefix_type = prefix_type
@@ -149,7 +149,7 @@ def main():
 
     else:
         parser.print_help()
-        raise MissUseError
+        raise UsageError
 
     sys.exit(0)
 

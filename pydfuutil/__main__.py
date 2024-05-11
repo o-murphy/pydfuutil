@@ -36,7 +36,7 @@ from pydfuutil import dfu_load
 from pydfuutil import dfuse
 from pydfuutil import quirks
 from pydfuutil import usb_dfu
-from pydfuutil.exceptions import Errx, MissUseError, CompatibilityError, except_and_safe_exit
+from pydfuutil.exceptions import Errx, UsageError, CompatibilityError, except_and_safe_exit
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 
@@ -612,7 +612,7 @@ def main() -> None:
         dif.path = args.path
         dif.flags |= dfu.IFF.PATH
         if ret := resolve_device_path(dif):
-            raise MissUseError(f"unable to parse {args.path}")
+            raise UsageError(f"unable to parse {args.path}")
         if not ret:
             raise Errx(f"cannot find {args.path}")
 
@@ -652,7 +652,7 @@ def main() -> None:
     if mode == Mode.NONE:
         logger.error("You need to specify one of -D or -U\n\n")
         parser.print_help()
-        raise MissUseError
+        raise UsageError
 
     if device_id_filter:
         dif.vendor, dif.product = parse_vid_pid(device_id_filter)
@@ -997,7 +997,7 @@ def main() -> None:
                     if dfuse.do_download(dif, transfer_size, file, dfuse_options) < 0:
                         raise Errx
                 else:
-                    if dfu_load.do_dnload(dif, transfer_size, file, _quirks) < 0:
+                    if dfu_load.do_download(dif, transfer_size, file, _quirks) < 0:
                         raise Errx
 
         except OSError as e:

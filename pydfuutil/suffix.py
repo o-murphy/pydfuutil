@@ -24,7 +24,7 @@ from enum import IntEnum
 
 from pydfuutil import __copyright__
 from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
-from pydfuutil.exceptions import Errx, MissUseError, except_and_safe_exit
+from pydfuutil.exceptions import Errx, UsageError, except_and_safe_exit
 from pydfuutil.logger import logger
 
 try:
@@ -52,7 +52,7 @@ def hex2int(string: str) -> int:
     try:
         return int(string, 16)
     except ValueError as e:
-        raise MissUseError("--vid, --pid, --did must be a 2-byte hex "
+        raise UsageError("--vid, --pid, --did must be a 2-byte hex "
                            "in 0xFFFF format") from e
 
 
@@ -138,7 +138,7 @@ def main() -> None:
 
     else:
         parser.print_help()
-        raise MissUseError
+        raise UsageError
 
     sys.exit(0)
 
