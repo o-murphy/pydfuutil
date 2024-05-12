@@ -59,7 +59,7 @@ DfuUtil.match_product_dfu = -1
 DfuUtil.match_config_index = -1
 DfuUtil.match_iface_index = -1
 DfuUtil.match_iface_alt_index = -1
-DfuUtil.match_devnum = -1
+DfuUtil.match_dev_num = -1
 DfuUtil.match_iface_alt_name = None
 DfuUtil.match_serial = None
 DfuUtil.match_serial_dfu = None
@@ -77,15 +77,6 @@ class Mode(Enum):
     DETACH = 3
     UPLOAD = 4
     DOWNLOAD = 5
-
-
-def parse_match_value(string: str, default_value: int) -> int:
-    ...
-
-
-def parse_vendprod(string: str) -> int:
-    ...
-    # Default to match any DFU device in runtime or DFU mode
 
 
 def parse_serial(string: [str, None]) -> None:
@@ -154,7 +145,7 @@ options = (
         'type': int,
     },
     {
-        'args': ('-d', '--device'),
+        'args': ('-d', '--device'),  # FIXME: parse vid pid
         'help': "Specify Vendor/Product ID(s) of DFU device",
         'metavar': '<vid>:<pid>[,<vid_dfu>:<pid_dfu>]',
     },
@@ -314,7 +305,7 @@ def main():
             DfuUtil.match_iface_alt_name = optargs.alt
             DfuUtil.match_iface_alt_index = -1
 
-    DfuUtil.match_devnum = optargs.devnum
+    DfuUtil.match_dev_num = optargs.devnum
 
     parse_serial(optargs.serial)
 

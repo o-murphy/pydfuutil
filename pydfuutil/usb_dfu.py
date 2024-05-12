@@ -20,13 +20,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
+import struct
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
 
-# import usb.util
-# USB_TYPE_DFU = usb.util.CTRL_TYPE_CLASS | usb.util.CTRL_RECIPIENT_INTERFACE
 
-import usb
+import usb.util
 USB_TYPE_DFU = usb.TYPE_CLASS | usb.RECIP_INTERFACE
 
 
@@ -52,6 +51,30 @@ class FuncDescriptor:
     wDetachTimeOut: int = 0
     wTransferSize: int = 0
     bcdDFUVersion: int = 0
+
+    def __repr__(self) -> str:
+        return (f"FuncDescriptor("
+               f"bLength={self.bLength}, "
+               f"bDescriptorType={self.bDescriptorType}, "
+               f"bmAttributes={self.bmAttributes}, "
+               f"wDetachTimeOut={self.wDetachTimeOut}, "
+               f"wTransferSize={self.wTransferSize}, "
+               f"bcdDFUVersion=0x{self.bcdDFUVersion:04x})")
+
+    @staticmethod
+    def from_bytes(data: [bytes, bytearray]) -> 'FuncDescriptor':
+        """parse bytes to a FuncDescriptor"""
+        func_dfu = FuncDescriptor()
+        (func_dfu.bLength,
+         func_dfu.bDescriptorType,
+         bmAttributes,
+         func_dfu.wDetachTimeOut,
+         func_dfu.wTransferSize,
+         func_dfu.bcdDFUVersion) = struct.unpack(
+            '<BBBHHH', data)
+
+        func_dfu.bmAttributes = BmAttributes(bmAttributes)
+        return func_dfu
 
 
 

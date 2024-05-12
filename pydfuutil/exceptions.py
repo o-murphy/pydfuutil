@@ -85,9 +85,9 @@ class NoInputError(Errx, OSError):
     exit_code = SysExit.EX_NOINPUT
 
 
-class UsbIOError(Errx, IOError):
+class UsbIOError(Errx, IOError):  # FIXME: Deprecated
     """USB IOError"""
-    exit_code = 1  # FIXME: maybe IOError + EX.EX_IOERR = 74
+    exit_code = SysExit.OTHER
 
 
 class UsageError(Errx):
@@ -136,7 +136,6 @@ def except_and_safe_exit(_logger: logging.Logger = None):
 __all__ = (
     'Errx',
     'NoInputError',
-    'UsbIOError',
     'UsageError',
     'SoftwareError',
     'ProtocolError',

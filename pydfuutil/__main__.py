@@ -335,11 +335,11 @@ def resolve_device_path(dif: dfu.DfuIf) -> int:
         dif.flags |= dfu.IFF.DEVNUM
         logger.debug(f"DIF PATH: {dif.path}: {dif.bus}")
         return res
-    except SystemError as err:
-        logger.error(err)
-    except Exception as err:
+    except SystemError as e:
+        logger.error(e)
+    except Exception as e:
         logger.error("USB device paths are not supported by this dfu-util")
-        logger.debug(err)
+        logger.debug(e)
     raise Errx
 
 
