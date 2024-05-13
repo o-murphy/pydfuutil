@@ -628,9 +628,8 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
                 a_dif.dev = dif.dev
                 _logger.info(f"Setting Alternate Interface {a_dif.altsetting}")
                 try:
-                    ret = a_dif.dev.set_interface_altsetting(a_dif.altsetting)
-                    if ret < 0:
-                        raise _IOError(f"Cannot set alternate interface: {ret}")
+                    a_dif.dev.set_interface_altsetting(a_dif.interface,
+                                                       a_dif.altsetting)
                 except usb.core.USBError as e:
                     raise _IOError(f"Cannot set alternate interface: {ret}") from e
 

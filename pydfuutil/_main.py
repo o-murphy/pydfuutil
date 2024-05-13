@@ -369,11 +369,13 @@ def main():
         # status_again
         logger.debug('Status again')
         logger.info("Determining device status...")
-        if int(status := DfuUtil.dfu_root.get_status()) < 0:
-            raise _IOError("error get_status")
+        try:
+            status = DfuUtil.dfu_root.get_status()
+        except usb.core.USBError as e:
+            raise _IOError(f"error get_status: {e}") from e
         logger.info(f"state = {status.bState.to_string()}, "
                     f"status = {status.bStatus}")
-        # if not DfuUtil.dfu_root.quirks & QUIRK.POLLTIMEOUT:
+
         milli_sleep(status.bwPollTimeout)
 
         if status.bState in (dfu.State.APP_IDLE, dfu.State.APP_DETACH):
@@ -433,8 +435,10 @@ def main():
                 DfuUtil.dfu_root.clear_status()
             except usb.core.USBError as e:
                 raise _IOError("USB communication error") from e
-            if int(status := DfuUtil.dfu_root.get_status()) < 0:
-                raise _IOError("USB communication error")
+            try:
+                status = DfuUtil.dfu_root.get_status()
+            except usb.core.USBError as e:
+                raise _IOError(f"USB communication error: {e}") from e
             if dfu.Status.OK != status.bStatus:
                 raise ProtocolError(f"Status is not OK: {status.bStatus}")
 
@@ -509,9 +513,10 @@ def main():
             ret = SysExit.EX_IOERR if ret < 0 else SysExit.EX_OK
 
         elif mode is Mode.DETACH:
-            ret = DfuUtil.dfu_root.detach(1000)
-            if int_(ret) < 0:
-                logger.warning("can't detach")
+            try:
+                ret = DfuUtil.dfu_root.detach(1000)
+            except usb.core.USBError as e:
+                logger.warning(f"can't detach: {e}")
                 # allow combination with final_reset
                 ret = 0
         else:
@@ -636,21 +641,16 @@ def main():
             logger.info("Determining device status...")
 
             try:
-                _err = int(status := DfuUtil.dfu_root.get_status())
-                if _err != LIBUSB_ERROR_PIPE:
-                    logger.warning("Device does not implement get_status, assuming appIDLE")
-                    status.bStatus = dfu.Status.OK
-                    status.bwPollTimeout = 0
-                    status.bState = dfu.State.APP_IDLE
-                    status.iString = 0
-                elif _err < 0:
-                    raise _IOError(f"error get_status {_err}")
-                else:
-                    logger.info(f"DFU "
-                                f"state({status.bState}) = {status.bState.to_string()}, "
-                                f"status({status.bStatus}) = {status.bStatus.to_string()})")
+                status = DfuUtil.dfu_root.get_status()
+                logger.info(f"DFU "
+                            f"state({status.bState}) = {status.bState.to_string()}, "
+                            f"status({status.bStatus}) = {status.bStatus.to_string()})")
             except usb.core.USBError as e:
-                raise _IOError(f"error get_status: {e}") from e
+                if e.backend_error_code != LIBUSB_ERROR_PIPE:
+                    logger.warning("Device does not implement get_status, assuming appIDLE")
+                    status = dfu.StatusRetVal(dfu.Status.OK, 0, dfu.State.APP_IDLE, 0)
+                else:
+                    raise _IOError(f"error get_status: {e}") from e
 
             milli_sleep(status.bwPollTimeout)
             # line of main.c #527
@@ -672,7 +672,7 @@ def main():
                 try:
                     DfuUtil.dfu_root.clear_status()
                 except usb.core.USBError as e:
-                    raise _IOError("error clear_status") from e
+                    raise _IOError(f"error clear_status: {e}") from e
                 # fall through
             else:
                 logger.warning(

@@ -20,9 +20,11 @@ from dataclasses import dataclass
 from typing import Generator
 
 import usb.core
+from usb.legacy import DT_CONFIG, DT_CONFIG_SIZE
 
 from pydfuutil import dfu
 from pydfuutil.dfu import DfuIf, IFF
+from pydfuutil.exceptions import _IOError
 from pydfuutil.logger import logger
 from pydfuutil.quirks import get_quirks, QUIRK
 from pydfuutil.usb_dfu import FuncDescriptor, USB_DT_DFU, USB_DT_DFU_SIZE
@@ -199,7 +201,12 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
         func_dfu.wTransferSize = 0
 
     uif: usb.core.Interface
-    for uif in dev.get_active_configuration():
+
+    try:
+        cfg = dev.get_active_configuration()
+    except usb.core.USBError as e:
+        raise _IOError(e) from e
+    for uif in cfg:
 
         if (DfuUtil.match_iface_index > -1
                 and DfuUtil.match_iface_index != uif.index):
@@ -272,12 +279,16 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
                 alt_name = "UNKNOWN"
 
             if dev.iSerialNumber != 0:
-                if quirks and QUIRK.UTF8_SERIAL:
-                    serial_name = usb.util.get_string(dev, dev.iSerialNumber)
-                    if serial_name:
-                        serial_name += '0'
-                else:
-                    serial_name = usb.util.get_string(dev, dev.iSerialNumber)
+                try:
+                    if quirks and QUIRK.UTF8_SERIAL:
+                        serial_name = usb.util.get_string(dev, dev.iSerialNumber)
+                        if serial_name:
+                            serial_name += '0'
+                    else:
+                        serial_name = usb.util.get_string(dev, dev.iSerialNumber)
+                except usb.core.USBError as e:
+                    _logger.debug(e)
+                    serial_name = None
             else:
                 serial_name = None
             if not serial_name:
@@ -331,11 +342,12 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
 
 def probe_configuration(dev: usb.core.Device) -> None:
     """Find dfu descriptor and dfu functional descriptor"""
-    cfgs = dev.configurations()
-    for cfg in cfgs:
+    try:
+        cfgs = dev.configurations()
+    except usb.core.USBError as e:
+        raise _IOError(e) from e
 
-        if cfg is None:
-            return
+    for cfg in cfgs:
 
         if ret := find_descriptor(cfg.extra_descriptors, USB_DT_DFU,
                                   bytearray(USB_DT_DFU_SIZE)):
@@ -372,12 +384,10 @@ def probe_configuration(dev: usb.core.Device) -> None:
 
             # NOTE: no need to find on intf
             try:
-                if ret := usb.control.get_descriptor(
-                        dev, usb.DT_CONFIG_SIZE, usb.DT_CONFIG, 0
-                ):
-                    func_dfu = FuncDescriptor.from_bytes(ret.tobytes())
-                    _found_dfu(dev, cfg, func_dfu)
-                    return
+                ret = usb.control.get_descriptor(dev, DT_CONFIG_SIZE, DT_CONFIG, 0)
+                func_dfu = FuncDescriptor.from_bytes(ret.tobytes())
+                _found_dfu(dev, cfg, func_dfu)
+                return
             except usb.core.USBError as e:
                 _logger.debug(e)
             _logger.warning("Device has DFU interface, "

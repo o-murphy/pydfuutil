@@ -111,7 +111,7 @@ class CompatibilityError(Errx, OSError):
 
 
 def handle_usb_error(func):
-    """wrapper to got a libusb error value"""
+    """patch wrapper to catch a libusb error value"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:

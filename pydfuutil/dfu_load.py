@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
-
+import usb.core
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
 from pydfuutil.exceptions import _IOError, SoftwareError, except_and_safe_exit
@@ -61,10 +61,10 @@ def do_upload(dif: dfu.DfuIf,
         )
         # ret = 0  # need there?
         while True:
-            rc = dif.upload(transaction, buf)
-
-            if len(rc) < 0:
-                _logger.warning("Error during upload")
+            try:
+                rc = dif.upload(transaction, buf)
+            except usb.core.USBError as e:
+                _logger.warning(f"Error during upload: {e}")
                 ret = rc
                 break
 
@@ -125,15 +125,17 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
             if (ret := file.file_p.readinto(buf)) < 0:  # Handle read error
                 raise _IOError(f"Error reading file: {file.name}")
 
-            ret = dif.download(ret, buf[:ret] if ret else None)
-
-            if ret < 0:
-                raise _IOError("Error during download")
+            try:
+                ret = dif.download(ret, buf[:ret] if ret else None)
+            except usb.core.USBError as e:
+                raise _IOError(f"Error during download: {e}") from e
             bytes_sent += ret
 
             while True:
-                if int(status := dif.get_status()) < 0:
-                    raise _IOError("Error during download get_status")
+                try:
+                    status = dif.get_status()
+                except usb.core.USBError as e:
+                    raise _IOError(f"Error during download get_status {e}") from e
                 if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR):
                     break
                 # Wait while the device executes flashing
@@ -152,16 +154,20 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
             progress.update(description="Downloading...", advance=xfer_size // 1000)
 
         # Send one zero-sized download request to signalize end
-        if dif.download(dfu.TRANSACTION, bytes()) < 0:
-            raise _IOError("Error sending completion packet")
+        try:
+            dif.download(dfu.TRANSACTION, bytes())
+        except usb.core.USBError as e:
+            raise _IOError(f"Error sending completion packet {e}") from e
 
         progress.update(description="Download finished!")
         _logger.info("finished!")
         _logger.debug(f"Sent a total of {bytes_sent} bytes")
 
         # Transition to MANIFEST_SYNC state
-        if int(status := dif.get_status()) < 0:
-            raise _IOError("Unable to read DFU status")
+        try:
+            status = dif.get_status()
+        except usb.core.USBError as e:
+            raise _IOError(f"Unable to read DFU status: {e}") from e
         _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                      f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
@@ -172,8 +178,10 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         while status.bState in (dfu.State.DFU_MANIFEST_SYNC, dfu.State.DFU_MANIFEST):
             # Some devices need some time before we can obtain the status
             milli_sleep(1000)
-            if int(status := dif.get_status()) < 0:
-                raise _IOError("Unable to read DFU status")
+            try:
+                status = dif.get_status()
+            except usb.core.USBError as e:
+                raise _IOError(f"Unable to read DFU status: {e}") from e
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
