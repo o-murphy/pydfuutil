@@ -29,7 +29,7 @@ from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.usb_dfu import FuncDescriptor
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfu')
 
 
 class State(IntEnum):

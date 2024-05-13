@@ -27,7 +27,7 @@ from pydfuutil.logger import logger
 from pydfuutil.quirks import get_quirks, QUIRK
 from pydfuutil.usb_dfu import FuncDescriptor, USB_DT_DFU, USB_DT_DFU_SIZE
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfu_util')
 
 MAX_DESC_STR_LEN = 253
 MAX_PATH_LEN = 20

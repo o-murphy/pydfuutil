@@ -25,7 +25,7 @@ from typing import Iterator
 
 from pydfuutil.logger import logger
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfuse_mem')
 
 
 class DFUSE(IntFlag):

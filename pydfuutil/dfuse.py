@@ -35,7 +35,7 @@ from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
 from pydfuutil.quirks import QUIRK, fixup_dfuse_layout
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfuse')
 
 MEM_LAYOUT: [MemSegment, None] = None
 

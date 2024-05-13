@@ -28,7 +28,7 @@ from enum import IntEnum
 from pydfuutil.exceptions import NoInputError, _IOError, DataError, except_and_safe_exit, UsageError
 from pydfuutil.logger import logger
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfu_file')
 
 DFU_SUFFIX_LENGTH = 16
 LMDFU_PREFIX_LENGTH = 8

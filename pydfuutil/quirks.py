@@ -21,7 +21,7 @@ from enum import IntEnum, IntFlag
 from pydfuutil.dfuse_mem import MemSegment, find_segment
 from pydfuutil.logger import logger
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('quirks')
 
 # Fallback value, works for OpenMoko
 DEFAULT_POLLTIMEOUT = 5

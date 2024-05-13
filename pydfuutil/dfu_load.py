@@ -31,7 +31,7 @@ from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
 from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfu_load')
 
 
 @except_and_safe_exit(_logger)
