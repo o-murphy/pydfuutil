@@ -28,6 +28,7 @@ from enum import Enum
 from typing import Optional, Literal
 
 import usb.core
+from usb.backend.libusb1 import LIBUSB_ERROR_PIPE
 
 from pydfuutil import dfuse, dfu, dfu_load
 from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
