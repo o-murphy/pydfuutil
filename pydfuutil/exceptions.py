@@ -21,6 +21,11 @@ import sys
 from enum import IntEnum
 from functools import wraps
 
+from usb.core import USBError
+from usb.backend.libusb1 import _strerror
+
+str_usb_err = _strerror
+
 
 class SysExit(IntEnum):
     OTHER = 1  # successful termination
@@ -105,6 +110,19 @@ class CompatibilityError(Errx, OSError):
     exit_code = 3  # OSError + EX_PROTOCOL = 3
 
 
+def handle_usb_error(func):
+    """wrapper to got a libusb error value"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except USBError as e:
+            if e.backend_error_code is None:
+                raise e
+            return e.backend_error_code
+    return wrapper
+
+
 def except_and_safe_exit(_logger: logging.Logger = None):
     """decorator to handle exceptions and exit safely"""
 
@@ -143,5 +161,7 @@ __all__ = (
     'DataError',
     'UsbIOError',
     '_IOError',
-    'except_and_safe_exit'
+    'except_and_safe_exit',
+    'handle_usb_error',
+    'str_usb_err'
 )
