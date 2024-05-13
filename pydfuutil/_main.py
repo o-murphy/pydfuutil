@@ -329,7 +329,6 @@ def main():
     final_reset = optargs.reset
     wait_device = optargs.wait
 
-    # print(optargs.dfuse_address)  # FIXME: DFUSE options
     dfuse_options = dfuse.parse_options(optargs.dfuse_address)
 
     if mode is Mode.NONE and not dfuse_options:
