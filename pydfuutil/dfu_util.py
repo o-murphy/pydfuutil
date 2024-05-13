@@ -34,14 +34,17 @@ MAX_PATH_LEN = 20
 
 
 class DfuUtilMeta(type):
+    """DfuUtil MetaDataclass"""
     def __repr__(cls):
         _fields = ', '.join(f'{field}={getattr(cls, field)!r}'
                             for field in getattr(cls, '__dataclass_fields__'))
         return f"DfuUtil({_fields})"
 
 
+# pylint: disable=too-many-instance-attributes
 @dataclass
 class DfuUtil(metaclass=DfuUtilMeta):
+    """DfuUtil state handle"""
     dfu_if: DfuIf = None
     match_path: str = None
     match_vendor: int = -1
@@ -103,6 +106,7 @@ def find_descriptor(desc_list: list[int], desc_type: int, res_buf: bytearray) ->
 
 
 def get_path(dev) -> str:
+    """Get device bus/port path"""
     path = None
     try:
         # Get the bus and device address
@@ -118,15 +122,17 @@ def get_path(dev) -> str:
             if port_nums is not None:
                 path += '.' + '.'.join(map(str, port_nums))
 
-    except Exception as e:
+    except (TypeError, ValueError) as e:
         # Handle any exceptions, like if the device does not support port numbers
         logger.error(f"Error while getting path: {e}")
 
-    DfuUtil.path_buf = path[MAX_PATH_LEN:]
+    if path is not None:
+        DfuUtil.path_buf = path[MAX_PATH_LEN:]
     return path
 
 
 def probe_devices(ctx: Generator[usb.core.Device, None, None]) -> None:
+    """find mathing devices in ctx"""
     for dev in ctx:
         path = get_path(dev)
         if DfuUtil.match_path is not None and path != DfuUtil.match_path:
@@ -137,6 +143,7 @@ def probe_devices(ctx: Generator[usb.core.Device, None, None]) -> None:
 
 
 def disconnect_devices() -> None:
+    """dispose resources"""
     pdfu = DfuUtil.dfu_root
 
     while pdfu is not None:
@@ -153,6 +160,7 @@ def disconnect_devices() -> None:
 
 
 def print_dfu_if(dfu_if: DfuIf) -> None:
+    """Print dfu interface"""
     print(f"Found {'DFU' if dfu_if.flags & IFF.DFU else 'Runtime'}: "
           f'[{dfu_if.vendor:04x}:{dfu_if.product:04x}] '
           f'ver={dfu_if.bcdDevice:04x}, devnum={dfu_if.devnum}, '
@@ -164,6 +172,7 @@ def print_dfu_if(dfu_if: DfuIf) -> None:
 
 # Walk the device tree and print out DFU devices
 def list_dfu_interfaces() -> None:
+    """Print list of dfu interfaces"""
     pdfu = DfuUtil.dfu_root
     while pdfu is not None:
         print_dfu_if(pdfu)
@@ -173,11 +182,12 @@ def list_dfu_interfaces() -> None:
 def get_altsettings(
         config: usb.core.Configuration,
         interface: int) -> Generator[usb.core.Interface, None, None]:
-    # Get the alternate settings of the interface
+    """Get the alternate settings of the interface"""
     return usb.util.find_descriptor(config, find_all=True, bInterfaceNumber=interface)
 
 
 def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: FuncDescriptor) -> None:
+    """Found dfu interface"""
     if func_dfu.bLength == 7:
         _logger.info("Deducing device DFU version from functional descriptor length")
     elif func_dfu.bLength < 9:
@@ -212,7 +222,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
             if intf.bInterfaceClass != 0xfe or intf.bInterfaceSubClass != 1:
                 continue
 
-            dfu_mode = (intf.bInterfaceProtocol == 2)
+            dfu_mode = intf.bInterfaceProtocol == 2
 
             # ST DfuSe devices often use bInterfaceProtocol 0 instead of 2
             if func_dfu.bcdDFUVersion == 0x011a and intf.bInterfaceProtocol == 0:
@@ -320,6 +330,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
 
 
 def probe_configuration(dev: usb.core.Device) -> None:
+    """Find dfu descriptor and dfu functional descriptor"""
     cfgs = dev.configurations()
     for cfg in cfgs:
 
