@@ -73,12 +73,7 @@ def quad2uint(p: bytes) -> int:
     return int.from_bytes(p, byteorder='little', signed=False)
 
 
-@except_and_safe_exit(_logger)
-def parse_options(options: list[str]) -> RuntimeOptions:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter
-    )
-
+def add_cli_options(parser):
     class ColonSplitAction(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
             setattr(namespace, self.dest, values.split(':'))
@@ -86,9 +81,9 @@ def parse_options(options: list[str]) -> RuntimeOptions:
     parser.add_argument('-s', '--dfuse-address',
                         dest='dfuse_address', metavar='<address><:...>',
                         action=ColonSplitAction,
-                        help="ST DfuSe mode string, specifying target"
-                             "address for raw file download or upload"
-                             "(not applicable for DfuSe file (.dfu) downloads)."
+                        help="ST DfuSe mode string, specifying target\n"
+                             "address for raw file download or upload\n"
+                             "(not applicable for DfuSe file (.dfu) downloads).\n"
                              "Add more DfuSe options separated with ':'\n\n"
                              'leave\n\tLeave DFU mode (jump to application)\n'
                              'mass-erase\n\tErase the whole device (requires "force")\n'
@@ -97,10 +92,10 @@ def parse_options(options: list[str]) -> RuntimeOptions:
                              'force\n\tYou really know what you are doing!\n'
                              '<length>\n\tLength of firmware to upload from device')
 
-    # parser.print_help()
-    args = parser.parse_args(options)
 
-    opts = args.dfuse_address
+@except_and_safe_exit(_logger)
+def parse_options(dfuse_opts: list[str]) -> RuntimeOptions:
+    opts = dfuse_opts
 
     rt_opts = RuntimeOptions()
 
@@ -375,13 +370,13 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
 
 @except_and_safe_exit(_logger)
 def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
-              opts: str) -> int:
+              dfuse_opts: list[str]) -> int:
     total_bytes = 0
     upload_limit = 0
     ret = 0
     buf = bytearray(xfer_size)
 
-    rt_opts = parse_options(opts.split()) if opts else RuntimeOptions()
+    rt_opts = parse_options(dfuse_opts) if dfuse_opts else RuntimeOptions()
     if rt_opts.length:
         upload_limit = rt_opts.length
     if rt_opts.address_present:
@@ -688,8 +683,8 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
 
 @except_and_safe_exit(_logger)
 def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
-                opts: str) -> int:
-    rt_opts = parse_options(opts.split()) if opts else RuntimeOptions()
+                dfuse_opts: list[str]) -> int:
+    rt_opts = parse_options(dfuse_opts) if dfuse_opts else RuntimeOptions()
     a_dif = dif
     while a_dif:
         a_dif.mem_layout = parse_memory_layout(a_dif.alt_name)

@@ -54,8 +54,8 @@ class Errx(Exception):
     """
     exit_code = SysExit.OTHER
 
-    def __init__(self, message, exit_code: SysExit = None):
-        super().__init__(message)
+    def __init__(self, *args, exit_code: SysExit = None):
+        super().__init__(*args)
         if isinstance(exit_code, SysExit):
             self.exit_code = exit_code
 
