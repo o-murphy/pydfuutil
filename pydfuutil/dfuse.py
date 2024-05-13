@@ -146,7 +146,7 @@ def upload(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
         bmRequestType=usb.util.ENDPOINT_IN |
                       usb.util.CTRL_TYPE_CLASS |
                       usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=dfu.Command.UPLOAD,
+        bRequest=dfu.Request.UPLOAD,
         wValue=transaction,
         wIndex=dif.interface,
         data_or_wLength=data,
@@ -172,7 +172,7 @@ def download(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
         bmRequestType=usb.util.ENDPOINT_OUT |
                       usb.util.CTRL_TYPE_CLASS |
                       usb.util.CTRL_RECIPIENT_INTERFACE,
-        bRequest=dfu.Command.DNLOAD,
+        bRequest=dfu.Request.DNLOAD,
         wValue=transaction,
         wIndex=dif.interface,
         data_or_wLength=data,

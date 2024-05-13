@@ -37,7 +37,7 @@ class TestDfu(unittest.TestCase):
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21 | 0x01,
-            bRequest=dfu.Command.DETACH,  # Assuming Command.DETACH is 23
+            bRequest=dfu.Request.DETACH,  # Assuming Request.DETACH is 23
             wValue=timeout,
             wIndex=interface,
             data_or_wLength=None,
@@ -65,7 +65,7 @@ class TestDfu(unittest.TestCase):
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
-            bRequest=dfu.Command.UPLOAD,  # Assuming Command.UPLOAD
+            bRequest=dfu.Request.UPLOAD,  # Assuming Request.UPLOAD
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=data,
@@ -93,7 +93,7 @@ class TestDfu(unittest.TestCase):
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
-            bRequest=dfu.Command.DNLOAD,  # Assuming Command.DNLOAD
+            bRequest=dfu.Request.DNLOAD,  # Assuming Request.DNLOAD
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=data,
@@ -121,7 +121,7 @@ class TestDfu(unittest.TestCase):
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
-            bRequest=dfu.Command.GETSTATUS,  # Assuming Command.GETSTATUS
+            bRequest=dfu.Request.GETSTATUS,  # Assuming Request.GETSTATUS
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=length,
@@ -148,7 +148,7 @@ class TestDfu(unittest.TestCase):
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
-            bRequest=dfu.Command.CLRSTATUS,  # Assuming Command.CLRSTATUS
+            bRequest=dfu.Request.CLRSTATUS,  # Assuming Request.CLRSTATUS
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=None,
@@ -175,7 +175,7 @@ class TestDfu(unittest.TestCase):
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
-            bRequest=dfu.Command.ABORT,  # Assuming Command.ABORT
+            bRequest=dfu.Request.ABORT,  # Assuming Request.ABORT
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=None,
