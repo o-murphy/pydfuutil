@@ -1,4 +1,4 @@
-# PyDfuUtil - Pure python fork of **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)** wrappers to **[libusb](https://github.com/libusb/libusb)**
+# PyDfuUtil - Pure python fork of **[dfu-util](https://dfu-util.sourceforge.net/)** wrappers to **[libusb](https://github.com/libusb/libusb)**
 
 [![PyPI Version](https://img.shields.io/pypi/v/pydfuutil?label=PyPI&logo=pypi)](https://pypi.org/project/pydfuutil/)
 
@@ -6,6 +6,12 @@
 * **[Introduction](#introduction)**
 * **[Requirements](#requirements-and-platform-support)**
 * **[Installing](#installing)**
+* **[Usage](#installing)**
+  + [**Manual page**](https://dfu-util.sourceforge.net/dfu-util.1.html)
+  + [**dfu-util** (pydfuutil-util)](#pydfuutil)
+  + [**dfu-suffix** (pydfuutil-suffix)](#pydfuutil-suffix)
+  + [**dfu-prefix** (pydfuutil-prefix)](#pydfuutil-prefix)
+  + [**lsusb** (pydfuutil-lsusb)](#pydfuutil-lsusb)
 * **[Todos](#todos)**
 * **[Getting help](#getting-help)**
 * **[About](#about)**
@@ -16,12 +22,15 @@
 
 * **PyDFUUtil** provides for easy access to the devices that supports **DFU** interface over host machine's **Universal Serial Bus (USB)**
 system for Python 3.
-* **PyDFUUtil** is an open realisation of original **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)**
+* **PyDFUUtil** is an open realisation of original **[dfu-util](https://dfu-util.sourceforge.net/)**
 and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[PyUsb](https://github.com/pyusb/pyusb)** library as a backend)_.
 
 > [!WARNING]
 > The current status of the project is BETA version.
 > Use it for your own risk
+
+> [!IMPORTANT]
+> Current version implements but not tested with real `dfuse` devices!
 
 > [!TIP]
 > Searching for contributors for testing the library
@@ -31,10 +40,6 @@ and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[P
 * Since **PyDFUUtil** uses the **[libusb](https://github.com/libusb/libusb)** library it has similar dependencies for using **[libusb](https://github.com/libusb/libusb)**
 * **PyDFUUtil** primarily tested on Linux and Windows, 
 but also can work on each platform where **[PyUsb](https://github.com/construct/construct)** library are available, including MacOS
-
-
-> [!IMPORTANT]
-> Current version implements but not tested with real `dfuse` devices!
 
 
 ## Installing
@@ -49,7 +54,7 @@ but also can work on each platform where **[PyUsb](https://github.com/construct/
 
 ## Usage
 
-### dfu-util
+### pydfuutil
 ```Bash
 pydfuutil -h 
 # or
@@ -116,13 +121,13 @@ options:
                                 Length of firmware to upload from device
 ```
 
-### dfu-suffix
+### pydfuutil-suffix
 ```Bash
 pydfuutil-suffix -h
 # or 
 python -m pydfuutil.suffix -h
 
-
+####### usage:
 usage: dfu-suffix [-h] [-V] (-c | -a | -D) [-p <productID>] [-v <vendorID>] [-d <deviceID>] [-s <address>] [-T] <file>
 
 positional arguments:
@@ -143,7 +148,64 @@ options:
   -s <address>, --stellaris-address <address>
                         Specify lmdfu address for LMDFU_ADD
   -T, --stellaris       Set lmdfu mode to LMDFU_CHECK
+```
 
+### pydfuutil-prefix
+```Bash
+pydfuutil-prefix -h
+# or 
+python -m pydfuutil.prefix -h
+
+####### usage:
+usage: pydfuutil-prefix [-h] [-V] (-c | -D | -a) [-s <address>] [-T]
+                        [-L]
+                        <file>
+
+
+positional arguments:
+  <file>                Target filename
+
+options:
+  -h, --help            show this help message and exit
+  -V, --version         Print the version number
+  -c, --check           Check DFU suffix of <file>
+  -D, --delete          Delete DFU suffix from <file>
+  -a, --add             Add DFU suffix to <file>
+
+In combination with -a:
+  -s <address>, --stellaris-address <address>
+                        Add TI Stellaris address prefix to <file>
+
+In combination with -a or -D or -c:
+  -T, --stellaris       Act on TI Stellaris address prefix of <file>
+
+In combination with -a or -D or -c:
+  -L, --lpc-prefix      Use NXP LPC DFU prefix format
+```
+
+### pydfuutil-lsusb
+```Bash
+pydfuutil-lsusb -h
+# or 
+python -m pydfuutil.lsusb -h
+
+####### usage:
+usage: pydfuutil-prefix [-v] [-s [[bus]:][devnum]]
+                        [-d vendor:[product]] [-D device] [-t] [-V]    
+                        [-h]
+
+options:
+  -v, --verbose        Increase verbosity (show descriptors)
+  -s [[bus]:][devnum]  Show only devices with specified device and/or  
+                       bus numbers (in decimal)
+  -d vendor:[product]  Show only devices with the specified vendor     
+                       and product ID numbers (in hexadecimal)
+  -D device            Selects which device lsusb will examine by      
+                       UNIX-like path simulate
+  -t, --tree           Simulate UNIX-like physical USB device
+                       hierarchy
+  -V, --version        Print the version number
+  -h, --help           Show this help message and exit
 ```
 
 #### Done:
@@ -185,7 +247,7 @@ upload firmware from it.
 dfu-util has been tested with Openmoko Neo1973 and Freerunner and many
 other devices.
 
-* **[The official website](http://dfu-util.gnumonks.org)**
+* **[The official website](https://dfu-util.sourceforge.net/)**
 * **[DFU 1.0 spec](http://www.usb.org/developers/devclass_docs/usbdfu10.pdf)**
 * **[DFU 1.1 spec](http://www.usb.org/developers/devclass_docs/DFU_1.1.pdf)**
 
