@@ -52,23 +52,21 @@ def do_upload(dif: dfu.DfuIf,
 
     total_bytes = 0
     transaction = dfu.TRANSACTION  # start page
-    buf = bytearray(xfer_size)
 
     with Progress() as progress:
         progress.start_task(
             description="Starting upload",
             total=expected_size if expected_size >= 0 else None
         )
-        # ret = 0  # need there?
         while True:
             try:
-                rc = dif.upload(transaction, buf)
+                rc = dif.upload(transaction, xfer_size)
             except USBError as e:
                 _logger.warning(f"Error during upload: {e}")
                 ret = rc
                 break
 
-            file.write_crc(0, buf)
+            file.write_crc(0, rc)
 
             total_bytes += len(rc)
 

@@ -330,7 +330,6 @@ def _upload(device: usb.core.Device,
     """
 
     _logger.debug('UPLOAD...')
-
     result = device.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN
                       | usb.util.CTRL_TYPE_CLASS
@@ -341,7 +340,6 @@ def _upload(device: usb.core.Device,
         data_or_wLength=data_or_length,
         timeout=TIMEOUT,
     )
-
     _logger.debug(f'UPLOAD {len(result) >= 0}')
 
     return result.tobytes()

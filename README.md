@@ -29,9 +29,12 @@ and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[P
 ## Requirements and platform support
 
 * Since **PyDFUUtil** uses the **[libusb](https://github.com/libusb/libusb)** library it has similar dependencies for using **[libusb](https://github.com/libusb/libusb)**
-* It uses python **[construct](https://github.com/construct/construct)** library for simple unpacking C-structs.
 * **PyDFUUtil** primarily tested on Linux and Windows, 
-but also can work on each platform where **[PyUsb](https://github.com/construct/construct)** and **[construct](https://github.com/construct/construct)** libraries are available, including MacOS
+but also can work on each platform where **[PyUsb](https://github.com/construct/construct)** library are available, including MacOS
+
+
+> [!IMPORTANT]
+> Current version implements but not tested with real `dfuse` devices!
 
 
 ## Installing
@@ -53,7 +56,11 @@ pydfuutil -h
 python -m pydfuutil -h
 
 ####### usage:
-usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-d <deviceID>:<productID>] [-p <bus/port>] [-c <config>] [-i <intf_num>] [-a <alt>] [-t <size>] [-U <file>] [-D <file>] [-R] [-s <address>]
+usage: pydfuutil [-h] [-V] [-v] [-l] [-e] [-E <seconds>]
+                 [-d <vid>:<pid>[,<vid_dfu>:<pid_dfu>]] [-n <dnum>] [-p <bus-port. ... .port>]
+                 [-c <config_nr>] [-i <intf_nr>] [-S <serial_str>[,<serial_str_dfu>]]
+                 [-a <alt>] [-t <size>] [-U <file>] [-Z <bytes>] [-D <file>] [-R] [-w]
+                 [-s <address><:...>]
 
 Python implementation of DFU-Util tools
 
@@ -63,25 +70,50 @@ options:
   -v, --verbose         Print verbose debug statements
   -l, --list            List the currently attached DFU capable USB devices
   -e, --detach          Detach the currently attached DFU capable USB devices
-  -d <deviceID>:<productID>, --device <deviceID>:<productID>
-                        Specify Vendor/Product ID of DFU device
-  -p <bus/port>, --path <bus/port>
+  -E <seconds>, --detach-delay <seconds>
+                        Time to wait before reopening a device after detach
+  -d <vid>:<pid>[,<vid_dfu>:<pid_dfu>], --device <vid>:<pid>[,<vid_dfu>:<pid_dfu>]
+                        Specify Vendor/Product ID(s) of DFU device
+  -n <dnum>, --devnum <dnum>
+                        Match given device number (devnum from --list)
+  -p <bus-port. ... .port>, --path <bus-port. ... .port>
                         Specify path to DFU device
-  -c <config>, --cfg <config>
+  -c <config_nr>, --cfg <config_nr>
                         Specify the Configuration of DFU device
-  -i <interface>, --intf <interface>
+  -i <intf_nr>, --intf <intf_nr>
                         Specify the DFU Interface number
+  -S <serial_str>[,<serial_str_dfu>], --serial <serial_str>[,<serial_str_dfu>]
+                        Specify Serial String of DFU device
   -a <alt>, --alt <alt>
                         Specify the Altsetting of the DFU Interface
   -t <size>, --transfer-size <size>
                         Specify the number of bytes per USB Transfer
   -U <file>, --upload <file>
                         Read firmware from device into <file>
+  -Z <bytes>, --upload-size <bytes>
+                        Read firmware from device into <file>
   -D <file>, --download <file>
-                        Write firmware from <file> into device
+                        Read firmware from device into <file>
   -R, --reset           Issue USB Reset signalling once we`re finished
-  -s <address>, --dfuse-address <address>
-                        ST DfuSe mode, specify target address for raw file download or upload. Not applicable for DfuSe file (.dfu) downloads
+  -w, --wait            Wait for device to appear
+  -s <address><:...>, --dfuse-address <address><:...>
+                        ST DfuSe mode string, specifying target
+                        address for raw file download or upload
+                        (not applicable for DfuSe file (.dfu) downloads).
+                        Add more DfuSe options separated with ':'
+
+                        leave
+                                Leave DFU mode (jump to application)
+                        mass-erase
+                                Erase the whole device (requires "force")
+                        unprotect
+                                Erase read protected device (requires "force")
+                        will-reset
+                                Expect device to reset (e.g. option bytes write)
+                        force
+                                You really know what you are doing!
+                        <length>
+                                Length of firmware to upload from device
 ```
 
 ### dfu-suffix
@@ -120,15 +152,15 @@ options:
 - [x] dfu_load
 - [x] portable
 - [x] quirks
-- [x] suffix + cli entry point
+- [x] suffix
 - [x] usb_dfu
 - [x] lmdfu
 - [x] dfuse_mem
 - [x] dfuse
-- [x] dfu-util cli entry point (not fully supported yet)
+- [x] dfu-util
 
 #### Todo
-- [ ] Update sources to latest original version "dfu-util-0.11"
+- [x] Update sources to latest original version "dfu-util-0.11"
 
 [//]: # (https://dfu-util.sourceforge.net/)
 [//]: # (- https://sourceforge.net/p/dfu-util/dfu-util/ci/master/tree/)
@@ -163,5 +195,5 @@ other devices.
 
 ## Footnotes
 * On systems that still default to Python 2, replace python with python3
-* Project is in develop, it fulls of not implemented statements that's not according to original **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)**!
+* Project is in develop, it fulls issues not according to original **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)**!
 
