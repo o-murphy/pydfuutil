@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Generator
 
 import usb.core
+from usb.core import USBError
 from usb.legacy import DT_CONFIG, DT_CONFIG_SIZE
 
 from pydfuutil import dfu
@@ -204,7 +205,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
 
     try:
         cfg = dev.get_active_configuration()
-    except usb.core.USBError as e:
+    except USBError as e:
         raise _IOError(e) from e
     for uif in cfg:
 
@@ -286,7 +287,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
                             serial_name += '0'
                     else:
                         serial_name = usb.util.get_string(dev, dev.iSerialNumber)
-                except usb.core.USBError as e:
+                except USBError as e:
                     _logger.debug(e)
                     serial_name = None
             else:
@@ -344,7 +345,7 @@ def probe_configuration(dev: usb.core.Device) -> None:
     """Find dfu descriptor and dfu functional descriptor"""
     try:
         cfgs = dev.configurations()
-    except usb.core.USBError as e:
+    except USBError as e:
         raise _IOError(e) from e
 
     for cfg in cfgs:
@@ -388,7 +389,7 @@ def probe_configuration(dev: usb.core.Device) -> None:
                 func_dfu = FuncDescriptor.from_bytes(ret.tobytes())
                 _found_dfu(dev, cfg, func_dfu)
                 return
-            except usb.core.USBError as e:
+            except USBError as e:
                 _logger.debug(e)
             _logger.warning("Device has DFU interface, "
                             "but has no DFU functional descriptor")

@@ -22,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
-import usb.core
+from usb.core import USBError
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
 from pydfuutil.exceptions import _IOError, SoftwareError, except_and_safe_exit
@@ -63,7 +63,7 @@ def do_upload(dif: dfu.DfuIf,
         while True:
             try:
                 rc = dif.upload(transaction, buf)
-            except usb.core.USBError as e:
+            except USBError as e:
                 _logger.warning(f"Error during upload: {e}")
                 ret = rc
                 break
@@ -127,14 +127,14 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
 
             try:
                 ret = dif.download(ret, buf[:ret] if ret else None)
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError(f"Error during download: {e}") from e
             bytes_sent += ret
 
             while True:
                 try:
                     status = dif.get_status()
-                except usb.core.USBError as e:
+                except USBError as e:
                     raise _IOError(f"Error during download get_status {e}") from e
                 if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR):
                     break
@@ -156,7 +156,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         # Send one zero-sized download request to signalize end
         try:
             dif.download(dfu.TRANSACTION, bytes())
-        except usb.core.USBError as e:
+        except USBError as e:
             raise _IOError(f"Error sending completion packet {e}") from e
 
         progress.update(description="Download finished!")
@@ -166,7 +166,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         # Transition to MANIFEST_SYNC state
         try:
             status = dif.get_status()
-        except usb.core.USBError as e:
+        except USBError as e:
             raise _IOError(f"Unable to read DFU status: {e}") from e
         _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                      f"status({status.bStatus}) = {status.bStatus.to_string()}")
@@ -180,7 +180,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
             milli_sleep(1000)
             try:
                 status = dif.get_status()
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError(f"Unable to read DFU status: {e}") from e
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")

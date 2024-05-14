@@ -26,5 +26,9 @@ try:
     import libusb_package
     from usb.backend import libusb1
     libusb1.get_backend(libusb_package.find_library)
+    # # TODO: test it
+    # # prevent raising USBError to got error codes directly
+    # # on libusb1 backend
+    # usb.backend.libusb1._check = lambda x: x
 finally:
     pass

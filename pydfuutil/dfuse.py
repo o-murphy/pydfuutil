@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 import usb.util
+from usb.core import USBError
 from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
 
 from pydfuutil import dfu
@@ -630,7 +631,7 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
                 try:
                     a_dif.dev.set_interface_altsetting(a_dif.interface,
                                                        a_dif.altsetting)
-                except usb.core.USBError as e:
+                except USBError as e:
                     raise _IOError(f"Cannot set alternate interface: {ret}") from e
 
                 break

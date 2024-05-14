@@ -29,6 +29,7 @@ from enum import Enum
 from typing import Literal, Optional
 
 import usb.core
+from usb.core import USBError
 
 from pydfuutil import dfu
 from pydfuutil import dfu_file
@@ -187,7 +188,7 @@ def get_alt_name(dfu_if: dfu.DfuIf) -> [int, str]:
         return -1
     try:
         return usb.util.get_string(dev, alt_name_str_idx)
-    except usb.core.USBError:
+    except USBError:
         return -1
 
 
@@ -449,7 +450,7 @@ def get_cached_extra_descriptor(dfu_if: dfu.DfuIf,
     cfg = dev.configurations()[bConfValue - 1]
     try:
         intf_desc = cfg.interfaces()[intf]
-    except usb.core.USBError as e:
+    except USBError as e:
         if e.errno == errno.ENOENT:
             logger.error("Device is unconfigured")
         else:
@@ -738,12 +739,12 @@ def main() -> None:
         logger.info("Claiming USB DFU Runtime Interface...")
         try:
             usb.util.claim_interface(_rt_dif.dev, _rt_dif.interface)
-        except usb.core.USBError:
+        except USBError:
             raise Errx(f"Cannot claim interface {_rt_dif.interface}")
 
         try:
             _rt_dif.dev.set_interface_altsetting(_rt_dif.interface, 0)
-        except usb.core.USBError:
+        except USBError:
             raise Errx("Cannot set alt interface zero")
 
         status = check_status(_rt_dif)
@@ -761,7 +762,7 @@ def main() -> None:
                 logger.info("Resetting USB...\n")
                 try:
                     _rt_dif.dev.reset()
-                except usb.core.USBError:
+                except USBError:
                     logger.error("error resetting after detach")
             milli_sleep(2000)
         elif status.bState == dfu.State.DFU_ERROR:
@@ -834,19 +835,19 @@ def main() -> None:
     # logger.info(f"Setting Configuration {dif.configuration}...")
     # try:
     #     dif.dev.set_configuration(dif.configuration)
-    # except usb.core.USBError as e:
+    # except USBError as e:
     #     raise Errx("Cannot set configuration")
 
     logger.info("Claiming USB DFU Interface...")
     try:
         usb.util.claim_interface(dif.dev, dif.interface)
-    except usb.core.USBError:
+    except USBError:
         raise Errx("Cannot claim interface")
 
     logger.info(f"Setting Alternate Setting {dif.altsetting} ...\n")
     try:
         dif.dev.set_interface_altsetting(dif.interface, dif.altsetting)
-    except usb.core.USBError:
+    except USBError:
         raise Errx("Cannot set alternate interface")
 
     status = check_status(dif)
@@ -1013,7 +1014,7 @@ def main() -> None:
         logger.info("Resetting USB to switch back to runtime mode")
         try:
             dif.dev.reset()
-        except usb.core.USBError as e:
+        except USBError as e:
             logger.error("error resetting after download")
             logger.debug(e)
 

@@ -17,14 +17,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
-# import inspect
 import sys
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
 
 import usb.util
+from usb.core import USBError
 
 from pydfuutil.dfuse_mem import MemSegment
+from pydfuutil.exceptions import _IOError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.usb_dfu import FuncDescriptor
@@ -521,17 +522,18 @@ _DFU_STATUS_NAMES = {
 
 
 def _abort_to_idle(dif: DfuIf):
-    if dif.abort() < 0:
-        _logger.error("Error sending dfu abort request")
-        sys.exit(1)
-    if (ret := int(dst := dif.get_status())) < 0:
-        _logger.error("Error during abort get_status")
-        sys.exit(1)
+    try:
+        dif.abort()
+    except USBError:
+        raise _IOError("Error sending dfu abort request")
+    try:
+        dst = dif.get_status()
+    except USBError:
+        raise _IOError("Error during abort get_status")
     if dst.bState != State.DFU_IDLE:
-        _logger.error("Failed to enter idle state on abort")
-        sys.exit(1)
+        raise _IOError("Failed to enter idle state on abort")
     milli_sleep(dst.bwPollTimeout)
-    return ret
+    return dst
 
 
 # global definitions

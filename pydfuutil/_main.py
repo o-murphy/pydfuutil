@@ -28,6 +28,7 @@ from enum import Enum
 from typing import Optional, Literal
 
 import usb.core
+from usb.core import USBError
 from usb.backend.libusb1 import LIBUSB_ERROR_PIPE
 
 from pydfuutil import dfuse, dfu, dfu_load
@@ -362,7 +363,7 @@ def main():
 
     try:
         ctx = usb.core.find(find_all=True)
-    except usb.core.USBError as e:
+    except USBError as e:
         raise _IOError(f"unable to initialize libusb: {e}") from e
 
     def check_status():
@@ -371,7 +372,7 @@ def main():
         logger.info("Determining device status...")
         try:
             status = DfuUtil.dfu_root.get_status()
-        except usb.core.USBError as e:
+        except USBError as e:
             raise _IOError(f"error get_status: {e}") from e
         logger.info(f"state = {status.bState.to_string()}, "
                     f"status = {status.bStatus}")
@@ -384,7 +385,7 @@ def main():
             logger.info("Clearing status")
             try:
                 DfuUtil.dfu_root.clear_status()
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError("error clear_status") from e
             check_status()
             return status
@@ -392,7 +393,7 @@ def main():
             logger.info("Aborting previous incomplete transfer")
             try:
                 DfuUtil.dfu_root.abort()
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError("can't send DFU_ABORT") from e
             check_status()
             return status
@@ -408,13 +409,13 @@ def main():
         # logger.info(f"Setting Configuration {dif.configuration}...")
         # try:
         #     dif.dev.set_configuration(dif.configuration)
-        # except usb.core.USBError as e:
+        # except USBError as e:
         #     raise Errx("Cannot set configuration")
 
         logger.info("Claiming USB DFU Interface")
         try:
             usb.util.claim_interface(DfuUtil.dfu_root.dev, DfuUtil.dfu_root.interface)
-        except usb.core.USBError as e:
+        except USBError as e:
             raise _IOError(f"Cannot claim interface - {e}") from e
 
         if DfuUtil.dfu_root.flags & dfu.IFF.ALT:
@@ -423,7 +424,7 @@ def main():
                     DfuUtil.dfu_root.interface,
                     DfuUtil.dfu_root.altsetting
                 )
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError(f"Cannot set alternate interface: {e}") from e
 
         status = check_status()
@@ -433,11 +434,11 @@ def main():
             # Clear our status & try again.
             try:
                 DfuUtil.dfu_root.clear_status()
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError("USB communication error") from e
             try:
                 status = DfuUtil.dfu_root.get_status()
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError(f"USB communication error: {e}") from e
             if dfu.Status.OK != status.bStatus:
                 raise ProtocolError(f"Status is not OK: {status.bStatus}")
@@ -515,7 +516,7 @@ def main():
         elif mode is Mode.DETACH:
             try:
                 ret = DfuUtil.dfu_root.detach(1000)
-            except usb.core.USBError as e:
+            except USBError as e:
                 logger.warning(f"can't detach: {e}")
                 # allow combination with final_reset
                 ret = 0
@@ -531,7 +532,7 @@ def main():
             logger.info("Resetting USB to switch back to Run-Time mode")
             try:
                 DfuUtil.dfu_root.dev.reset()
-            except usb.core.USBError as e:
+            except USBError as e:
                 logger.warning(f"error resetting after download: {e}")
                 ret = SysExit.EX_IOERR
             else:
@@ -622,7 +623,7 @@ def main():
             try:
                 usb.util.claim_interface(DfuUtil.dfu_root.dev,
                                          DfuUtil.dfu_root.interface)
-            except usb.core.USBError as e:
+            except USBError as e:
                 raise _IOError(
                     f"Cannot claim interface {DfuUtil.dfu_root.interface}: {e}") from e
 
@@ -635,7 +636,7 @@ def main():
                 try:
                     DfuUtil.dfu_root.dev.set_interface_altsetting(
                         DfuUtil.dfu_root.interface, 0)
-                except usb.core.USBError as e:
+                except USBError as e:
                     raise _IOError(f"Cannot set alternate interface zero: {e}") from e
 
             logger.info("Determining device status...")
@@ -645,7 +646,7 @@ def main():
                 logger.info(f"DFU "
                             f"state({status.bState}) = {status.bState.to_string()}, "
                             f"status({status.bStatus}) = {status.bStatus.to_string()})")
-            except usb.core.USBError as e:
+            except USBError as e:
                 if e.backend_error_code != LIBUSB_ERROR_PIPE:
                     logger.warning("Device does not implement get_status, assuming appIDLE")
                     status = dfu.StatusRetVal(dfu.Status.OK, 0, dfu.State.APP_IDLE, 0)
@@ -665,13 +666,13 @@ def main():
                     logger.info("Resetting USB...")
                     try:
                         DfuUtil.dfu_root.dev.reset()
-                    except usb.core.USBError as e:
+                    except USBError as e:
                         raise _IOError(f"error resetting after detach: {e}") from e
             elif status.bState == dfu.State.DFU_ERROR:
                 logger.info("dfuERROR, clearing status")
                 try:
                     DfuUtil.dfu_root.clear_status()
-                except usb.core.USBError as e:
+                except USBError as e:
                     raise _IOError(f"error clear_status: {e}") from e
                 # fall through
             else:
@@ -682,7 +683,7 @@ def main():
                 try:
                     usb.util.claim_interface(DfuUtil.dfu_root.dev,
                                              DfuUtil.dfu_root.interface)
-                except usb.core.USBError as e:
+                except USBError as e:
                     logger.warning(e)
                 # goto dfu_state
                 dfu_state()
@@ -690,7 +691,7 @@ def main():
             try:
                 usb.util.claim_interface(DfuUtil.dfu_root.dev,
                                          DfuUtil.dfu_root.interface)
-            except usb.core.USBError as e:
+            except USBError as e:
                 logger.warning(e)
             DfuUtil.dfu_root.dev = None
 
