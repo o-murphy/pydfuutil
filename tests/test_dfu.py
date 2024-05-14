@@ -13,9 +13,9 @@ class TestDfu(unittest.TestCase):
         self.assertEqual(dfu.TIMEOUT, 1000)
 
     def test_str(self):
-        self.assertEqual(dfu.status_to_string(dfu.Status.OK), "No error condition is present")
+        self.assertEqual(dfu._status_to_string(dfu.Status.OK), "No error condition is present")
         self.assertEqual(dfu.Status.OK.to_string(), "No error condition is present")
-        self.assertEqual(dfu.state_to_string(dfu.State.APP_IDLE), "appIDLE")
+        self.assertEqual(dfu._state_to_string(dfu.State.APP_IDLE), "appIDLE")
         self.assertEqual(dfu.State.APP_IDLE.to_string(), "appIDLE")
 
     @patch("usb.core.find")
@@ -32,12 +32,12 @@ class TestDfu(unittest.TestCase):
         # Calling the function
         interface = 0
         timeout = 1000
-        result = dfu.detach(mock_device, interface, timeout)
+        result = dfu._detach(mock_device, interface, timeout)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21 | 0x01,
-            bRequest=dfu.Command.DETACH,  # Assuming Command.DETACH is 23
+            bRequest=dfu.Request.DETACH,  # Assuming Request.DETACH is 23
             wValue=timeout,
             wIndex=interface,
             data_or_wLength=None,
@@ -60,12 +60,12 @@ class TestDfu(unittest.TestCase):
         interface = 0
         transaction = 0
         data = bytes(10)
-        result = dfu.upload(mock_device, interface, transaction, data)
+        result = dfu._upload(mock_device, interface, transaction, data)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
-            bRequest=dfu.Command.UPLOAD,  # Assuming Command.UPLOAD
+            bRequest=dfu.Request.UPLOAD,  # Assuming Request.UPLOAD
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=data,
@@ -88,12 +88,12 @@ class TestDfu(unittest.TestCase):
         interface = 0
         transaction = 0
         data = bytes(10)
-        result = dfu.download(mock_device, interface, transaction, data)
+        result = dfu._download(mock_device, interface, transaction, data)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
-            bRequest=dfu.Command.DNLOAD,  # Assuming Command.DNLOAD
+            bRequest=dfu.Request.DNLOAD,  # Assuming Request.DNLOAD
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=data,
@@ -116,12 +116,12 @@ class TestDfu(unittest.TestCase):
         interface = 0
         transaction = 0
         length = 6
-        status = dfu.get_status(mock_device, interface)
+        status = dfu._get_status(mock_device, interface)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0xa1,
-            bRequest=dfu.Command.GETSTATUS,  # Assuming Command.GETSTATUS
+            bRequest=dfu.Request.GETSTATUS,  # Assuming Request.GETSTATUS
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=length,
@@ -143,12 +143,12 @@ class TestDfu(unittest.TestCase):
         # Calling the function
         interface = 0
         transaction = 0
-        result = dfu.clear_status(mock_device, interface)
+        result = dfu._clear_status(mock_device, interface)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
-            bRequest=dfu.Command.CLRSTATUS,  # Assuming Command.CLRSTATUS
+            bRequest=dfu.Request.CLRSTATUS,  # Assuming Request.CLRSTATUS
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=None,
@@ -170,12 +170,12 @@ class TestDfu(unittest.TestCase):
         # Calling the function
         interface = 0
         transaction = 0
-        result = dfu.abort(mock_device, interface)
+        result = dfu._abort(mock_device, interface)
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
             bmRequestType=0x21,
-            bRequest=dfu.Command.ABORT,  # Assuming Command.ABORT
+            bRequest=dfu.Request.ABORT,  # Assuming Request.ABORT
             wValue=transaction,
             wIndex=interface,
             data_or_wLength=None,

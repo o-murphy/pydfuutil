@@ -4,25 +4,6 @@ from pydfuutil.__main__ import *
 
 class TestMain(unittest.TestCase):
 
-    @unittest.skip("Already implemented")
-    def test_find_dfu_if_first(self):
-        ctx = usb.core.find(find_all=True)
-        for dev in ctx:
-            dfu_if = next((i for i in find_dfu_if(dev) if i is not None), None)
-            if dfu_if:
-                print_dfu_if(dfu_if)
-
-    @unittest.skip("Already implemented")
-    def test_get_first_dfu_if(self):
-        dev = usb.core.find(idVendor=0x1fc9, idProduct=0x000c)
-        if dfu_if := get_first_dfu_if(dev):
-            print_dfu_if(dfu_if)
-
-
-    def test_usb_path2devnum(self):
-        ret = usb_path2devnum('1-0.8:1.0')
-        self.assertEqual(ret, 8)
-
     def test_get_first_in_gen(self):
 
         def gen():

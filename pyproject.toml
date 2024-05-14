@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydfuutil"
-version = "0.0.5"
+version = "0.11.0b0"
 authors = [
     { name="o-murphy", email="thehelixpg@gmail.com" },
 ]
@@ -30,7 +30,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ['pyusb', 'libusb-package', 'construct']
+dependencies = ['pyusb', 'libusb-package']
 
 
 [project.urls]
@@ -66,3 +66,5 @@ test = [
 [project.scripts]
 pydfuutil = "pydfuutil.__main__:main"
 pydfuutil-suffix = "pydfuutil.suffix:main"
+pydfuutil-prefix = "pydfuutil.prefix:main"
+pydfuutil-lsusb = "pydfuutil.lsusb:main"

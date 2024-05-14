@@ -2,6 +2,20 @@
 Helper functions for reading the memory map in a device
 following the ST DfuSe 1.1a specification.
 (C) 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 import logging
 import re
@@ -11,7 +25,7 @@ from typing import Iterator
 
 from pydfuutil.logger import logger
 
-_logger = logger.getChild(__name__.rsplit('.', maxsplit=1)[-1])
+_logger = logger.getChild('dfuse_mem')
 
 
 class DFUSE(IntFlag):
@@ -106,10 +120,6 @@ class MemSegment:
             return self.next.find(address)
         return None
 
-    # def free(self) -> None:
-    #     """Useless cause of garbage collector"""
-    #     raise NotImplementedError("Useless cause of garbage collector")
-
 
 def add_segment(segment_stack: [MemSegment, None], segment: MemSegment) -> MemSegment:
     """
@@ -139,11 +149,6 @@ def find_segment(segment_stack: [MemSegment, None], address: int) -> [MemSegment
     if not segment_stack:
         return None
     return segment_stack.find(address)
-
-
-# def free_segment_list(segment_stack: MemSegment) -> None:
-#     """Useless cause of garbage collector"""
-#     raise NotImplementedError("Useless cause of garbage collector")
 
 
 # Parse memory map from interface descriptor string
@@ -236,3 +241,12 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
         _logger.error(f"Could not read address, {address=}")
 
     return segment_stack
+
+
+__all__ = (
+    "DFUSE",
+    "MemSegment",
+    "add_segment",
+    "find_segment",
+    "parse_memory_layout"
+)
