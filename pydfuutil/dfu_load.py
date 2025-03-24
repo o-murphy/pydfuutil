@@ -62,8 +62,9 @@ def do_upload(dif: dfu.DfuIf,
             try:
                 rc = dif.upload(transaction, xfer_size)
             except USBError as e:
-                _logger.warning(f"Error during upload: {e}")
-                ret = rc
+                _logger.error(f"Error during upload: {e}")
+                ret = e.backend_error_code
+                progress.update(description='Upload failed!')
                 break
 
             file.write_crc(0, rc)
@@ -71,6 +72,8 @@ def do_upload(dif: dfu.DfuIf,
             total_bytes += len(rc)
 
             if total_bytes < 0:
+                progress.update(description='Upload failed!')
+                progress.fail()
                 raise SoftwareError("Received too many bytes (wraparound)")
 
             transaction += 1
@@ -81,12 +84,20 @@ def do_upload(dif: dfu.DfuIf,
                 ret = total_bytes
                 break
 
-        progress.update(description='Upload finished!')
-
         _logger.debug(f"Received a total of {total_bytes} bytes")
 
+        if ret < 0:
+            progress.update(description='Upload failed!')
+            progress.fail()
+            return ret
+
         if expected_size not in (0, total_bytes):
-            _logger.warning("Unexpected number of bytes uploaded from device")
+            progress.update(description='Upload failed!')
+            progress.fail()
+            _logger.error("Unexpected number of bytes uploaded from device")
+            return ret
+
+        progress.update(description='Upload finished!')
 
         return ret
 
