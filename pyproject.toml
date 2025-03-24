@@ -27,10 +27,15 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ['pyusb', 'libusb-package']
+dependencies = [
+    "pyusb",
+    "libusb-package; python_version < '3.12'",
+    "libusb-pkg; python_version >= '3.12'"
+]
 
 
 [project.urls]
