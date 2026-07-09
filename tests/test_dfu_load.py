@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from pydfuutil import dfu
 from pydfuutil.dfu_load import DfuFile, do_upload, do_download

@@ -1,8 +1,7 @@
 import errno
 import os.path
-import sys
 import unittest
-from unittest.mock import patch, Mock, MagicMock, mock_open
+from unittest.mock import patch, Mock
 
 from pydfuutil.dfu_file import *
 from pydfuutil.dfu_file import crc32_byte, DfuFile
