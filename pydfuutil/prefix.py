@@ -43,7 +43,7 @@ VERSION = (
 
 def hex2int(string: str) -> int:
     """Convert a hexadecimal string to an int"""
-    return int(string, 16)
+    return int(string, 0)
 
 
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
@@ -152,6 +152,9 @@ def main():
     file = DfuFile(name=str(args.file))
     mode = args.mode
     prefix_type = args.type if args.type else PrefixType.ZERO_PREFIX
+    if args.s and not args.type:
+        # -s implies the LMDFU prefix type, matching the documented behavior of -T
+        prefix_type = PrefixType.LMDFU_PREFIX
 
     try:
         lmdfu_flash_address = hex2int(args.s) if args.s else 0

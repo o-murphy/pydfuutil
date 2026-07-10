@@ -451,29 +451,34 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### `dfu_file.py` / `suffix.py` / `prefix.py`
 
-39. **`suffix.py:114-116`** — `pid = args.pid if args.pid else 0xffff` (same for vid/did) treats
-    an explicitly-parsed `0` as falsy, silently substituting the wildcard `0xffff`. VID/PID/DID
-    of `0` is unusual but valid.
+39. ✅ **DONE** — **`suffix.py:167-169`** — `pid = args.pid if args.pid else 0xFFFF` (same for
+    vid/did) treated an explicitly-parsed `0` as falsy, silently substituting the wildcard
+    `0xFFFF`. VID/PID/DID of `0` is unusual but valid.
     C ref: `suffix.c:93,116-124` (only the *default* is `0xffff`; any explicit `strtol` result,
-    including 0, overwrites it).
-    Fix: `args.pid if args.pid is not None else 0xffff`.
+    including 0, overwrites it — verified: `pid = vid = did = 0xffff;` then unconditionally
+    `pid = strtol(optarg, NULL, 16);` in the `case 'p':` handler with no zero-check).
+    Fix: `args.pid if args.pid is not None else 0xFFFF` (same for vid/did). Verified live:
+    `-p 0` now parses to `args.pid == 0`, and with the fix the suffix is written with pid `0`
+    instead of being silently replaced by `0xFFFF`.
 
-40. **`prefix.py`** — `-s/--stellaris-address` does not imply the LMDFU prefix type. C's
-    `case 's': ... /* fall-through */ case 'T': type = LMDFU_PREFIX;` means specifying `-s <addr>`
-    alone (without `-T`) implicitly sets the prefix type — matching the tool's own `--help` text.
-    In Python, `pydfuutil-prefix -a -s 0x1000 file.bin` (no `-T`) raises
-    `UsageError("Prefix type must be specified")`; a documented, working C invocation now fails.
-    C ref: `prefix.c:126-135`.
-    Fix: in `main()`, if `args.s` is set and `args.type` isn't, default
-    `prefix_type = PrefixType.LMDFU_PREFIX`.
+40. ✅ **DONE** — **`prefix.py`** — `-s/--stellaris-address` did not imply the LMDFU prefix type.
+    C's `case 's': ... /* fall-through */ case 'T': type = LMDFU_PREFIX;` means specifying
+    `-s <addr>` alone (without `-T`) implicitly sets the prefix type — matching the tool's own
+    `--help` text. In Python, `pydfuutil-prefix -a -s 0x1000 file.bin` (no `-T`) raised
+    `UsageError("Prefix type must be specified")`; a documented, working C invocation failed.
+    C ref: `prefix.c:126-135` (verified: `case 's': lmdfu_flash_address = strtoul(...); /* fall-through */ case 'T': type = LMDFU_PREFIX;`).
+    Fix: in `main()` (`prefix.py:154-157`), added
+    `if args.s and not args.type: prefix_type = PrefixType.LMDFU_PREFIX`. Verified live:
+    `-a -s 0x1000` now resolves `prefix_type` to `PrefixType.LMDFU_PREFIX` instead of raising.
 
-41. **`prefix.py:41-43`** (`hex2int`) — always parses with `int(string, 16)`; C uses
+41. ✅ **DONE** — **`prefix.py:44-46`** (`hex2int`) — always parsed with `int(string, 16)`; C uses
     `strtoul(optarg, &end, 0)` (auto-detects `0x`/`0`/decimal base). A plain decimal address like
-    `-s 4096` is silently parsed as hex `0x4096` (16534) instead of decimal 4096.
+    `-s 4096` was silently parsed as hex `0x4096` (16534) instead of decimal 4096.
     (`suffix.py`'s `hex2int` is correctly base-16-only — matches C's `strtol(..., 16)` for
     `-p/-v/-d/-S` there — no change needed in `suffix.py`.)
-    C ref: `prefix.c:127`.
-    Fix: `int(string, 0)` in `prefix.py`'s `hex2int`.
+    C ref: `prefix.c:127` (`strtoul(optarg, &end, 0)`).
+    Fix: `int(string, 0)` in `prefix.py`'s `hex2int`. Verified live: `hex2int('4096') == 4096`
+    (decimal) and `hex2int('0x1000') == 4096` (hex) both parse correctly now.
 
 ### `quirks.py`
 
