@@ -29,7 +29,6 @@ from pydfuutil.exceptions import _IOError, SoftwareError, except_and_safe_exit
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
-from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 
 _logger = logger.getChild('dfu_load')
 
@@ -149,11 +148,8 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                 if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR):
                     break
                 # Wait while the device executes flashing
-                milli_sleep(
-                    DEFAULT_POLLTIMEOUT
-                    if dif.quirks and dif.quirks & QUIRK.POLLTIMEOUT
-                    else status.bwPollTimeout
-                )
+                # (bwPollTimeout is already quirk-adjusted by dif.get_status())
+                milli_sleep(status.bwPollTimeout)
 
             if status.bStatus != dfu.Status.OK:
                 logger.error("Transfer failed!")
@@ -181,8 +177,8 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                      f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
-        if not (dif.quirks and dif.quirks & QUIRK.POLLTIMEOUT):
-            milli_sleep(status.bwPollTimeout)
+        # (bwPollTimeout is already quirk-adjusted by dif.get_status())
+        milli_sleep(status.bwPollTimeout)
 
         # Deal correctly with ManifestationTolerant=0 / WillDetach bits
         while status.bState in (dfu.State.DFU_MANIFEST_SYNC, dfu.State.DFU_MANIFEST):
@@ -194,6 +190,8 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                 raise _IOError(f"Unable to read DFU status: {e}") from e
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
+            # (bwPollTimeout is already quirk-adjusted by dif.get_status())
+            milli_sleep(status.bwPollTimeout)
 
         if status.bState == dfu.State.DFU_MANIFEST_WAIT_RESET:
             _logger.info("Resetting USB to switch back to runtime mode")

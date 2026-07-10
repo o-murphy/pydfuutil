@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import argparse
 import importlib.metadata
 import logging
+import os
 import sys
 from enum import Enum
 from typing import Any, Optional, Literal, Union
@@ -415,16 +416,14 @@ def main():
                 dfu_root.clear_status()
             except USBError as e:
                 raise _IOError("error clear_status") from e
-            check_status()
-            return status
+            return check_status()
         if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_UPLOAD_IDLE):
             logger.info("Aborting previous incomplete transfer")
             try:
                 dfu_root.abort()
             except USBError as e:
                 raise _IOError("can't send DFU_ABORT") from e
-            check_status()
-            return status
+            return check_status()
         if status.bState == dfu.State.DFU_IDLE:
             return status
         return status
@@ -512,7 +511,8 @@ def main():
             # open for "exclusive" writing
             assert file.name is not None
             try:
-                with open(file.name, "wb") as file.file_p:
+                fd = os.open(file.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC)
+                with os.fdopen(fd, "wb") as file.file_p:
                     if dfuse_device or dfuse_options:
                         ret = dfuse.do_upload(
                             dfu_root, transfer_size, file, dfuse_options
@@ -561,6 +561,10 @@ def main():
             ret = SysExit.EX_SOFTWARE
 
         if ret == 0 and final_reset:
+            try:
+                ret = dfu_root.detach(1000)
+            except USBError:
+                ret = -1
             if int_(ret) < 0:
                 # Even if detach failed,
                 # just carry on to leave the device in a known state
@@ -594,9 +598,8 @@ def main():
             if wait_device:
                 milli_sleep(20)
             else:
-                logger.warning("No DFU capable USB device available")
                 ctx = None
-                return SysExit.EX_IOERR
+                raise _IOError("No DFU capable USB device available")
         elif file.bcdDFU == 0x11A and dfuse.multiple_alt(DfuUtil.dfu_root):
             logger.info("Multiple alternate interfaces for DfuSe file")
         elif DfuUtil.dfu_root.next is not None:
@@ -737,8 +740,9 @@ def main():
                     usb.util.claim_interface(dev, interface)
                 except USBError as e:
                     logger.warning(e)
-                # goto dfu_state
+                # goto dfustate: skip release/close/disconnect/re-probe below
                 dfu_state()
+                return
 
             try:
                 usb.util.claim_interface(dev, interface)

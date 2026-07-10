@@ -30,6 +30,7 @@ from pydfuutil.dfuse_mem import MemSegment
 from pydfuutil.exceptions import _IOError
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
+from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 from pydfuutil.usb_dfu import FuncDescriptor
 
 _logger = logger.getChild('dfu')
@@ -224,7 +225,10 @@ class DfuIf:  # pylint: disable=too-many-instance-attributes
         """Binds self to dfu.get_status()"""
         assert self.dev is not None
         assert self.interface is not None
-        return _get_status(self.dev, self.interface)
+        status = _get_status(self.dev, self.interface)
+        if self.quirks and self.quirks & QUIRK.POLLTIMEOUT:
+            status.bwPollTimeout = DEFAULT_POLLTIMEOUT
+        return status
 
     def clear_status(self) -> int:
         assert self.dev is not None
