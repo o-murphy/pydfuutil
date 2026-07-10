@@ -32,7 +32,7 @@ GD32VF103_FLASH_BASE = 0x08000000
 class VENDOR(IntEnum):
     """Vendor IDs"""
     OPENMOKO = 0x1d50  # Openmoko Freerunner / GTA02
-    FIC = 0x1d50  # Openmoko Freerunner / GTA02
+    FIC = 0x1457  # Openmoko Freerunner / GTA02
     VOTI = 0x16c0  # OpenPCD Reader
     LEAFLABS = 0x1eaf  # Maple
     SIEMENS = 0x0908  # Siemens AG

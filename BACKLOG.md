@@ -482,13 +482,14 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### `quirks.py`
 
-42. **`quirks.py:35`** — `VENDOR.FIC = 0x1d50` duplicates `VENDOR.OPENMOKO`'s value; C defines
-    `VENDOR_FIC` as `0x1457`. Since Python `IntEnum` allows aliasing, `VENDOR.FIC` silently
-    collapses into `VENDOR.OPENMOKO`, so the check `vendor in {VENDOR.OPENMOKO, VENDOR.FIC}`
-    (`quirks.py:78-80`) reduces to just `vendor == 0x1d50` — genuine FIC-vendor (`0x1457`)
-    Freerunner/GTA02 devices never get `QUIRK.POLLTIMEOUT` applied.
-    C ref: `quirks.h:8`.
-    Fix: `FIC = 0x1457`.
+42. ✅ **DONE** — **`quirks.py:35`** — `VENDOR.FIC = 0x1d50` duplicated `VENDOR.OPENMOKO`'s value;
+    C defines `VENDOR_FIC` as `0x1457`. Since Python `IntEnum` allows aliasing, `VENDOR.FIC`
+    silently collapsed into `VENDOR.OPENMOKO`, so the check `vendor in {VENDOR.OPENMOKO, VENDOR.FIC}`
+    (`quirks.py:78-80`) reduced to just `vendor == 0x1d50` — genuine FIC-vendor (`0x1457`)
+    Freerunner/GTA02 devices never got `QUIRK.POLLTIMEOUT` applied.
+    C ref: `quirks.h:8` (verified: `#define VENDOR_OPENMOKO 0x1d50` / `#define VENDOR_FIC 0x1457`).
+    Fix: `FIC = 0x1457`. Verified live: `get_quirks(VENDOR.FIC, PRODUCT.FREERUNNER_FIRST, 0)` now
+    sets `QUIRK.POLLTIMEOUT`, with `VENDOR.FIC == 0x1457` no longer aliasing `VENDOR.OPENMOKO`.
 
 ---
 
@@ -618,6 +619,12 @@ Given real-world impact, tackle in roughly this order:
 6. **P1 items** — pick up alongside whichever P0 group you're already touching (e.g. #30/#31 while
    in `dfu.py`/`dfu_load.py`, #33–38 while in `dfuse.py`).
 7. **P2/P3** — opportunistic, low-risk, no urgency.
+
+8. Make final audit comparing to the C original codebase
+   1. Update CHANGELOG.md
+   2. FIll CHANGELOG.md to match project tags list
+   3. Update README.md - should display as cli tools as an entire API can be use directly
+   4. 
 
 Given the number and severity of P0 findings, recommend re-running the full `tests/` suite plus a
 real-hardware smoke test (`-l`, `-U`, `-D` against an actual DFU device) after each group, not
