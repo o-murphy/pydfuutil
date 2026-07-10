@@ -25,11 +25,11 @@ from typing import Optional, Union
 
 import usb.util
 from usb.core import USBError
-from usb.backend.libusb1 import LIBUSB_ERROR_PIPE, _strerror
+from usb.backend.libusb1 import LIBUSB_ERROR_PIPE
 
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
-from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout, MemSegment
+from pydfuutil.dfuse_mem import find_segment, DFUSE, parse_memory_layout
 from pydfuutil.exceptions import (UsageError, _IOError, DataError, ProtocolError,
                                   SoftwareError, except_and_safe_exit)
 from pydfuutil.logger import logger
@@ -38,8 +38,6 @@ from pydfuutil.progress import Progress
 from pydfuutil.quirks import QUIRK, fixup_dfuse_layout
 
 _logger = logger.getChild('dfuse')
-
-MEM_LAYOUT: Optional[MemSegment] = None
 
 TIMEOUT = 5000
 
@@ -253,7 +251,7 @@ def special_command(dif: dfu.DfuIf, address: int,
     buf[4] = (address >> 24) & 0xff
 
     try:
-        ret = download(dif, buf, 0)
+        ret = download(dif, buf[:length], 0)
     except USBError as e:
         raise _IOError(f"Error during special command {command.name} download: {e}") from e
 
@@ -360,11 +358,10 @@ def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
         if not rt_opts.flags & RuntimeOptions.Flags.fast and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY:
             milli_sleep(dst.bwPollTimeout)
 
-        if (dst.bState != dfu.State.DFU_IDLE and
-                dst.bState != dfu.State.DFU_ERROR and
-                dst.bState != dfu.State.DFU_MANIFEST and
-                not (rt_opts.flags & RuntimeOptions.Flags.will_reset
-                     and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY)):
+        if dst.bState in (
+                dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR, dfu.State.DFU_MANIFEST
+        ) or (rt_opts.flags & RuntimeOptions.Flags.will_reset
+              and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY):
             break
 
     if dst.bState == dfu.State.DFU_MANIFEST:
@@ -501,8 +498,9 @@ def download_element(dif: dfu.DfuIf,
     """
 
     # Check at least that we can write to the last address
-    segment = find_segment(MEM_LAYOUT, dw_element_address + dw_element_size - 1)
-    if not segment or not segment.mem_type & DFUSE.WRITEABLE:
+    segment = find_segment(dif.mem_layout, dw_element_address + dw_element_size - 1)
+    if not rt_opts.flags & RuntimeOptions.Flags.force and (
+            not segment or not segment.mem_type & DFUSE.WRITEABLE):
         raise UsageError(
             f"Error: Last page at 0x{dw_element_address + dw_element_size - 1:08x} "
             f"is not writeable"
@@ -565,7 +563,7 @@ def download_element(dif: dfu.DfuIf,
         special_command(dif, address, Command.SET_ADDRESS, rt_opts)
 
         # transaction = 2 for no address offset
-        ret = download_chunk(dif, data[p:], chunk_size, 2, rt_opts)
+        ret = download_chunk(dif, data[p:p + chunk_size], chunk_size, 2, rt_opts)
         if ret != chunk_size:
             raise _IOError(f"Failed to write whole chunk: {ret} of {chunk_size} bytes")
 
@@ -588,7 +586,8 @@ def dfuse_memcpy(dst, src, rem, size):
 
 @except_and_safe_exit(_logger)
 def do_bin_download(dif: dfu.DfuIf, xfer_size: int,
-                    file: DfuFile, start_address: int) -> int:
+                    file: DfuFile, start_address: int,
+                    rt_opts: RuntimeOptions) -> int:
     """
     Download raw binary file to DfuSe device.
 
@@ -596,6 +595,7 @@ def do_bin_download(dif: dfu.DfuIf, xfer_size: int,
     :param xfer_size: Transfer size
     :param file: DfuFile object representing the binary file
     :param start_address: Start address for the download
+    :param rt_opts: RuntimeOptions
     :return: 0 if successful, error code otherwise
     """
     dw_element_address = start_address
@@ -606,7 +606,7 @@ def do_bin_download(dif: dfu.DfuIf, xfer_size: int,
 
     data = file.firmware[file.size.prefix:]
 
-    ret = download_element(dif, dw_element_address, dw_element_size, data, xfer_size)
+    ret = download_element(dif, dw_element_address, dw_element_size, data, xfer_size, rt_opts)
     if ret == 0:
         _logger.info("File downloaded successfully")
 
@@ -737,7 +737,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
             raise UsageError("The read unprotect command "
                                "will erase the flash memory"
                                "and can only be used with force")
-        ret = special_command(dif, 0, Command.MASS_ERASE, rt_opts)
+        ret = special_command(dif, 0, Command.READ_UNPROTECT, rt_opts)
         _logger.info("Device disconnects, erases flash and resets now")
         return ret
 
@@ -753,7 +753,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
     elif rt_opts.flags & RuntimeOptions.Flags.address_present:
         if file.name != file.bcdDFU == 0x11a:
             raise UsageError("This is a DfuSe file, not meant for raw download")
-        ret = do_bin_download(dif, xfer_size, file, rt_opts.address)
+        ret = do_bin_download(dif, xfer_size, file, rt_opts.address, rt_opts)
     else:
         if file.bcdDFU != 0x11a:
             _logger.warning("Only DfuSe file version 1.1a is supported")
@@ -766,7 +766,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
         a_dif.mem_layout = None
         a_dif = a_dif.next
 
-    if rt_opts.flags & RuntimeOptions.Flags.will_reset:
+    if not rt_opts.flags & RuntimeOptions.Flags.will_reset:
         dif.abort_to_idle()
 
     if rt_opts.flags & RuntimeOptions.Flags.leave:

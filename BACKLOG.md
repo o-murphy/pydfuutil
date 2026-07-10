@@ -198,75 +198,82 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### DfuSe protocol (`dfuse.py`) — most download paths are non-functional
 
-16. **`pydfuutil/dfuse.py:504`** — `download_element()` reads `find_segment(MEM_LAYOUT, ...)`
-    where `MEM_LAYOUT` is the **module-level global** (`dfuse.py:42`, declared
-    `Optional[MemSegment] = None` and never assigned anywhere in the file — confirmed via grep)
-    instead of the per-interface `dif.mem_layout` that `do_download()`/`do_upload()` actually
-    populate (see the *correct* usage two lines apart at `dfuse.py:517`). `find_segment(None, ...)`
-    always returns `None`, so the writability check unconditionally raises `UsageError`. **Also**
-    drops the `force`-bypass guard entirely. `download_element()` — and therefore both
-    `do_bin_download()` and `do_dfuse_download()` — **fails on the very first call, every time**.
-    No existing test exercises this path.
+> Note: `dfuse.py` already tracks upstream commit `f9a537c` (post-`v0.11`) rather than `v0.11`
+> itself — it has the `fast`-mode flag and STM32L4/Black-Magic-Probe pipe-stall workarounds that
+> only exist from that commit on. Items #16–22 below were re-verified against `dfuse.c` at
+> `f9a537c`, not `v0.11`, since that's the version this file's structure actually corresponds to.
+
+16. ✅ **DONE** — **`pydfuutil/dfuse.py:504`** — `download_element()` read
+    `find_segment(MEM_LAYOUT, ...)` where `MEM_LAYOUT` was a **module-level global** (`dfuse.py:42`,
+    declared `Optional[MemSegment] = None` and never assigned anywhere in the file — confirmed via
+    grep) instead of the per-interface `dif.mem_layout` that `do_download()`/`do_upload()` actually
+    populate. `find_segment(None, ...)` always returned `None`, so the writability check
+    unconditionally raised `UsageError`. **Also** dropped the `force`-bypass guard entirely.
+    `download_element()` — and therefore both `do_bin_download()` and `do_dfuse_download()` —
+    **failed on the very first call, every time**. No existing test exercises this path.
     C ref: `dfuse.c:482-488` (`find_segment(dif->mem_layout, ...)`, plus
     `if (!dfuse_force && (...))`).
     Fix: `segment = find_segment(dif.mem_layout, dw_element_address + dw_element_size - 1)`, and
-    restore: `if not rt_opts.flags & RuntimeOptions.Flags.force and (not segment or not segment.mem_type & DFUSE.WRITEABLE): raise UsageError(...)`.
+    restored: `if not rt_opts.flags & RuntimeOptions.Flags.force and (not segment or not segment.mem_type & DFUSE.WRITEABLE): raise UsageError(...)`.
+    (The now-dead `MEM_LAYOUT` global and its unused `MemSegment` import were also removed.)
 
-17. **`pydfuutil/dfuse.py:609`** — `download_element(dif, dw_element_address, dw_element_size, data, xfer_size)`
-    — only 5 positional args; `download_element()`'s signature (`dfuse.py:485-490`) requires 6,
-    the last being `rt_opts: RuntimeOptions` with no default. **Guaranteed `TypeError` on every
-    raw-binary DfuSe download** (`--dfuse-address <addr>` + `.bin` file), swallowed by
+17. ✅ **DONE** — **`pydfuutil/dfuse.py:609`** —
+    `download_element(dif, dw_element_address, dw_element_size, data, xfer_size)` — only 5
+    positional args; `download_element()`'s signature (`dfuse.py:485-490`) requires 6, the last
+    being `rt_opts: RuntimeOptions` with no default. **Guaranteed `TypeError` on every raw-binary
+    DfuSe download** (`--dfuse-address <addr>` + `.bin` file), swallowed by
     `except_and_safe_exit`'s generic handler into a bare `sys.exit(1)`.
     C ref: `dfuse.c:611` (5-arg call matches its 5-param C signature — the Python port simply
     added a 6th required param without threading it through this call site).
-    Fix: thread `rt_opts` through `do_bin_download()`'s own signature and pass it to
-    `download_element(...)`.
+    Fix: threaded `rt_opts` through `do_bin_download()`'s own signature (and its call site in
+    `do_download()`) and passed it to `download_element(...)`.
 
-18. **`pydfuutil/dfuse.py:363-368`** — `download_chunk()`'s status-polling loop has two compounded
-    bugs: (a) the C `do {...} while (busy-condition)` was translated as `if (same-condition): break`
-    — the *opposite* of a while-loop continuation, so the loop now exits after essentially one
-    poll instead of continuing while busy; (b) it checks `dst.bState != dfu.State.DFU_IDLE`
-    where C checks `DFU_STATE_dfuDNLOAD_IDLE` — wrong enum member entirely (`DFU_IDLE` = 0x02,
-    `DFU_DOWNLOAD_IDLE` = 0x05). Every chunk write can return "success" without the device having
-    actually left `dfuDNBUSY`, risking flash corruption / protocol violations on real hardware.
-    (Note `special_command()`'s analogous loop at `dfuse.py:310` got this translation *right* —
-    use it as the reference pattern.)
-    C ref: `dfuse.c:343-346`.
+18. ✅ **DONE** — **`pydfuutil/dfuse.py:363-368`** — `download_chunk()`'s status-polling loop had
+    two compounded bugs: (a) the C `do {...} while (busy-condition)` was translated as
+    `if (same-condition): break` — the *opposite* of a while-loop continuation, so the loop exited
+    after essentially one poll instead of continuing while busy; (b) it checked
+    `dst.bState != dfu.State.DFU_IDLE` where C checks `DFU_STATE_dfuDNLOAD_IDLE` — wrong enum
+    member entirely (`DFU_IDLE` = 0x02, `DFU_DOWNLOAD_IDLE` = 0x05). Every chunk write could
+    return "success" without the device having actually left `dfuDNBUSY`, risking flash
+    corruption / protocol violations on real hardware.
+    C ref: `dfuse.c:343-346` (at `f9a537c`, incl. the `fast`/`will_reset` extensions).
     Fix: `if dst.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR, dfu.State.DFU_MANIFEST) or (rt_opts.flags & RuntimeOptions.Flags.will_reset and dst.bState == dfu.State.DFU_DOWNLOAD_BUSY): break`.
 
-19. **`pydfuutil/dfuse.py:568`** — `download_chunk(dif, data[p:], chunk_size, 2, rt_opts)` — the
-    data slice is unbounded at the end (`data[p:]` instead of `data[p:p + chunk_size]`), and
+19. ✅ **DONE** — **`pydfuutil/dfuse.py:568`** — `download_chunk(dif, data[p:], chunk_size, 2, rt_opts)`
+    — the data slice was unbounded at the end (`data[p:]` instead of `data[p:p + chunk_size]`), and
     `download()`/`ctrl_transfer` infers wLength from `len(data)`, not from the separate
-    `chunk_size` argument. Every non-final chunk write sends the **entire remainder of the
+    `chunk_size` argument. Every non-final chunk write sent the **entire remainder of the
     buffer** — all trailing elements/the DFU suffix — instead of just the intended chunk. Either
-    fails the caller's `ret != chunk_size` check (raising `_IOError`) or, if tolerated by the
-    device, corrupts flash by writing far more data than intended at the current address.
+    failed the caller's `ret != chunk_size` check (raising `_IOError`) or, if tolerated by the
+    device, corrupted flash by writing far more data than intended at the current address.
     C ref: `dfuse.c:568` (explicit pointer + length: `dfuse_dnload_chunk(dif, data + p, chunk_size, 2)`).
     Fix: `download_chunk(dif, data[p:p + chunk_size], chunk_size, 2, rt_opts)`.
 
-20. **`pydfuutil/dfuse.py:740`** — the `unprotect` branch (gated by `RuntimeOptions.Flags.unprotect`,
-    requires `force`) sends `Command.MASS_ERASE` (byte `0x41`) instead of `Command.READ_UNPROTECT`
-    (byte `0x92`) — a completely different device command. A user asking to remove read
-    protection instead triggers a plain mass erase.
+20. ✅ **DONE** — **`pydfuutil/dfuse.py:740`** — the `unprotect` branch (gated by
+    `RuntimeOptions.Flags.unprotect`, requires `force`) sent `Command.MASS_ERASE` (byte `0x41`)
+    instead of `Command.READ_UNPROTECT` (byte `0x92`) — a completely different device command. A
+    user asking to remove read protection instead triggered a plain mass erase.
     C ref: `dfuse.c:769` (`dfuse_special_command(dif, 0, READ_UNPROTECT)`).
     Fix: `special_command(dif, 0, Command.READ_UNPROTECT, rt_opts)`.
 
-21. **`pydfuutil/dfuse.py:769-770`** — `if rt_opts.flags & RuntimeOptions.Flags.will_reset: dif.abort_to_idle()`
-    — backwards. C calls `abort_to_idle()` in the **normal** case and *skips* it when the device
-    is expected to self-reset. As written, the common/default case (no `will-reset`) now skips
-    `abort_to_idle()` (device left out of `dfuIDLE` after a normal download), and the
-    `will-reset` case now calls it (interfering with option-byte-write self-reset sequences).
+21. ✅ **DONE** — **`pydfuutil/dfuse.py:769-770`** —
+    `if rt_opts.flags & RuntimeOptions.Flags.will_reset: dif.abort_to_idle()` — backwards. C calls
+    `abort_to_idle()` in the **normal** case and *skips* it when the device is expected to
+    self-reset. As written, the common/default case (no `will-reset`) skipped `abort_to_idle()`
+    (device left out of `dfuIDLE` after a normal download), and the `will-reset` case called it
+    (interfering with option-byte-write self-reset sequences).
     C ref: `dfuse.c:805-807` (`if (!dfuse_will_reset) { dfu_abort_to_idle(dif); }`).
     Fix: `if not (rt_opts.flags & RuntimeOptions.Flags.will_reset): dif.abort_to_idle()`.
 
-22. **`pydfuutil/dfuse.py:238-256`** (`special_command()`) — computes `length` (5 for
-    SET_ADDRESS/ERASE_PAGE, 1 for MASS_ERASE/READ_UNPROTECT) but then always calls
-    `download(dif, buf, 0)` with the **full 5-byte buffer**; `length` is dead — `download()` has
+22. ✅ **DONE** — **`pydfuutil/dfuse.py:238-256`** (`special_command()`) — computed `length` (5 for
+    SET_ADDRESS/ERASE_PAGE, 1 for MASS_ERASE/READ_UNPROTECT) but then always called
+    `download(dif, buf, 0)` with the **full 5-byte buffer**; `length` was dead — `download()` has
     no length parameter and derives wLength from `len(data)`. Per the DfuSe spec (AN3156), command
     `0x41` with wLength=5 means "erase page at address", wLength=1 means "mass erase" — so a mass
-    erase request (byte `0x41`, meant to be 1 byte) is instead received by the device as an
-    erase-page-at-address-0 request. Likewise READ_UNPROTECT gets 4 extra trailing zero bytes.
+    erase request (byte `0x41`, meant to be 1 byte) was instead received by the device as an
+    erase-page-at-address-0 request. Likewise READ_UNPROTECT got 4 extra trailing zero bytes.
     C ref: `dfuse.c:236` (`dfuse_download(dif, length, buf, 0)` — libusb only sends `length` bytes).
+    Fix: `ret = download(dif, buf[:length], 0)`.
     Fix: `ret = download(dif, buf[:length], 0)`.
 
 ### File format (`dfu_file.py`)
