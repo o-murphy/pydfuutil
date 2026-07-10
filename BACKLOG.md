@@ -143,54 +143,58 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### File download path (`dfu_load.py`) — `do_download()` is non-functional end to end
 
-11. **`pydfuutil/dfu_load.py:118-121,139`** — `do_download()` tries to `file_p.readinto(buf)`
-    where `buf = file.firmware`. But `file.file_p` is only ever opened in `"wb"` (write) mode —
-    for the *upload* path (`dfu_file.py:298`, `__main__.py:511`) — and is `None` on every real
-    `-D` invocation. The `assert file_p is not None` at line 121 fails immediately, caught by
-    `except_and_safe_exit`'s broad handler, exiting with code 1. Even patched around that,
-    `file.firmware` for a loaded file is immutable `bytes` (from `f.read()`), and `readinto()`
-    requires a writable buffer — `TypeError`. (The existing unit test passes only because it
-    mocks `file_p`/`readinto` directly and never exercises the real code path.)
+11. ✅ **DONE** — **`pydfuutil/dfu_load.py:118-121,139`** — `do_download()` tried to
+    `file_p.readinto(buf)` where `buf = file.firmware`. But `file.file_p` is only ever opened in
+    `"wb"` (write) mode — for the *upload* path (`dfu_file.py:298`, `__main__.py:511`) — and was
+    `None` on every real `-D` invocation. The `assert file_p is not None` failed immediately,
+    caught by `except_and_safe_exit`'s broad handler, exiting with code 1. Even patched around
+    that, `file.firmware` for a loaded file is immutable `bytes` (from `f.read()`), and
+    `readinto()` requires a writable buffer — `TypeError`. (The existing unit test passed only
+    because it mocked `file_p`/`readinto` directly and never exercised the real code path — the
+    test has since been rewritten to drive the real `file.firmware`-walking path.)
     C ref: `dfu_load.c:112` (`buf = file->firmware;` — just walks the already-loaded in-memory
     buffer, no file I/O during download at all).
-    Fix: drop the `file_p.readinto()` design; walk `file.firmware` directly with
-    `chunk_size = min(bytes_left, xfer_size)` slices, as the existing leftover comment
-    ("Note: no idea what's there", `dfu_load.py:135-137`) suggests was the original intent.
+    Fix: dropped the `file_p.readinto()` design; now walks `file.firmware` directly with
+    `chunk_size = min(bytes_left, xfer_size)` slices.
 
-12. **`pydfuutil/dfu_load.py:139-146,172`** — `ret = dif.download(ret, buf[:ret] if ret else None)`
-    passes the just-read **byte count** as the DFU `transaction` (wValue) argument. There is no
-    `transaction` counter tracked anywhere in `do_download` (unlike `do_upload`, which correctly
-    has one). The final zero-length completion packet also uses the constant `dfu.TRANSACTION`
-    (0) instead of an incrementing value. Violates the DFU block-sequencing requirement.
+12. ✅ **DONE** — **`pydfuutil/dfu_load.py:139-146,172`** —
+    `ret = dif.download(ret, buf[:ret] if ret else None)` passed the just-read **byte count** as
+    the DFU `transaction` (wValue) argument. There was no `transaction` counter tracked anywhere in
+    `do_download` (unlike `do_upload`, which correctly has one). The final zero-length completion
+    packet also used the constant `dfu.TRANSACTION` (0) instead of an incrementing value. Violated
+    the DFU block-sequencing requirement.
     C ref: `dfu_load.c:127-128,168` (`dfu_download(..., chunk_size, transaction++, ...)`).
-    Fix: introduce `transaction = dfu.TRANSACTION` before the loop, pass and increment it (not
-    `ret`) each iteration, reuse it for the final packet.
+    Fix: introduced `transaction = dfu.TRANSACTION` before the loop, passed and incremented it
+    (not the byte count) each iteration, reused it for the final packet.
 
-13. **`pydfuutil/dfu_load.py:139`** — (compounds #11/#12) even once file reading is fixed, nothing
-    bounds a single transfer to `xfer_size` — `readinto(buf)` targets the whole-file buffer.
+13. ✅ **DONE** — **`pydfuutil/dfu_load.py:139`** — (compounded #11/#12) nothing bounded a single
+    transfer to `xfer_size` — `readinto(buf)` targeted the whole-file buffer.
     C ref: `dfu_load.c:119-125` (explicit `chunk_size = min(bytes_left, xfer_size)`).
-    Fix: same as #11 — chunk explicitly from `file.firmware`.
+    Fix: same change as #11 — chunks explicitly from `file.firmware`.
 
-14. **`pydfuutil/dfu_load.py:84-87`** — `do_upload()`:
+14. ✅ **DONE** — **`pydfuutil/dfu_load.py:84-87`** — `do_upload()`:
     ```python
     if len(rc) < xfer_size or total_bytes >= expected_size >= 0:
     ```
     Since `expected_size` defaults to `0` (no `-Z`/`--upload-size` given — the default,
-    most-common upload workflow), the chained comparison reduces to `total_bytes >= 0`, which is
-    true after the very first chunk. **Uploads with no explicit `-Z` are truncated to exactly one
+    most-common upload workflow), the chained comparison reduced to `total_bytes >= 0`, which is
+    true after the very first chunk. **Uploads with no explicit `-Z` were truncated to exactly one
     `xfer_size` chunk** instead of continuing until the device signals completion with a short
     block.
     C ref: `dfu_load.c:78-82` (only loop-termination condition is `rc < xfer_size`).
-    Fix: remove the `or total_bytes >= expected_size >= 0` clause (or guard it with
-    `expected_size > 0`); termination should be driven only by `len(rc) < xfer_size`.
+    Fix: removed the `or total_bytes >= expected_size >= 0` clause; termination is now driven only
+    by `len(rc) < xfer_size`. (The existing `test_dfu_load_do_upload` unit test mocked a constant
+    per-call chunk size and relied on the old `expected_size` short-circuit to terminate; updated
+    it to mock a realistic short final block instead, matching real device behavior.)
 
-15. **`pydfuutil/dfu_load.py:191-203`** — no handling at all for
+15. ✅ **DONE** — **`pydfuutil/dfu_load.py:191-203`** — no handling at all for
     `dfu.State.DFU_MANIFEST_WAIT_RESET`; C calls `libusb_reset_device()` itself when the device
     reports this state, needed for devices with `ManifestationTolerant=0`. Without `-R`, such an
-    update silently "completes" without the device actually returning to runtime mode.
+    update silently "completed" without the device actually returning to runtime mode.
     C ref: `dfu_load.c:203-212`.
-    Fix: add an `elif status.bState == dfu.State.DFU_MANIFEST_WAIT_RESET:` branch calling
-    `dif.dev.reset()`.
+    Fix: added an `elif status.bState == dfu.State.DFU_MANIFEST_WAIT_RESET:` branch calling
+    `dif.dev.reset()` (tolerating `USBError`, matching the simplified pattern already used at
+    `__main__.py:570` rather than C's exact `LIBUSB_ERROR_NOT_FOUND` filtering).
 
 ### DfuSe protocol (`dfuse.py`) — most download paths are non-functional
 

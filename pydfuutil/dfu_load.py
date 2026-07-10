@@ -22,8 +22,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
-from typing import Optional, Union
-
 from usb.core import USBError
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
@@ -82,7 +80,7 @@ def do_upload(dif: dfu.DfuIf,
             progress.update(advance=len(rc), description="Uploading...")
 
             # last block, return
-            if len(rc) < xfer_size or total_bytes >= expected_size >= 0:
+            if len(rc) < xfer_size:
                 ret = total_bytes
                 break
 
@@ -117,11 +115,9 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
 
     buf = file.firmware
 
-    file_p = file.file_p
-    assert file_p is not None
-
     expected_size = file.size.total - file.size.suffix
     bytes_sent = 0
+    transaction = dfu.TRANSACTION
 
     _logger.info("Copying data from PC to DFU device")
 
@@ -132,18 +128,18 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         )
 
         while bytes_sent < expected_size:
-            # Note: no idea what's there
-            # bytes_left = file.size - file.suffix_len - bytes_sent
-            # chunk_size = min(bytes_left, xfer_size)
-
-            if (ret := file_p.readinto(buf)) < 0:  # Handle read error
-                raise _IOError(f"Error reading file: {file.name}")
+            bytes_left = expected_size - bytes_sent
+            chunk_size = min(bytes_left, xfer_size)
 
             try:
-                ret = dif.download(ret, buf[:ret] if ret else None)
+                dif.download(
+                    transaction,
+                    buf[bytes_sent:bytes_sent + chunk_size] if chunk_size else None
+                )
             except USBError as e:
                 raise _IOError(f"Error during download: {e}") from e
-            bytes_sent += ret
+            bytes_sent += chunk_size
+            transaction += 1
 
             while True:
                 try:
@@ -165,11 +161,11 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                             f"status({status.bStatus}) = {status.bStatus.to_string()}")
                 raise _IOError("Downloading failed!")
 
-            progress.update(description="Downloading...", advance=xfer_size // 1000)
+            progress.update(description="Downloading...", advance=chunk_size)
 
         # Send one zero-sized download request to signalize end
         try:
-            dif.download(dfu.TRANSACTION, bytes())
+            dif.download(transaction, bytes())
         except USBError as e:
             raise _IOError(f"Error sending completion packet {e}") from e
 
@@ -199,7 +195,14 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
-        if status.bState == dfu.State.DFU_IDLE:
+        if status.bState == dfu.State.DFU_MANIFEST_WAIT_RESET:
+            _logger.info("Resetting USB to switch back to runtime mode")
+            assert dif.dev is not None
+            try:
+                dif.dev.reset()
+            except USBError as e:
+                _logger.warning(f"error resetting after download: {e}")
+        elif status.bState == dfu.State.DFU_IDLE:
             _logger.info("Done!")
     return bytes_sent
 
