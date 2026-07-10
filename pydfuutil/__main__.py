@@ -373,7 +373,7 @@ def main():
         file.load(SuffixReq.MAYBE_SUFFIX, PrefixReq.MAYBE_PREFIX)
         # If the user didn't specify product and/or vendor IDs to match
         # use any IDs from the file suffix for device matching
-        if DfuUtil.match_vendor < 0 and file.idProduct != 0xFFFF:
+        if DfuUtil.match_vendor < 0 and file.idVendor != 0xFFFF:
             DfuUtil.match_vendor = file.idVendor
             logger.info(f"Match vendor ID from file: {DfuUtil.match_vendor:04x}")
         if DfuUtil.match_product < 0 and file.idProduct != 0xFFFF:

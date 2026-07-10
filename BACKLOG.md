@@ -97,10 +97,10 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    C ref: `main.c:749` (`if (dfuse_device || dfuse_options || file.bcdDFU == 0x11a)`).
    Fix: `if dfuse_device or dfuse_options or file.bcdDFU == 0x11A:`.
 
-7. **`__main__.py:372`** — `if DfuUtil.match_vendor < 0 and file.idProduct != 0xFFFF:` checks
-   `idProduct` where C checks `idVendor` when deciding whether to auto-set `match_vendor` from
-   the file suffix. Breaks vendor auto-matching for suffix-tagged files that specify vendor but
-   not product (or vice versa).
+7. ✅ **DONE** — **`__main__.py:376`** — `if DfuUtil.match_vendor < 0 and file.idProduct != 0xFFFF:`
+   checked `idProduct` where C checks `idVendor` when deciding whether to auto-set `match_vendor`
+   from the file suffix. Broke vendor auto-matching for suffix-tagged files that specify vendor
+   but not product (or vice versa).
    C ref: `main.c:390` (`if (match_vendor < 0 && file.idVendor != 0xffff)`).
    Fix: `file.idVendor != 0xFFFF`.
 
