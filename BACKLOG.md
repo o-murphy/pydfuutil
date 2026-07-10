@@ -664,14 +664,20 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
   Verified live: simulated a real poll (`bwPollTimeout=5`) followed by two pipe-stalls — with the
   old code the stalled `dst.bwPollTimeout` reads back `0`; with the fix it correctly reads `5`.
 
-- **`dfuse.py:197-204`** (`download()`'s `if status < 0:` branch, including the nested
-  `QUIRK_DFUSE_LEAVE` early-return) — likely dead code, since pyusb raises `USBError` rather than
-  returning a negative status for OUT-transfer failures (same shape as the already-fixed
-  `upload()` bug, but here the return *type* itself isn't wrong, just possibly-unreachable code).
-  Worth confirming whether the `QUIRK_DFUSE_LEAVE` "silently tolerate device disappearing on
-  leave" carve-out (`dfuse.c:174-176`) is actually being lost — if pyusb *does* raise `USBError`
-  for that case, it bypasses this quirk-check entirely and goes through `except USBError` in
-  `special_command`/`do_leave`, which doesn't replicate the same "silently succeed" special case.
+- ✅ **DONE** — **`dfuse.py:199-205`** (`download()`'s `if status < 0:` branch, including the
+  nested `QUIRK_DFUSE_LEAVE` early-return) — confirmed dead code: pyusb raises `USBError` rather
+  than returning a negative status for OUT-transfer failures, so this branch never executes.
+  More importantly, confirmed the `QUIRK_DFUSE_LEAVE` "silently tolerate device disappearing on
+  leave" behavior (`dfuse.c:172-177`) *was* genuinely being lost — a real bug, not just dead code:
+  `do_leave()`'s quirk branch (`dfuse.py:393-400`) called `download(dif, None, 2)` **unwrapped**,
+  immediately followed by a `try/except USBError` around the subsequent `get_status()` call only.
+  Since this quirk exists specifically for devices that may vanish during this exact DNLOAD, a
+  real `USBError` there would propagate unhandled out of `do_leave()` — crashing the "leave"
+  sequence instead of tolerating it and continuing to `get_status()`, as C does.
+  Fix: wrapped `download(dif, None, 2)` in its own `try/except USBError` (logging at debug level),
+  matching the tolerance already applied to the following `get_status()` call. Verified live: a
+  mocked device that raises `USBError` on both the leave-DNLOAD and the following `get_status()`
+  now completes `do_leave()` without raising, instead of crashing.
 
 - **`main.c:592`** (`if (!(dfu_root->flags | DFU_IFF_DFU))`) is a pre-existing *upstream* C bug
   (should be `&`, not `|`); `__main__.py:770` (`if not DfuUtil.dfu_root.flags | dfu.IFF.DFU:`)

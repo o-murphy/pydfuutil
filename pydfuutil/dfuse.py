@@ -392,7 +392,10 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
     _logger.info("Submitting leave request...")
     if dif.quirks and dif.quirks & QUIRK.DFUSE_LEAVE:
         # The device might leave after this request, with or without a response
-        download(dif, None, 2)
+        try:
+            download(dif, None, 2)
+        except USBError as e:
+            _logger.debug(f"err on download: {e}")
         # Or it might leave after this request, with or without a response
         try:
             dif.get_status()
