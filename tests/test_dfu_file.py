@@ -1,16 +1,13 @@
 import errno
 import os.path
-import sys
 import unittest
-from unittest.mock import patch, Mock, MagicMock, mock_open
+from unittest.mock import patch
 
-from pydfuutil.dfu_file import *
-from pydfuutil.dfu_file import crc32_byte, DfuFile
+from pydfuutil.dfu_file import crc32_byte, DfuFile, PrefixReq, PrefixType, SuffixReq
 from pydfuutil.exceptions import Errx, _IOError
 
 
 class TestDFUFile(unittest.TestCase):
-
     """
     unsigned char _suffix[] = {
          0x00, /* bcdDevice lo */
@@ -34,8 +31,12 @@ class TestDFUFile(unittest.TestCase):
 
     def setUp(self):
         # You may need to adjust these paths based on your actual implementation
-        self.sample_file_path = os.path.join(os.path.dirname(__file__), "sample_file.bin")
-        self.output_file_path = os.path.join(os.path.dirname(__file__), "output_file.bin")
+        self.sample_file_path = os.path.join(
+            os.path.dirname(__file__), "sample_file.bin"
+        )
+        self.output_file_path = os.path.join(
+            os.path.dirname(__file__), "output_file.bin"
+        )
 
     def test_crc32_byte(self):
         # You may need to adjust the expected result based on your specific CRC calculation
@@ -45,7 +46,9 @@ class TestDFUFile(unittest.TestCase):
 
 class TestLoadFile(unittest.TestCase):
     def setUp(self):
-        self.sample_file_path = os.path.join(os.path.dirname(__file__), "sample_file.bin")
+        self.sample_file_path = os.path.join(
+            os.path.dirname(__file__), "sample_file.bin"
+        )
         self.file = DfuFile(self.sample_file_path)
         self.file_size = os.path.getsize(self.sample_file_path)
         self.file.size.total = self.file_size
@@ -59,9 +62,9 @@ class TestLoadFile(unittest.TestCase):
         self.assertEqual(self.file.lmdfu_address, 0)
         self.assertEqual(self.file.prefix_type, PrefixReq.NO_PREFIX)
         self.assertEqual(self.file.bcdDFU, 0)
-        self.assertEqual(self.file.idVendor, 0xffff)
-        self.assertEqual(self.file.idProduct, 0xffff)
-        self.assertEqual(self.file.bcdDevice, 0xffff)
+        self.assertEqual(self.file.idVendor, 0xFFFF)
+        self.assertEqual(self.file.idProduct, 0xFFFF)
+        self.assertEqual(self.file.bcdDevice, 0xFFFF)
 
     @patch("sys.stdin.buffer.read", side_effect=[b"abc", b"def", b""])
     def test_load_file_from_stdin(self, mock_read):
@@ -76,17 +79,15 @@ class TestLoadFile(unittest.TestCase):
         self.assertEqual(file.lmdfu_address, 0)
         self.assertEqual(file.prefix_type, PrefixReq.NO_PREFIX)
         self.assertEqual(file.bcdDFU, 0)
-        self.assertEqual(file.idVendor, 0xffff)
-        self.assertEqual(file.idProduct, 0xffff)
-        self.assertEqual(file.bcdDevice, 0xffff)
-
+        self.assertEqual(file.idVendor, 0xFFFF)
+        self.assertEqual(file.idProduct, 0xFFFF)
+        self.assertEqual(file.bcdDevice, 0xFFFF)
 
     @patch("builtins.open", side_effect=IOError(errno.ENOENT, "File not found"))
     def test_load_file_file_not_found(self, mock_open):
         with self.assertRaises(SystemExit):
             with self.assertRaises(Errx):
                 self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
-
 
     @patch("builtins.open", side_effect=IOError(errno.EACCES, "Permission denied"))
     def test_load_file_permission_denied(self, mock_open):
@@ -111,7 +112,6 @@ class TestLoadFile(unittest.TestCase):
     @unittest.skip("load_file adjusts firmware and size automatically")
     def test_load_file_invalid_suffix_signature(self):
         self.file.size.total = 20
-        self.file.read = Mock(return_value=b"abcdef" + b"DFUU" + b"12345678")
         self.file.firmware = bytearray(b"abcdef" + b"DFUU" + b"12345678")
         with self.assertRaises(Errx):
             self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
@@ -126,7 +126,9 @@ class TestLoadFile(unittest.TestCase):
 
 class TestStoreFile(unittest.TestCase):
     def setUp(self):
-        self.sample_file_path = os.path.join(os.path.dirname(__file__), "output_file.bin")
+        self.sample_file_path = os.path.join(
+            os.path.dirname(__file__), "output_file.bin"
+        )
         self.file = DfuFile(self.sample_file_path)
         self.file.size.total = 100
         self.file.size.prefix = 10
@@ -149,16 +151,16 @@ class TestStoreFile(unittest.TestCase):
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertEqual(data[0], 0x01)
-        self.assertEqual(data[8:11], b'UDF')
+        self.assertEqual(data[8:11], b"UDF")
 
     @unittest.skip("exits with err code instead of raising exception")
-    @patch('builtins.open', side_effect=IOError(errno.ENOENT, "File not found"))
+    @patch("builtins.open", side_effect=IOError(errno.ENOENT, "File not found"))
     def test_store_file_file_not_found(self, mock_open_file):
         with self.assertRaises(_IOError):
             self.file.dump(write_suffix=True, write_prefix=True)
 
     @unittest.skip("exits with err code instead of raising exception")
-    @patch('builtins.open', side_effect=IOError(errno.EACCES, "Permission denied"))
+    @patch("builtins.open", side_effect=IOError(errno.EACCES, "Permission denied"))
     def test_store_file_permission_denied(self, mock_open_file):
         with self.assertRaises(_IOError):
             self.file.dump(write_suffix=True, write_prefix=True)
@@ -168,7 +170,7 @@ class TestStoreFile(unittest.TestCase):
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertEqual(data[0], 0x01)
-        self.assertNotEqual(data[-6:-3], b'UDF')
+        self.assertNotEqual(data[-6:-3], b"UDF")
 
     @unittest.skip("reimplemented, need to be updated")
     def test_store_file_with_suffix(self):
@@ -176,15 +178,14 @@ class TestStoreFile(unittest.TestCase):
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertNotEqual(data[0], 0x01)
-        self.assertEqual(data[-6:-3], b'UDF')
+        self.assertEqual(data[-6:-3], b"UDF")
 
     def test_store_file_with_no_prefix_and_suffix(self):
         self.file.dump(write_suffix=False, write_prefix=False)
         with open(self.sample_file_path, "rb") as fp:
             data = fp.read()
         self.assertNotEqual(data[0], 0x01)
-        self.assertNotEqual(data[-6:-3], b'UDF')
-
+        self.assertNotEqual(data[-6:-3], b"UDF")
 
     # def test_parse_dfu_suffix(self):
     #     dfu_file = DfuFile(self.sample_file_path)
@@ -215,5 +216,5 @@ class TestStoreFile(unittest.TestCase):
     #     self.assertTrue(parse_result >= 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

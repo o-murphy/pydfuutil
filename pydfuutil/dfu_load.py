@@ -29,7 +29,6 @@ from pydfuutil.exceptions import _IOError, SoftwareError, except_and_safe_exit
 from pydfuutil.logger import logger
 from pydfuutil.portable import milli_sleep
 from pydfuutil.progress import Progress
-from pydfuutil.quirks import QUIRK, DEFAULT_POLLTIMEOUT
 
 _logger = logger.getChild('dfu_load')
 
@@ -37,13 +36,13 @@ _logger = logger.getChild('dfu_load')
 @except_and_safe_exit(_logger)
 def do_upload(dif: dfu.DfuIf,
               xfer_size: int,
-              file: DfuFile = None,
-              expected_size: int = -1) -> [int, bytes]:
+              file: DfuFile,
+              expected_size: int = -1) -> int:
     """
     Uploads data from DFU device from special page
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
-    :param file: optional - DfuFile object
+    :param file: DfuFile object
     :param expected_size: optional - total bytes expected to be uploaded
     :return: uploaded bytes or error code
     """
@@ -63,7 +62,7 @@ def do_upload(dif: dfu.DfuIf,
                 rc = dif.upload(transaction, xfer_size)
             except USBError as e:
                 _logger.error(f"Error during upload: {e}")
-                ret = e.backend_error_code
+                ret = e.backend_error_code if e.backend_error_code is not None else -1
                 progress.update(description='Upload failed!')
                 break
 
@@ -80,7 +79,7 @@ def do_upload(dif: dfu.DfuIf,
             progress.update(advance=len(rc), description="Uploading...")
 
             # last block, return
-            if len(rc) < xfer_size or total_bytes >= expected_size >= 0:
+            if len(rc) < xfer_size:
                 ret = total_bytes
                 break
 
@@ -117,6 +116,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
 
     expected_size = file.size.total - file.size.suffix
     bytes_sent = 0
+    transaction = dfu.TRANSACTION
 
     _logger.info("Copying data from PC to DFU device")
 
@@ -127,18 +127,18 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         )
 
         while bytes_sent < expected_size:
-            # Note: no idea what's there
-            # bytes_left = file.size - file.suffix_len - bytes_sent
-            # chunk_size = min(bytes_left, xfer_size)
-
-            if (ret := file.file_p.readinto(buf)) < 0:  # Handle read error
-                raise _IOError(f"Error reading file: {file.name}")
+            bytes_left = expected_size - bytes_sent
+            chunk_size = min(bytes_left, xfer_size)
 
             try:
-                ret = dif.download(ret, buf[:ret] if ret else None)
+                dif.download(
+                    transaction,
+                    buf[bytes_sent:bytes_sent + chunk_size] if chunk_size else None
+                )
             except USBError as e:
                 raise _IOError(f"Error during download: {e}") from e
-            bytes_sent += ret
+            bytes_sent += chunk_size
+            transaction += 1
 
             while True:
                 try:
@@ -148,11 +148,8 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                 if status.bState in (dfu.State.DFU_DOWNLOAD_IDLE, dfu.State.DFU_ERROR):
                     break
                 # Wait while the device executes flashing
-                milli_sleep(
-                    DEFAULT_POLLTIMEOUT
-                    if dif.quirks & QUIRK.POLLTIMEOUT
-                    else status.bwPollTimeout
-                )
+                # (bwPollTimeout is already quirk-adjusted by dif.get_status())
+                milli_sleep(status.bwPollTimeout)
 
             if status.bStatus != dfu.Status.OK:
                 logger.error("Transfer failed!")
@@ -160,11 +157,11 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                             f"status({status.bStatus}) = {status.bStatus.to_string()}")
                 raise _IOError("Downloading failed!")
 
-            progress.update(description="Downloading...", advance=xfer_size // 1000)
+            progress.update(description="Downloading...", advance=chunk_size)
 
         # Send one zero-sized download request to signalize end
         try:
-            dif.download(dfu.TRANSACTION, bytes())
+            dif.download(transaction, bytes())
         except USBError as e:
             raise _IOError(f"Error sending completion packet {e}") from e
 
@@ -180,8 +177,8 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                      f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
-        if not dif.quirks & QUIRK.POLLTIMEOUT:
-            milli_sleep(status.bwPollTimeout)
+        # (bwPollTimeout is already quirk-adjusted by dif.get_status())
+        milli_sleep(status.bwPollTimeout)
 
         # Deal correctly with ManifestationTolerant=0 / WillDetach bits
         while status.bState in (dfu.State.DFU_MANIFEST_SYNC, dfu.State.DFU_MANIFEST):
@@ -193,8 +190,17 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                 raise _IOError(f"Unable to read DFU status: {e}") from e
             _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                          f"status({status.bStatus}) = {status.bStatus.to_string()}")
+            # (bwPollTimeout is already quirk-adjusted by dif.get_status())
+            milli_sleep(status.bwPollTimeout)
 
-        if status.bState == dfu.State.DFU_IDLE:
+        if status.bState == dfu.State.DFU_MANIFEST_WAIT_RESET:
+            _logger.info("Resetting USB to switch back to runtime mode")
+            assert dif.dev is not None
+            try:
+                dif.dev.reset()
+            except USBError as e:
+                _logger.warning(f"error resetting after download: {e}")
+        elif status.bState == dfu.State.DFU_IDLE:
             _logger.info("Done!")
     return bytes_sent
 

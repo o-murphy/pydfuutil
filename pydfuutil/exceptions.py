@@ -20,6 +20,7 @@ import logging
 import sys
 from enum import IntEnum
 from functools import wraps
+from typing import Optional
 
 from usb.core import USBError
 from usb.backend.libusb1 import _strerror
@@ -59,7 +60,7 @@ class Errx(Exception):
     """
     exit_code = SysExit.OTHER
 
-    def __init__(self, *args, exit_code: SysExit = None):
+    def __init__(self, *args, exit_code: Optional[SysExit] = None):
         super().__init__(*args)
         if isinstance(exit_code, SysExit):
             self.exit_code = exit_code
@@ -123,7 +124,7 @@ def handle_usb_error(func):
     return wrapper
 
 
-def except_and_safe_exit(_logger: logging.Logger = None):
+def except_and_safe_exit(_logger: Optional[logging.Logger] = None):
     """decorator to handle exceptions and exit safely"""
 
     def decorator(func):
@@ -140,10 +141,11 @@ def except_and_safe_exit(_logger: logging.Logger = None):
                 sys.exit(e.exit_code)
             # pylint: disable=broad-exception-caught
             except Exception as e:
-                if _logger.level >= logging.DEBUG:
-                    _logger.exception(f"Unhandled exception occurred: {e}")
-                else:
-                    _logger.error(f"Unhandled exception occurred: {e}")
+                if _logger:
+                    if _logger.level >= logging.DEBUG:
+                        _logger.exception(f"Unhandled exception occurred: {e}")
+                    else:
+                        _logger.error(f"Unhandled exception occurred: {e}")
                 sys.exit(1)
 
         return wrapper

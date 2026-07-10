@@ -20,10 +20,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import argparse
 import importlib.metadata
 import sys
-from typing import Generator
+from typing import Generator, Optional
 
 import usb._lookup as _lu
 import usb.core
+import usb.util
 from usb.core import _try_lookup
 from pydfuutil import __copyright__
 from pydfuutil.logger import logger
@@ -156,10 +157,10 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
 
 
 def device_find_filter(dev: usb.core.Device,
-                       vid: int = None,
-                       pid: int = None,
-                       bus: int = None,
-                       address: int = None) -> bool:
+                       vid: Optional[int] = None,
+                       pid: Optional[int] = None,
+                       bus: Optional[int] = None,
+                       address: Optional[int] = None) -> bool:
     """Custom match callback"""
     # if path is not None and dev.device_address != path:
     #     return False
@@ -174,10 +175,10 @@ def device_find_filter(dev: usb.core.Device,
     return True
 
 
-def list_devices(vid: int = None,
-                 pid: int = None,
-                 bus: int = None,
-                 address: int = None,
+def list_devices(vid: Optional[int] = None,
+                 pid: Optional[int] = None,
+                 bus: Optional[int] = None,
+                 address: Optional[int] = None,
                  verbose=False) -> None:
     """Prints out founded devices list"""
 
@@ -188,10 +189,10 @@ def list_devices(vid: int = None,
     sys.exit(0)
 
 
-def iter_devices(vid: int = None,
-                 pid: int = None,
-                 bus: int = None,
-                 address: int = None) -> Generator[usb.core.Device, None, None]:
+def iter_devices(vid: Optional[int] = None,
+                 pid: Optional[int] = None,
+                 bus: Optional[int] = None,
+                 address: Optional[int] = None) -> Generator[usb.core.Device, None, None]:
     """Returns a context if fultered devices"""
 
     def custom_match(dev):
@@ -200,10 +201,10 @@ def iter_devices(vid: int = None,
     return usb.core.find(find_all=True, custom_match=custom_match)
 
 
-def sym_unix_dev_tree(vid: int = None,
-                      pid: int = None,
-                      bus: int = None,
-                      address: int = None,
+def sym_unix_dev_tree(vid: Optional[int] = None,
+                      pid: Optional[int] = None,
+                      bus: Optional[int] = None,
+                      address: Optional[int] = None,
                       verbose: bool = False):
     """Simulates UNIX device tree"""
     ctx = iter_devices(vid, pid, bus, address)

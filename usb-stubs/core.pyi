@@ -40,65 +40,60 @@ find() - a function to find USB devices.
 show_devices() - a function to show the devices present.
 """
 
-__author__ = 'Wander Lairson Costa'
+__author__ = "Wander Lairson Costa"
 
-__all__ = ['Device', 'Configuration', 'Interface', 'Endpoint', 'USBError',
-           'USBTimeoutError', 'NoBackendError', 'find', 'show_devices']
+__all__ = [
+    "Device",
+    "Configuration",
+    "Interface",
+    "Endpoint",
+    "USBError",
+    "USBTimeoutError",
+    "NoBackendError",
+    "find",
+    "show_devices",
+]
 
-import usb.util as util
-import copy
-import operator
-import usb._interop as _interop
 import usb._objfinalizer as _objfinalizer
-import usb._lookup as _lu
 import logging
 import array
 import threading
-import functools
-from typing import Union, Any, Tuple, Generator, Callable
+from typing import Union, Any, Literal, Optional, Tuple, Generator, Callable, overload
 
 from usb.backend import IBackend
 
-_logger = logging.getLogger('usb.core')
+_logger = logging.getLogger("usb.core")
 
 _DEFAULT_TIMEOUT: int = 1000
 _sentinel: object
 
-
-def _set_attr(input: Any, output: Any, fields: Tuple[str]) -> None:
-    ...
-
-
-def _try_getattr(object: object, name: str) -> Any:
-    ...
-
-
-def _try_get_string(dev: Device, index: int, langid: int = None, default_str_i0: str = "",
-                    default_access_error: str = "Error Accessing String") -> str:
-    """ try to get a string, but return a string no matter what
-    """
-
+def _set_attr(input: Any, output: Any, fields: Tuple[str]) -> None: ...
+def _try_getattr(object: object, name: str) -> Any: ...
+def _try_get_string(
+    dev: Device,
+    index: int,
+    langid: Optional[int] = None,
+    default_str_i0: str = "",
+    default_access_error: str = "Error Accessing String",
+) -> str:
+    """try to get a string, but return a string no matter what"""
 
 def _try_lookup(table: dict, value: Any, default: str = "") -> str:
-    """ try to get a string from the lookup table, return "" instead of key
+    """try to get a string from the lookup table, return "" instead of key
     error
     """
 
-
 class _DescriptorInfo(str):
-    """ this class is used so that when a descriptor is shown on the
-    terminal it is propely formatted """
+    """this class is used so that when a descriptor is shown on the
+    terminal it is propely formatted"""
 
-    def __repr__(self) -> str:
-        ...
-
+    def __repr__(self) -> str: ...
 
 def synchronized(f: Callable) -> Callable:
     """decorator"""
 
-
 class _ResourceManager:
-    backend: usb.backend.IBackend
+    backend: IBackend
     _active_cfg_index: int
     dev: Device
     handle: Any
@@ -107,33 +102,27 @@ class _ResourceManager:
     _ep_info: dict
     lock: threading.RLock
 
-    def __init__(self, dev: Device, backend: usb.backend.IBackend) -> None:
-        ...
-
+    def __init__(self, dev: Device, backend: IBackend) -> None: ...
     @synchronized
-    def managed_open(self) -> None:
-        ...
-
+    def managed_open(self) -> None: ...
     @synchronized
-    def managed_close(self) -> None:
-        ...
-
+    def managed_close(self) -> None: ...
     @synchronized
-    def managed_set_configuration(self, device: Device, config: Configuration) -> None:
-        ...
-
+    def managed_set_configuration(
+        self, device: Device, config: Configuration
+    ) -> None: ...
     @synchronized
-    def managed_claim_interface(self, device: Device, intf: Union[Interface, int]) -> None:
-        ...
-
+    def managed_claim_interface(
+        self, device: Device, intf: Union[Interface, int]
+    ) -> None: ...
     @synchronized
-    def managed_release_interface(self, device: Device, intf: Union[Interface, int]) -> None:
-        ...
-
+    def managed_release_interface(
+        self, device: Device, intf: Union[Interface, int]
+    ) -> None: ...
     @synchronized
-    def managed_set_interface(self, device: Device, intf: Union[Interface, int], alt: int) -> None:
-        ...
-
+    def managed_set_interface(
+        self, device: Device, intf: Union[Interface, int], alt: int
+    ) -> None: ...
     @synchronized
     def setup_request(self, device: Device, endpoint: Union[Endpoint, int]) -> None:
         # we need the endpoint address, but the "endpoint" parameter
@@ -142,21 +131,15 @@ class _ResourceManager:
 
     # Find the interface and endpoint objects which endpoint address belongs to
     @synchronized
-    def get_interface_and_endpoint(self, device: Device, endpoint_address: int) -> (Interface, Endpoint):
-        ...
-
+    def get_interface_and_endpoint(
+        self, device: Device, endpoint_address: int
+    ) -> Tuple[Interface, Endpoint]: ...
     @synchronized
-    def get_active_configuration(self, device: Device) -> Configuration:
-        ...
-
+    def get_active_configuration(self, device: Device) -> Configuration: ...
     @synchronized
-    def release_all_interfaces(self, device: Device) -> None:
-        ...
-
+    def release_all_interfaces(self, device: Device) -> None: ...
     @synchronized
-    def dispose(self, device: Device, close_handle: bool = True) -> None:
-        ...
-
+    def dispose(self, device: Device, close_handle: bool = True) -> None: ...
 
 class USBError(IOError):
     r"""Exception class for USB errors.
@@ -165,15 +148,17 @@ class USBError(IOError):
     backend specific error code is available through the backend_error_code
     member variable.
     """
-    backend_error_code: [int, None]
-    def __init__(self, strerror: str, error_code: Any = None, errno: Any = None) -> None:
+
+    backend_error_code: Optional[int]
+    def __init__(
+        self, strerror: str, error_code: Any = None, errno: Any = None
+    ) -> None:
         r"""Initialize the object.
 
         This initializes the USBError object. The strerror and errno are passed
         to the parent object. The error_code parameter is attributed to the
         backend_error_code member variable.
         """
-
 
 class USBTimeoutError(USBError):
     r"""Exception class for connection timeout errors.
@@ -182,10 +167,8 @@ class USBTimeoutError(USBError):
     a timeout error code.
     """
 
-
 class NoBackendError(ValueError):
     r"""Exception class when a valid backend is not found."""
-
 
 class Endpoint:
     r"""Represent an endpoint object.
@@ -201,6 +184,7 @@ class Endpoint:
     >>>         for e in i:
     >>>             print e.bEndpointAddress
     """
+
     device: Device
     index: int
 
@@ -214,8 +198,14 @@ class Endpoint:
     bSynchAddress: int
     extra_descriptors: int
 
-    def __init__(self, device: Device, endpoint: int, interface: int = 0,
-                 alternate_setting: int = 0, configuration: int = 0):
+    def __init__(
+        self,
+        device: Device,
+        endpoint: int,
+        interface: int = 0,
+        alternate_setting: int = 0,
+        configuration: int = 0,
+    ):
         r"""Initialize the Endpoint object.
 
         The device parameter is the device object returned by the find()
@@ -231,13 +221,11 @@ class Endpoint:
         request.
         """
 
-    def __repr__(self) -> str:
-        ...
-
-    def __str__(self) -> str:
-        ...
-
-    def write(self, data: Union[int, bytes, bytearray], timeout: int = None) -> int:
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
+    def write(
+        self, data: Union[int, bytes, bytearray], timeout: Optional[int] = None
+    ) -> int:
         r"""Write data to the endpoint.
 
         The parameter data contains the data to be sent to the endpoint and
@@ -248,6 +236,7 @@ class Endpoint:
 
         For details, see the Device.write() method.
         """
+        assert not isinstance(data, int)
         return self.device.write(self, data, timeout)
 
     def read(self, size_or_buffer: Union[int, bytearray], timeout=None) -> array.array:
@@ -267,9 +256,7 @@ class Endpoint:
     def clear_halt(self) -> None:
         r"""Clear the halt/status condition of the endpoint."""
 
-    def _str(self) -> str:
-        ...
-
+    def _str(self) -> str: ...
 
 class Interface:
     r"""Represent an interface object.
@@ -285,6 +272,7 @@ class Interface:
     >>>     for i in cfg:
     >>>         print i.bInterfaceNumber
     """
+
     device: Device
     alternate_index: int
     index: int
@@ -301,8 +289,13 @@ class Interface:
     iInterface: int
     extra_descriptors: list[int]
 
-    def __init__(self, device: Device, interface: int = 0,
-                 alternate_setting: int = 0, configuration: int = 0):
+    def __init__(
+        self,
+        device: Device,
+        interface: int = 0,
+        alternate_setting: int = 0,
+        configuration: int = 0,
+    ):
         r"""Initialize the interface object.
 
         The device parameter is the device object returned by the find()
@@ -317,9 +310,7 @@ class Interface:
         GET_DESCRIPTOR request.
         """
 
-    def __repr__(self) -> str:
-        ...
-
+    def __repr__(self) -> str: ...
     def __str__(self) -> str:
         """Show all information for the interface."""
 
@@ -335,12 +326,8 @@ class Interface:
     def __getitem__(self, index: int) -> Endpoint:
         r"""Return the Endpoint object in the given position."""
 
-    def _str(self) -> str:
-        ...
-
-    def _get_full_descriptor_str(self) -> str:
-        ...
-
+    def _str(self) -> str: ...
+    def _get_full_descriptor_str(self) -> str: ...
 
 class Configuration:
     r"""Represent a configuration object.
@@ -355,6 +342,7 @@ class Configuration:
     >>> for cfg in dev:
     >>>     print cfg.bConfigurationValue
     """
+
     device: Device
     index: int
 
@@ -378,12 +366,8 @@ class Configuration:
         peripheral as a result of GET_DESCRIPTOR request.
         """
 
-    def __repr__(self) -> str:
-        ...
-
-    def __str__(self) -> str:
-        ...
-
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
     def interfaces(self) -> Tuple[Interface]:
         r"""Return a tuple of the configuration interfaces."""
 
@@ -402,15 +386,9 @@ class Configuration:
         >>> interface = config[(0, 0)]
         """
 
-    def _get_power_multiplier(self) -> int:
-        ...
-
-    def _str(self) -> str:
-        ...
-
-    def _get_full_descriptor_str(self) -> str:
-        ...
-
+    def _get_power_multiplier(self) -> int: ...
+    def _str(self) -> str: ...
+    def _get_full_descriptor_str(self) -> str: ...
 
 class Device(_objfinalizer.AutoFinalizedObject):
     r"""Device object.
@@ -478,18 +456,10 @@ class Device(_objfinalizer.AutoFinalizedObject):
     _has_parent: bool
     _parent: Union[Device, None]
 
-    def __eq__(self, other) -> bool:
-        ...
-
-    def __hash__(self) -> int:
-        ...
-
-    def __repr__(self) -> str:
-        ...
-
-    def __str__(self) -> str:
-        ...
-
+    def __eq__(self, other) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
     def configurations(self) -> Tuple[Configuration]:
         r"""Return a tuple of the device configurations."""
 
@@ -505,7 +475,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
 
     @property
     def langids(self) -> Tuple | Tuple[int, ...]:
-        """ Return the USB devices supported language ID codes.
+        """Return the USB devices supported language ID codes.
 
         These are 16-bit codes familiar to Windows developers, where for
         example instead of en-US you say 0x0409. USB_LANGIDS.pdf on the usb.org
@@ -518,7 +488,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
 
     @property
     def serial_number(self) -> str:
-        """ Return the USB devices serial number string descriptor.
+        """Return the USB devices serial number string descriptor.
 
         This property will cause some USB traffic the first time it is accessed
         and cache the resulting value for future use.
@@ -526,7 +496,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
 
     @property
     def product(self) -> str:
-        """ Return the USB devices product string descriptor.
+        """Return the USB devices product string descriptor.
 
         This property will cause some USB traffic the first time it is accessed
         and cache the resulting value for future use.
@@ -534,11 +504,11 @@ class Device(_objfinalizer.AutoFinalizedObject):
 
     @property
     def parent(self) -> Union[Device, None]:
-        """ Return the parent device. """
+        """Return the parent device."""
 
     @property
     def manufacturer(self) -> str:
-        """ Return the USB devices manufacturer string descriptor.
+        """Return the USB devices manufacturer string descriptor.
 
         This property will cause some USB traffic the first time it is accessed
         and cache the resulting value for future use.
@@ -548,7 +518,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
     def backend(self) -> IBackend:
         """Return the backend being used by the device."""
 
-    def set_configuration(self, configuration: Configuration = None) -> Any:
+    def set_configuration(self, configuration: Optional[Configuration] = None) -> Any:
         r"""Set the active configuration.
 
         The configuration parameter is the bConfigurationValue field of the
@@ -563,7 +533,11 @@ class Device(_objfinalizer.AutoFinalizedObject):
         configuration set.
         """
 
-    def set_interface_altsetting(self, interface: Interface = None, alternate_setting: int = None) -> None:
+    def set_interface_altsetting(
+        self,
+        interface: Optional[Union[Interface, int]] = None,
+        alternate_setting: Optional[int] = None,
+    ) -> None:
         r"""Set the alternate setting for an interface.
 
         When you want to use an interface and it has more than one alternate
@@ -590,12 +564,17 @@ class Device(_objfinalizer.AutoFinalizedObject):
         """
 
     def clear_halt(self, ep: Endpoint) -> None:
-        r""" Clear the halt/stall condition for the endpoint ep."""
+        r"""Clear the halt/stall condition for the endpoint ep."""
 
     def reset(self) -> None:
         r"""Reset the device."""
 
-    def write(self, endpoint: Endpoint, data: [bytes, bytearray], timeout: int = None) -> int:
+    def write(
+        self,
+        endpoint: Endpoint,
+        data: Union[bytes, bytearray],
+        timeout: Optional[int] = None,
+    ) -> int:
         r"""Write data to the endpoint.
 
         This method is used to send data to the device. The endpoint parameter
@@ -610,7 +589,12 @@ class Device(_objfinalizer.AutoFinalizedObject):
         The method returns the number of bytes written.
         """
 
-    def read(self, endpoint: Endpoint, size_or_buffer: [bytearray, int], timeout: int = None) -> array.array:
+    def read(
+        self,
+        endpoint: Endpoint,
+        size_or_buffer: Union[bytearray, int],
+        timeout: Optional[int] = None,
+    ) -> array.array:
         r"""Read data from the endpoint.
 
         This method is used to receive data from the device. The endpoint
@@ -627,13 +611,15 @@ class Device(_objfinalizer.AutoFinalizedObject):
         of bytes actually read.
         """
 
-    def ctrl_transfer(self,
-                      bmRequestType: int,
-                      bRequest: int,
-                      wValue: int = 0,
-                      wIndex: int = 0,
-                      data_or_wLength: Union[bytes, bytearray, int] = None,
-                      timeout: int = None) -> Union[int, bytes, bytearray, None]:
+    def ctrl_transfer(
+        self,
+        bmRequestType: int,
+        bRequest: int,
+        wValue: int = 0,
+        wIndex: int = 0,
+        data_or_wLength: Optional[Union[bytes, bytearray, int]] = None,
+        timeout: Optional[int] = None,
+    ) -> Union[int, array.array]:
         r"""Do a control transfer on the endpoint 0.
 
         This method is used to issue a control transfer over the endpoint 0
@@ -688,28 +674,33 @@ class Device(_objfinalizer.AutoFinalizedObject):
     def __getitem__(self, index: int) -> Configuration:
         r"""Return the Configuration object in the given position."""
 
-    def _finalize_object(self) -> None:
-        ...
+    def _finalize_object(self) -> None: ...
+    def __get_timeout(self, timeout) -> int: ...
+    def __set_def_tmo(self, tmo) -> int: ...
+    def __get_def_tmo(self) -> int: ...
+    def _str(self) -> str: ...
+    def _get_full_descriptor_str(self) -> str: ...
 
-    def __get_timeout(self, timeout) -> int:
-        ...
-
-    def __set_def_tmo(self, tmo) -> int:
-        ...
-
-    def __get_def_tmo(self) -> int:
-        ...
-
-    def _str(self) -> str:
-        ...
-
-    def _get_full_descriptor_str(self) -> str:
-        ...
-
-
-def find(find_all: bool = False,
-         backend: IBackend = None,
-         custom_match: Callable[[Any], bool] = None, **args) -> [Generator[Device, Any, None], Device, None]:
+@overload
+def find(
+    find_all: Literal[True],
+    backend: Optional[IBackend] = None,
+    custom_match: Optional[Callable[[Any], bool]] = None,
+    **args,
+) -> Generator[Device, Any, None]: ...
+@overload
+def find(
+    find_all: Literal[False] = False,
+    backend: Optional[IBackend] = None,
+    custom_match: Optional[Callable[[Any], bool]] = None,
+    **args,
+) -> Optional[Device]: ...
+def find(
+    find_all: bool = False,
+    backend: Optional[IBackend] = None,
+    custom_match: Optional[Callable[[Any], bool]] = None,
+    **args,
+) -> Union[Generator[Device, Any, None], Device, None]:
     r"""Find an USB device and return it.
 
     find() is the function used to discover USB devices.  You can pass as
@@ -778,9 +769,7 @@ def find(find_all: bool = False,
     Backends are explained in the usb.backend module.
     """
 
-    def device_iter(**kwargs) -> Union[Generator[Device, Any, None], Device, None]:
-        ...
-
+    def device_iter(**kwargs) -> Union[Generator[Device, Any, None], Device, None]: ...
 
 def show_devices(verbose: bool = False, **kwargs) -> _DescriptorInfo:
     """Show information about connected devices.

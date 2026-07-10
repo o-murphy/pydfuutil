@@ -12,7 +12,9 @@
   + [**dfu-suffix** (pydfuutil-suffix)](#pydfuutil-suffix)
   + [**dfu-prefix** (pydfuutil-prefix)](#pydfuutil-prefix)
   + [**lsusb** (pydfuutil-lsusb)](#pydfuutil-lsusb)
+* **[Library usage](#library-usage)**
 * **[Todos](#todos)**
+* **[Known bugs and workarounds](#known-bugs-and-workarounds)**
 * **[Getting help](#getting-help)**
 * **[About](#about)**
 * **[Footnotes](#footnotes)**
@@ -208,6 +210,53 @@ options:
   -h, --help           Show this help message and exit
 ```
 
+## Library usage
+
+**PyDFUUtil** isn't just the four `pydfuutil-*` CLI entry points above — each of them is a thin
+`argparse` wrapper around a plain, importable Python API in the `pydfuutil` package. The CLI
+tools' own source (`pydfuutil/__main__.py`, `suffix.py`, `prefix.py`, `lsusb.py`) is itself the
+most complete, always-up-to-date reference for driving the API directly.
+
+### Inspecting a DFU file
+
+```python
+from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
+
+file = DfuFile(name="firmware.dfu")
+file.load(SuffixReq.MAYBE_SUFFIX, PrefixReq.MAYBE_PREFIX)
+
+print(f"Vendor:  0x{file.idVendor:04x}")
+print(f"Product: 0x{file.idProduct:04x}")
+print(f"Size:    {file.size.total} bytes")
+
+file.show_suffix_and_prefix()  # same output as `pydfuutil-suffix -c`/`pydfuutil-prefix -c`
+```
+
+### Listing attached DFU-capable devices
+
+```python
+import usb.core
+from pydfuutil.dfu_util import probe_devices, list_dfu_interfaces
+
+ctx = list(usb.core.find(find_all=True))
+probe_devices(ctx)       # populates DfuUtil.dfu_root as a side effect
+list_dfu_interfaces()    # prints the same table as `pydfuutil -l`
+```
+
+### Uploading/downloading firmware
+
+The full runtime→DFU-mode transition, device claiming, and the plain-DFU/DfuSe upload/download
+dispatch (`pydfuutil.dfu`, `pydfuutil.dfu_load`, `pydfuutil.dfuse`) are involved enough — and
+device/quirk-dependent enough — that `pydfuutil/__main__.py::main()` is the canonical, tested
+example to copy from rather than a shortened README snippet that could drift out of sync with it.
+
+> [!TIP]
+> Every module in `pydfuutil/` docstrings/type-hints its public functions; `import pydfuutil.dfu`,
+> `pydfuutil.dfu_load`, `pydfuutil.dfuse`, and `pydfuutil.quirks` and read the corresponding
+> `do_upload`/`do_download` functions alongside `main.c`/`dfuse.c` in the upstream
+> [dfu-util source](https://git.code.sf.net/p/dfu-util/dfu-util) if you're embedding this in your
+> own tool.
+
 #### Done:
 - [x] dfu
 - [x] dfu_file
@@ -227,6 +276,28 @@ options:
 [//]: # (https://dfu-util.sourceforge.net/)
 [//]: # (- https://sourceforge.net/p/dfu-util/dfu-util/ci/master/tree/)
 
+
+## Known bugs and workarounds
+
+**PyDFUUtil** is regularly audited function-by-function against the upstream C `dfu-util` source
+to catch behavioral divergences introduced during the port; the full, itemized log — including
+items deliberately left unfixed with the reasoning why — lives in
+[docs/SYNC_WITH_C_UPSTREAM_BACKLOG.md](docs/SYNC_WITH_C_UPSTREAM_BACKLOG.md). A couple of
+findings are pre-existing bugs in *upstream* `dfu-util` itself, faithfully reproduced here rather
+than "fixed" out of sync with the reference implementation:
+
+* **"Check for DFU mode device" guard is a permanent no-op.** Upstream's `main.c` (and this
+  port's `__main__.py`) use `flags | DFU_IFF_DFU` where `flags & DFU_IFF_DFU` was clearly
+  intended; ORing with the nonzero `DFU_IFF_DFU` bit is always truthy, so the guard can never
+  actually raise "Device is not in DFU mode". Left as-is for parity with upstream.
+* **`-w`/`--wait` argument-arity inconsistency in upstream's long-option table.** Upstream declares
+  `--wait` as taking a required argument in its `getopt_long` table, but the short option string
+  and the actual handler never read one. This port's `-w`/`--wait` is a clean no-argument flag for
+  both forms — arguably a correction rather than a regression, so no change is planned to match
+  upstream's inconsistency here.
+
+See the "Needs human judgment" section of the backlog doc for the full analysis of these and a
+couple of other borderline/rare-edge-case items.
 
 ## Getting help
 * To report a bug or propose a new feature, use our issue tracker. But please search the database before opening a new issue.

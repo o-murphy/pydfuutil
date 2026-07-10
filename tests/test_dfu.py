@@ -5,7 +5,6 @@ import array
 
 
 class TestDfu(unittest.TestCase):
-
     def setUp(self):
         dfu.init(1000)
 
@@ -13,7 +12,9 @@ class TestDfu(unittest.TestCase):
         self.assertEqual(dfu.TIMEOUT, 1000)
 
     def test_str(self):
-        self.assertEqual(dfu._status_to_string(dfu.Status.OK), "No error condition is present")
+        self.assertEqual(
+            dfu._status_to_string(dfu.Status.OK), "No error condition is present"
+        )
         self.assertEqual(dfu.Status.OK.to_string(), "No error condition is present")
         self.assertEqual(dfu._state_to_string(dfu.State.APP_IDLE), "appIDLE")
         self.assertEqual(dfu.State.APP_IDLE.to_string(), "appIDLE")
@@ -54,7 +55,7 @@ class TestDfu(unittest.TestCase):
         mock_find.return_value = mock_device
 
         # Mocking the return value of ctrl_transfer method
-        mock_device.ctrl_transfer.return_value = array.array('B', [0] * 10)
+        mock_device.ctrl_transfer.return_value = array.array("B", [0] * 10)
 
         # Calling the function
         interface = 0
@@ -64,7 +65,7 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
-            bmRequestType=0xa1,
+            bmRequestType=0xA1,
             bRequest=dfu.Request.UPLOAD,  # Assuming Request.UPLOAD
             wValue=transaction,
             wIndex=interface,
@@ -110,7 +111,7 @@ class TestDfu(unittest.TestCase):
         mock_find.return_value = mock_device
 
         # Mocking the return value of ctrl_transfer method
-        mock_device.ctrl_transfer.return_value = array.array('B', [0] * 6)
+        mock_device.ctrl_transfer.return_value = array.array("B", [0] * 6)
 
         # Calling the function
         interface = 0
@@ -120,7 +121,7 @@ class TestDfu(unittest.TestCase):
 
         # Assertions
         mock_device.ctrl_transfer.assert_called_once_with(
-            bmRequestType=0xa1,
+            bmRequestType=0xA1,
             bRequest=dfu.Request.GETSTATUS,  # Assuming Request.GETSTATUS
             wValue=transaction,
             wIndex=interface,

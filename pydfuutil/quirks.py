@@ -17,6 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 from enum import IntEnum, IntFlag
+from typing import Union
 
 from pydfuutil.dfuse_mem import MemSegment, find_segment
 from pydfuutil.logger import logger
@@ -31,7 +32,7 @@ GD32VF103_FLASH_BASE = 0x08000000
 class VENDOR(IntEnum):
     """Vendor IDs"""
     OPENMOKO = 0x1d50  # Openmoko Freerunner / GTA02
-    FIC = 0x1d50  # Openmoko Freerunner / GTA02
+    FIC = 0x1457  # Openmoko Freerunner / GTA02
     VOTI = 0x16c0  # OpenPCD Reader
     LEAFLABS = 0x1eaf  # Maple
     SIEMENS = 0x0908  # Siemens AG
@@ -63,7 +64,7 @@ class QUIRK(IntFlag):
 
 
 # pylint: disable=invalid-name
-def get_quirks(vendor: int, product: int, bcdDevice: int) -> [int, QUIRK]:
+def get_quirks(vendor: int, product: int, bcdDevice: int) -> Union[int, QUIRK]:
     """
     Get device specific quirks
     :param vendor: VID
