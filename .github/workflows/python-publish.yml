@@ -1,13 +1,18 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [published, edited]
-
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish (e.g. v0.11.0b1)"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy:
@@ -22,18 +27,48 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.tag || github.ref_name }}
 
     - name: Install uv
       uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
 
     - name: Build package
       run: uv build
-      
+
+    - name: Resolve tag and version
+      id: meta
+      run: |
+        TAG="${{ inputs.tag || github.ref_name }}"
+        VERSION="${TAG#v}"
+        if [[ "$VERSION" =~ (alpha|beta|pre|rc) ]]; then
+          PRERELEASE=true
+        else
+          PRERELEASE=false
+        fi
+        echo "tag=$TAG"               >> $GITHUB_OUTPUT
+        echo "version=$VERSION"       >> $GITHUB_OUTPUT
+        echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+
+    - name: Extract changelog section
+      id: changelog
+      run: |
+        VERSION=${{ steps.meta.outputs.version }}
+        BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -50)
+        if [ -z "$BODY" ]; then
+          BODY="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
+        fi
+        echo "body<<EOF" >> $GITHUB_OUTPUT
+        echo "$BODY" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: ${{ steps.meta.outputs.tag }}
+        name: ${{ steps.meta.outputs.tag }}
+        body: ${{ steps.changelog.outputs.body }}
+        prerelease: ${{ steps.meta.outputs.prerelease }}
+
     - name: Publish package to PyPI
       run: uv publish --check-url https://pypi.org/simple/
-
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: python-package-artifacts
-        path: dist/
