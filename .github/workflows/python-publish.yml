@@ -22,6 +22,9 @@ jobs:
     # Specifying a GitHub environment is optional, but strongly encouraged
     environment: release
     permissions:
+      # job-level permissions replace (not merge with) the workflow-level block above,
+      # so everything this job needs must be listed here explicitly.
+      contents: write  # required to create the GitHub Release
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
 
