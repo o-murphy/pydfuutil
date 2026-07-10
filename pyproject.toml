@@ -30,7 +30,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = ["libusb-package>=1.0.30.0", "pyusb>=1.3.1"]
-dynamic = ["version"]
+
+# NOTE:
+#   version: will be calculated with setuptools-scm
+#   optional-dependencies: will be calculated with before-build hook
+dynamic = ["version", "optional-dependencies"]
 
 [project.urls]
 "Homepage" = "https://github.com/o-murphy/pydfuutil"
@@ -47,8 +51,16 @@ dev = [
     "pre-commit>=4.3.0",
 ]
 
-[project.optional-dependencies]
+# NOTE:
+#   do not use [project.optional-dependencies]
+#   we use setuptools_dynamic_dependencies as "before-build hook"
+#   to guarantee strict tie of the `main` and the `exts` packages versions
+[tool.setuptools_dynamic_dependencies.optional-dependencies]
+exts = ["pydfuutil_native=={version}"]
 rich = ["rich"]
+
+[tool.uv.sources]
+"pydfuutil_native" = { path = "./native" } # required for `uv sync`
 
 [tool.setuptools]
 py-modules = ["pydfuutil"]
@@ -56,6 +68,9 @@ py-modules = ["pydfuutil"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["pydfuutil*"]
+
+[tool.setuptools.package-data]
+pydfuutil = ["py.typed", "assets/*.toml"]
 
 [tool.setuptools_scm]
 fallback_version = "0.0.0.dev0"
@@ -65,9 +80,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 [tool.ty.src]
-exclude = ["setup.py"]
+exclude = ["**/setup.py", "**/dfu-util/*.py"]
 
-# uncomment to configure ruff linter/formatter
 [tool.ruff]
 include = [
     "pyproject.toml",

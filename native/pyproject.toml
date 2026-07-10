@@ -30,6 +30,9 @@ classifiers = [
 dependencies = []
 dynamic = ["version"]
 
+[dependency-groups]
+dev = []
+
 [tool.setuptools]
 py-modules = ["pydfuutil"]
 
@@ -40,5 +43,35 @@ include = ["pydfuutil_native*"]
 [tool.setuptools_scm]
 fallback_version = "0.0.0.dev0"
 
-[dependency-groups]
-dev = []
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ty.src]
+exclude = ["**/setup.py", "**/dfu-util/*.py"]
+
+[tool.ruff]
+include = [
+    "pyproject.toml",
+    "src/**/*.py",
+    "tests/**/*.py",
+    "src/**/*.pyi",
+    "tests/**/*.pyi",
+]
+
+[tool.cibuildwheel]
+# The wheel is tagged py3-none-<plat> by libusb_bdist_wheel.get_tag() in setup.py (the extension
+# doesn't touch the CPython C API), so it's compatible with any CPython 3.9+ build, including
+# free-threaded. One interpreter per platform/arch is enough; python_requires = >=3.9 in setup.cfg.
+build = "cp39-*"
+build-verbosity = 1
+
+[tool.cibuildwheel.linux]
+archs = ["auto", "aarch64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+before-build = "brew install autoconf automake libtool m4"
+
+[tool.cibuildwheel.windows]
+archs = ["auto"]
