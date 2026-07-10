@@ -1,0 +1,44 @@
+# Copyright 2023 Yaroshenko Dmytro (https://github.com/o-murphy)
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pydfuutil-native"
+description = "Native backend for PyDfuUtil"
+readme = "README.md"
+keywords = ["dfu_util", "dfu-util", "pydfu", "libusb", "python", "python3"]
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = []
+dynamic = ["version"]
+
+[tool.setuptools]
+py-modules = ["pydfuutil"]
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["pydfuutil_native*"]
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0.dev0"
+
+[dependency-groups]
+dev = ["cython>=3.2.8"]

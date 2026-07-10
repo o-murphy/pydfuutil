@@ -1,0 +1,3 @@
+[submodule "native/pydfuutil_native/dfu-util"]
+	path = native/pydfuutil_native/dfu-util
+	url = https://gitlab.com/dfu-util/dfu-util.git
