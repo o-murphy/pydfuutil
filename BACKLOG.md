@@ -529,47 +529,103 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ## P3 — Minor / cosmetic (no functional effect)
 
-47. **`dfu.py::_abort_to_idle`** returns `dst` (a `StatusRetVal`) where C's equivalent returns an
-    `int` status code. Currently harmless — all three callers in `dfuse.py` discard the return
-    value — but a future caller relying on C's byte-count contract would get the wrong type.
+47. ⚪ **NOT A BUG — reviewed, keeping as-is.** **`dfu.py::_abort_to_idle`** returns `dst` (a
+    `StatusRetVal`) where C's `dfu_abort_to_idle()` returns a plain `int`. Verified against
+    `dfu.c:339-359`: C's `int ret` is just the transfer byte-count from the *last*
+    `dfu_get_status()` call (e.g. `6`) — the actually-meaningful parsed status (`struct dfu_status
+    dst`) is a local variable that C **discards** and never returns; none of its 3 callers in
+    `dfuse.c` check `ret` meaningfully. So the Python port returning the parsed `StatusRetVal`
+    instead of the vestigial byte-count is a deliberate improvement, consistent with how
+    `StatusRetVal` is already used as the canonical "status" value throughout this port (both
+    from real `get_status()` calls and hand-synthesized, e.g. `__main__.py:745`:
+    `status = dfu.StatusRetVal(dfu.Status.OK, 0, dfu.State.APP_IDLE, 0)` as the "assume appIDLE"
+    stand-in). Plain `int` returns elsewhere (`download`/`upload`/`special_command`/
+    `download_chunk`) represent a different concept — transfer byte-count, not device status — so
+    there's no actual inconsistency. Decision: keep `_abort_to_idle`'s return type as-is; no
+    `helpers.py` C-compat shim needed unless a real caller need emerges.
 
-48. **`dfu.py::_get_state`** has no length guard before indexing `result.tobytes()[0]`; relies on
-    pyusb raising `USBError` for short transfers rather than returning a truncated buffer
-    (unverified assumption). C explicitly checks `result < 1` first.
+48. ✅ **DONE** — **`dfu.py::_get_state`** had no length guard before indexing
+    `result.tobytes()[0]`; relied on pyusb raising `USBError` for short transfers rather than
+    returning a truncated buffer. This assumption was **verified false**: pyusb's `ctrl_transfer`
+    (`usb/core.py:1103-1104`) returns `buff[:ret]` (a truncated/possibly-empty array) whenever the
+    actual transfer length differs from the requested length, and libusb's `_check()`
+    (`usb/backend/libusb1.py`) only raises `USBError` for a *negative* return code — a genuine
+    zero-byte GETSTATE response is a valid non-negative result and raises nothing. So
+    `result.tobytes()[0]` on an empty array would raise `IndexError`, uncaught, where C explicitly
+    guards against exactly this (`if (result < 1) return -1;`).
+    C ref: `dfu.c:203-224` (`if (result < 1) return -1;` before indexing `buffer[0]`).
+    Fix: `if len(result) < length: return State(-1)` before indexing (using the existing
+    `State.UNKNOWN_ERROR = -1` member). Verified live with a mocked empty-array response:
+    `_get_state()` now returns `State(-1)` instead of raising `IndexError`.
 
-49. **`dfu_file.py:284`** — LPCDFU prefix debug message uses `_logger.info` where the LMDFU branch
-    two lines above correctly uses `_logger.debug`; C gates both behind `verbose` (never set for
-    `dfu-suffix`/`dfu-prefix`, which have no `-v` flag), so neither should print by default.
-    Fix: change to `_logger.debug`.
+49. ✅ **DONE** — **`dfu_file.py:285`** — LPCDFU prefix debug message used `_logger.info` where
+    the LMDFU branch two lines above correctly uses `_logger.debug`; C gates both behind `verbose`
+    (never set for `dfu-suffix`/`dfu-prefix`, which have no `-v` flag), so neither should print by
+    default.
+    Fix: changed to `_logger.debug`.
 
-50. **`dfuse.py:754`** — `if file.name != file.bcdDFU == 0x11a:` is a nonsensical chained
-    comparison that happens to evaluate correctly only because `file.name` (str) is never equal
-    to `file.bcdDFU` (int). Works by accident; should just be `if file.bcdDFU == 0x11a:`.
+50. ✅ **DONE** — **`dfuse.py:758`** — `if file.name != file.bcdDFU == 0x11a:` was a nonsensical
+    chained comparison that happened to evaluate correctly only because `file.name` (str) is never
+    equal to `file.bcdDFU` (int). Worked by accident.
+    C ref: `dfuse.c:785` (`if (file->bcdDFU == 0x11a)`).
+    Fix: `if file.bcdDFU == 0x11a:`.
 
-51. **`dfuse.py:754`** area — `do_download()` returns `total_bytes`/non-`0` on the upload success
-    path where C returns exactly `0`; currently harmless since the only caller normalizes via
-    `ret < 0`, but diverges from the documented contract.
+51. ✅ **DONE** — **`dfuse.py:468`** (`do_upload()`, not `do_download()` as originally
+    mislabeled) — returned `total_bytes` on the upload success path where C returns exactly `0`
+    (verified: `dfuse.c` end of `dfuse_do_upload()`, `ret = 0; break;`). Harmless — the only
+    caller (`__main__.py:554-561`) normalizes via `ret < 0` — but diverged from the documented
+    contract.
+    Fix: `ret = 0` on the success path, matching C exactly.
 
-52. **`dfuse.py` logging** — `do_dfuse_download()`: a literal `%i` left un-interpolated in an
-    f-string (should just remove it or interpolate `dwNbElements`); "total size" logs the raw
-    4-byte slice instead of `quad2uint(...)` of it; "Target name" indexes a single byte instead
-    of decoding the null-terminated name string. All log-text only, no protocol effect.
+52. ✅ **DONE** — **`dfuse.py` logging** — `do_dfuse_download()` had three log-text-only bugs:
+    a literal `%i` left un-interpolated in an f-string; "total size" logged the raw 4-byte slice
+    instead of `quad2uint(...)` of it; "Target name" indexed a single byte (`target_prefix[11]`)
+    instead of decoding the null-terminated name string. All log-text only, no protocol effect.
+    C ref: `dfuse.c:663-679` (`printf("Target name: %s\n", &targetprefix[11])`,
+    `printf("(%i elements, ", dwNbElements)`,
+    `printf("total size = %i)\n", quad2uint(...))`).
+    Fix: `target_prefix[11:266].split(b"\x00", 1)[0].decode("ascii", "replace")` for the name;
+    removed the stray `%i`; wrapped the total-size slice in `quad2uint(...)`. Verified live with a
+    synthetic target prefix: name decodes to `"MyTarget"` (not a raw byte), elements/total-size
+    print as real integers.
 
-53. **`dfuse.py:704-707`** — `dfuse_memcpy()`'s pointer-advance-only calls pass a real
-    `bytearray(dwElementSize)` as `dst` where C passes `NULL` (meaning "just advance, don't
-    copy"); wastes an allocation/copy per element. Not a correctness bug.
+53. ✅ **DONE** — **`dfuse.py:709-712`** — the pointer-advance-only `dfuse_memcpy()` call passed
+    a real `bytearray(dwElementSize)` as `dst` where C passes `NULL` (meaning "just advance, don't
+    copy"); wasted an allocation/copy per element. Not a correctness bug — `dfuse_memcpy()` itself
+    already supports `dst=None` (`dfuse.py:583`: `if dst is not None: dst.extend(...)`), only this
+    one call site didn't use it.
+    Fix: `dfuse_memcpy(None, file.firmware, rem, dwElementSize)`. Verified live: the cursor
+    advances (`rem` decreases, `src` is consumed) with no copy performed.
 
-54. **`__main__.py:632`** — `logger.info(f"Device ID {vendor:04x}:{vendor:04x}")` prints vendor
-    twice instead of `vendor:product`. Log-only.
+54. ✅ **DONE** — **`__main__.py:676`** — `logger.info(f"Device ID {vendor:04x}:{vendor:04x}")`
+    printed vendor twice instead of `vendor:product`. Log-only. Already fixed as a side effect of
+    earlier restructuring in this area (confirmed via `git log -p`: the fix to `{product:04x}` was
+    already present on disk before this item was reached) — no further action needed.
 
-55. **`__main__.py`** — `-D`/`--download` and `-Z`/`--upload-size` help text are both copy-pasted
-    as "Read firmware from device into `<file>`"; `-D`'s should read "Write firmware from
-    `<file>` into device". Cosmetic.
+55. ✅ **DONE** — **`__main__.py`** — `-D`/`--download` and `-Z`/`--upload-size` help text were
+    both copy-pasted as "Read firmware from device into `<file>`". Cosmetic.
+    C ref: `main.c:186-187` (`-D --download <file> Write firmware from <file> into device`,
+    `-Z --upload-size <bytes> Specify the expected upload size in bytes`).
+    Fix: `-Z`'s help changed to "Specify the expected upload size in bytes"; `-D`'s changed to
+    "Write firmware from `<file>` into device". Verified live via `--help` output.
 
-56. **`usb_dfu.py`** — `UsbReqDfu`/`DFUStatus`/`DFUState` enums are dead code, never imported
-    anywhere else in the codebase (`dfu.py` has its own separate, actually-used `Request`/
-    `Status`/`State` enums with identical values). Not a bug, just duplication — candidate for
-    removal.
+56. ⚪ **NOT A BUG — reviewed, keeping as-is.** **`usb_dfu.py`** — `UsbReqDfu`/`DFUStatus`/
+    `DFUState` enums are dead code, never imported anywhere else in the codebase (`dfu.py` has its
+    own separate, actually-used `Request`/`Status`/`State` enums with identical values).
+    Investigated whether this duplication was porting-introduced or inherited from upstream:
+    verified that **the C original has the exact same duplication**. `usb_dfu.h` defines
+    `USB_REQ_DFU_DETACH`/etc. and `DFU_STATUS_err*`/etc., but `dfu.h` (which `#include`s
+    `usb_dfu.h`) separately defines its own differently-named `DFU_DETACH=0`/`DFU_DNLOAD=1`/.../
+    `DFU_STATUS_ERROR_TARGET`/etc., and it's *these* `dfu.h` constants that `dfu.c`'s actual
+    `ctrl_transfer` calls use (verified: `dfu.c:54,84,115` use `DFU_DETACH`/`DFU_DNLOAD`/
+    `DFU_UPLOAD` from `dfu.h`, not `usb_dfu.h`'s `USB_REQ_DFU_*`). So `usb_dfu.h`'s request/status
+    constants are dead in the upstream C implementation too — this port faithfully mirrors that
+    (messy but intentional) upstream header structure. `usb_dfu.py`'s `State`-equivalent enum
+    values based on `enum dfu_state` in `usb_dfu.h` *are* actually used directly in C (unlike the
+    request/status constants) — Python's `dfu.py::State` duplicates that one for its own separate
+    reasons, but the duplication itself isn't a Python-porting artifact.
+    Decision: keep `usb_dfu.py`'s enums as-is; removing them would be a *deviation* from the
+    upstream header structure this file is mirroring, not a cleanup.
 
 ---
 

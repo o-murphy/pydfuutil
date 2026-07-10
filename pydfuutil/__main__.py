@@ -283,14 +283,14 @@ options: tuple[dict[str, Any], ...] = (
     },
     {
         "args": ("-Z", "--upload-size"),
-        "help": "Read firmware from device into <file>",
+        "help": "Specify the expected upload size in bytes",
         "metavar": "<bytes>",
         "type": int,
     },
     {
         "args": ("-D", "--download"),
         "action": ActionFile,
-        "help": "Read firmware from device into <file>",
+        "help": "Write firmware from <file> into device",
         "metavar": "<file>",
     },
     {

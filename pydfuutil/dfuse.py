@@ -465,7 +465,7 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
 
             if len(rc) < xfer_size or total_bytes >= upload_limit:
                 # last block, return successfully
-                ret = total_bytes
+                ret = 0
                 break
 
             progress.update(completed=total_bytes)
@@ -651,14 +651,15 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
 
         bAlternateSetting = target_prefix[6]
         if target_prefix[7]:
-            _logger.info(f"Target name: {target_prefix[11]}")
+            target_name = target_prefix[11:266].split(b"\x00", 1)[0].decode("ascii", "replace")
+            _logger.info(f"Target name: {target_name}")
         else:
             _logger.info("No target name")
 
         dwNbElements = quad2uint(target_prefix[270:274])
         _logger.info(f"Image for alternate setting {bAlternateSetting}, "
-                     f"(%i elements {dwNbElements}, "
-                     f"total size = {target_prefix[266:270]}")
+                     f"({dwNbElements} elements, "
+                     f"total size = {quad2uint(target_prefix[266:270])})")
 
         a_dif: Optional[dfu.DfuIf] = dif
         while a_dif:
@@ -706,7 +707,7 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
 
             # advance read pointer
             rem = dfuse_memcpy(
-                bytearray(dwElementSize), file.firmware,
+                None, file.firmware,
                 rem, dwElementSize
             )
 
@@ -755,7 +756,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
         _logger.info("DfuSe command mode")
         ret = 0
     elif rt_opts.flags & RuntimeOptions.Flags.address_present:
-        if file.name != file.bcdDFU == 0x11a:
+        if file.bcdDFU == 0x11a:
             raise UsageError("This is a DfuSe file, not meant for raw download")
         ret = do_bin_download(dif, xfer_size, file, rt_opts.address, rt_opts)
     else:

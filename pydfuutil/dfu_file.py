@@ -282,7 +282,7 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
                           f"Address:        0x{file.lmdfu_address:08x}\n"
                           f"Payload length: {struct.unpack('<I', data[4:8])[0]}")
         elif file.prefix_type == PrefixType.LPCDFU_UNENCRYPTED_PREFIX:
-            _logger.info(f"Possible unencrypted NXP LPC DFU prefix with the following properties\n"
+            _logger.debug(f"Possible unencrypted NXP LPC DFU prefix with the following properties\n"
                          f"Payload length: {struct.unpack('<H', data[2:4])[0] >> 1} kiByte")
         else:
             raise DataError("Unknown DFU prefix type")

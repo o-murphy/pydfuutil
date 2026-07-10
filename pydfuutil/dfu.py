@@ -451,6 +451,8 @@ def _get_state(device: usb.core.Device, interface: int) -> State:
         timeout=TIMEOUT,
     )
     assert not isinstance(result, int)
+    if len(result) < length:
+        return State(-1)
     value = result.tobytes()[0]
     if value in State.__members__.values():
         return State(value)
