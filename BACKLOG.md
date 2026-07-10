@@ -106,12 +106,12 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### Core protocol (`dfu.py`, `portable.py`)
 
-8. **`pydfuutil/portable.py:29`** — `sleep(int(msec / 1000))` truncates every sub-second delay to
-   zero (and drops the fractional remainder on longer ones — 1500ms → 1s). Real DFU
-   `bwPollTimeout` values are almost always well under 1000ms (`DEFAULT_POLLTIMEOUT = 5` in
-   `quirks.py`), so this makes essentially every poll delay in the whole codebase a no-op busy
-   loop instead of an actual wait. Backs every poll loop in `dfu_load.py`, `dfuse.py`,
-   `dfu.py::_abort_to_idle`.
+8. ✅ **DONE** — **`pydfuutil/portable.py:29`** — `sleep(int(msec / 1000))` truncated every
+   sub-second delay to zero (and dropped the fractional remainder on longer ones — 1500ms → 1s).
+   Real DFU `bwPollTimeout` values are almost always well under 1000ms
+   (`DEFAULT_POLLTIMEOUT = 5` in `quirks.py`), so this made essentially every poll delay in the
+   whole codebase a no-op busy loop instead of an actual wait. Backs every poll loop in
+   `dfu_load.py`, `dfuse.py`, `dfu.py::_abort_to_idle`.
    C ref: `portable.h:23-27` (splits into whole seconds + nanoseconds correctly).
    Fix: `sleep(msec / 1000.0)` (true float division, no truncation).
 
