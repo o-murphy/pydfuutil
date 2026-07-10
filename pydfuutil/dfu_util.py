@@ -254,7 +254,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
                 dfu_mode = True
 
             if (dfu_mode
-                    and DfuUtil.match_iface_index > -1
+                    and DfuUtil.match_iface_alt_index > -1
                     and DfuUtil.match_iface_alt_index != intf.bAlternateSetting):
                 continue
 
@@ -269,7 +269,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
                 if ((DfuUtil.match_vendor >= 0
                      and DfuUtil.match_vendor != dev.idVendor) or
                         (DfuUtil.match_product >= 0
-                         and DfuUtil.match_product != dev.idVendor)):
+                         and DfuUtil.match_product != dev.idProduct)):
                     continue
 
             if DfuUtil.match_dev_num >= 0 and DfuUtil.match_dev_num != dev.address:
@@ -285,7 +285,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
 
             if dev.iSerialNumber != 0:
                 try:
-                    if quirks and QUIRK.UTF8_SERIAL:
+                    if quirks & QUIRK.UTF8_SERIAL:
                         serial_name = usb.util.get_string(dev, dev.iSerialNumber)
                         if serial_name:
                             serial_name += '0'
@@ -354,13 +354,18 @@ def probe_configuration(dev: usb.core.Device) -> None:
 
     for cfg in cfgs:
 
+        if (DfuUtil.match_config_index > -1
+                and DfuUtil.match_config_index != cfg.bConfigurationValue):
+            continue
+
         if ret := find_descriptor(cfg.extra_descriptors, USB_DT_DFU,
                                   bytearray(USB_DT_DFU_SIZE)):
             func_dfu = FuncDescriptor.from_bytes(ret)
             _found_dfu(dev, cfg, func_dfu)
-            return
+            continue
 
         has_dfu = False
+        found_dfu_intf = False
         uif: usb.core.Interface
         for uif in cfg:
             if not uif:
@@ -378,9 +383,16 @@ def probe_configuration(dev: usb.core.Device) -> None:
                     func_dfu = FuncDescriptor.from_bytes(ret)
                     # goto found_dfu
                     _found_dfu(dev, cfg, func_dfu)
-                    return
+                    found_dfu_intf = True
+                    break
 
                 has_dfu = True
+
+            if found_dfu_intf:
+                break
+
+        if found_dfu_intf:
+            continue
 
         if has_dfu:
             # Finally try to retrieve it requesting the
@@ -393,7 +405,7 @@ def probe_configuration(dev: usb.core.Device) -> None:
                 assert isinstance(ret, array.array)
                 func_dfu = FuncDescriptor.from_bytes(ret.tobytes())
                 _found_dfu(dev, cfg, func_dfu)
-                return
+                continue
             except USBError as e:
                 _logger.debug(e)
             _logger.warning("Device has DFU interface, "
@@ -407,7 +419,6 @@ def probe_configuration(dev: usb.core.Device) -> None:
 
             # goto found_dfu
             _found_dfu(dev, cfg, func_dfu)
-            return
 
 
 __all__ = (

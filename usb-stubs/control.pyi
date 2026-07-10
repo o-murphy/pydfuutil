@@ -43,23 +43,25 @@ get_interface - get a device interface
 set_interface - set a device interface
 """
 
-__author__ = 'Wander Lairson Costa'
+__author__ = "Wander Lairson Costa"
 
-__all__ = ['get_status',
-           'clear_feature',
-           'set_feature',
-           'get_descriptor',
-           'set_descriptor',
-           'get_configuration',
-           'set_configuration',
-           'get_interface',
-           'set_interface',
-           'ENDPOINT_HALT',
-           'FUNCTION_SUSPEND',
-           'DEVICE_REMOTE_WAKEUP',
-           'U1_ENABLE',
-           'U2_ENABLE',
-           'LTM_ENABLE']
+__all__ = [
+    "get_status",
+    "clear_feature",
+    "set_feature",
+    "get_descriptor",
+    "set_descriptor",
+    "get_configuration",
+    "set_configuration",
+    "get_interface",
+    "set_interface",
+    "ENDPOINT_HALT",
+    "FUNCTION_SUSPEND",
+    "DEVICE_REMOTE_WAKEUP",
+    "U1_ENABLE",
+    "U2_ENABLE",
+    "LTM_ENABLE",
+]
 
 import array
 from typing import Union, Tuple, Optional
@@ -70,9 +72,9 @@ import usb.core as core
 
 USBError = core.USBError
 
-def _parse_recipient(recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]],
-                     direction: int) -> Tuple[int, int]:
-    ...
+def _parse_recipient(
+    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]], direction: int
+) -> Tuple[int, int]: ...
 
 # standard feature selectors from USB 2.0/3.0
 ENDPOINT_HALT = 0
@@ -82,7 +84,10 @@ U1_ENABLE = 48
 U2_ENABLE = 49
 LTM_ENABLE = 50
 
-def get_status(dev: usb.core.Device, recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None) -> int:
+def get_status(
+    dev: usb.core.Device,
+    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None,
+) -> int:
     r"""Return the status for the specified recipient.
 
     dev is the Device object to which the request will be
@@ -95,15 +100,17 @@ def get_status(dev: usb.core.Device, recipient: Optional[Union[usb.core.Interfac
     word being the two bytes status value.
     """
     bmRequestType, wIndex = _parse_recipient(recipient, util.CTRL_IN)
-    ret = dev.ctrl_transfer(bmRequestType = bmRequestType,
-                            bRequest = 0x00,
-                            wIndex = wIndex,
-                            data_or_wLength = 2)
+    ret = dev.ctrl_transfer(
+        bmRequestType=bmRequestType, bRequest=0x00, wIndex=wIndex, data_or_wLength=2
+    )
     assert not isinstance(ret, int)
     return ret[0] | (ret[1] << 8)
 
-def clear_feature(dev: usb.core.Device, feature: int,
-                  recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None) -> None:
+def clear_feature(
+    dev: usb.core.Device,
+    feature: int,
+    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None,
+) -> None:
     r"""Clear/disable a specific feature.
 
     dev is the Device object to which the request will be
@@ -115,8 +122,11 @@ def clear_feature(dev: usb.core.Device, feature: int,
     from the device), an Interface or Endpoint descriptors.
     """
 
-def set_feature(dev: usb.core.Device, feature: int,
-                recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None):
+def set_feature(
+    dev: usb.core.Device,
+    feature: int,
+    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None,
+):
     r"""Set/enable a specific feature.
 
     dev is the Device object to which the request will be
@@ -128,11 +138,13 @@ def set_feature(dev: usb.core.Device, feature: int,
     from the device), an Interface or Endpoint descriptors.
     """
 
-def get_descriptor(dev: usb.core.Device,
-                   desc_size: int,
-                   desc_type: int,
-                   desc_index: int,
-                   wIndex: int = 0) -> Union[int, array.array]:
+def get_descriptor(
+    dev: usb.core.Device,
+    desc_size: int,
+    desc_type: int,
+    desc_index: int,
+    wIndex: int = 0,
+) -> Union[int, array.array]:
     r"""Return the specified descriptor.
 
     dev is the Device object to which the request will be
@@ -148,25 +160,30 @@ def get_descriptor(dev: usb.core.Device,
     wValue = desc_index | (desc_type << 8)
 
     bmRequestType = util.build_request_type(
-                        util.CTRL_IN,
-                        util.CTRL_TYPE_STANDARD,
-                        util.CTRL_RECIPIENT_DEVICE)
+        util.CTRL_IN, util.CTRL_TYPE_STANDARD, util.CTRL_RECIPIENT_DEVICE
+    )
 
     desc = dev.ctrl_transfer(
-            bmRequestType = bmRequestType,
-            bRequest = 0x06,
-            wValue = wValue,
-            wIndex = wIndex,
-            data_or_wLength = desc_size)
+        bmRequestType=bmRequestType,
+        bRequest=0x06,
+        wValue=wValue,
+        wIndex=wIndex,
+        data_or_wLength=desc_size,
+    )
     assert not isinstance(desc, int)
 
     if len(desc) < 2:
-        raise USBError('Invalid descriptor')
+        raise USBError("Invalid descriptor")
 
     return desc
 
-def set_descriptor(dev: usb.core.Device, desc: Union[int, bytes, bytearray],
-                   desc_type: int, desc_index: int, wIndex: Optional[int] = None) -> None:
+def set_descriptor(
+    dev: usb.core.Device,
+    desc: Union[int, bytes, bytearray],
+    desc_type: int,
+    desc_index: int,
+    wIndex: Optional[int] = None,
+) -> None:
     r"""Update an existing descriptor or add a new one.
 
     dev is the Device object to which the request will be
@@ -204,11 +221,12 @@ def get_interface(dev: usb.core.Device, bInterfaceNumber: int) -> Union[int, byt
     sent to.
     """
 
-def set_interface(dev: usb.core.Device, bInterfaceNumber: int, bAlternateSetting: int) -> None:
+def set_interface(
+    dev: usb.core.Device, bInterfaceNumber: int, bAlternateSetting: int
+) -> None:
     r"""Set the alternate setting of the interface.
 
     dev is the Device object to which the request will be
     sent to.
     """
     dev.set_interface_altsetting(bInterfaceNumber, bAlternateSetting)
-

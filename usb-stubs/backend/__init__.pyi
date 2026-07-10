@@ -35,5 +35,4 @@ Minimal stub covering the symbols used by pydfuutil.
 
 from usb._objfinalizer import AutoFinalizedObject
 
-class IBackend(AutoFinalizedObject):
-    ...
+class IBackend(AutoFinalizedObject): ...
