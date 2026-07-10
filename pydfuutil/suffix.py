@@ -19,7 +19,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import argparse
 import importlib.metadata
-import pathlib
+from pathlib import Path
 import sys
 from enum import IntEnum
 
@@ -31,21 +31,24 @@ from pydfuutil.logger import logger
 try:
     __version__ = importlib.metadata.version("pydfuutil")
 except importlib.metadata.PackageNotFoundError:
-    __version__ = 'UNKNOWN'
+    __version__ = "UNKNOWN"
 
-_logger = logger.getChild('suffix')
+_logger = logger.getChild("suffix")
 
 
 class Mode(IntEnum):
     """DFU suffix operate mode"""
+
     NONE = 0x1
     ADD = 0x2
     DEL = 0x3
     CHECK = 0x4
 
 
-VERSION = (f'pydfuutil-suffix " v{__version__} "\n {__copyright__[0]}\n'
-           f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
+VERSION = (
+    f'pydfuutil-suffix " v{__version__} "\n {__copyright__[0]}\n'
+    f"This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n"
+)
 
 
 def hex2int(string: str) -> int:
@@ -53,51 +56,101 @@ def hex2int(string: str) -> int:
     try:
         return int(string, 16)
     except ValueError as e:
-        raise UsageError("--vid, --pid, --did must be a 2-byte hex "
-                           "in 0xFFFF format") from e
+        raise UsageError(
+            "--vid, --pid, --did must be a 2-byte hex in 0xFFFF format"
+        ) from e
 
 
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
     """Add cli options"""
-    parser.add_argument('-V', '--version', action='version',
-                        version=VERSION,
-                        help='Print the version number')
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=VERSION,
+        help="Print the version number",
+    )
 
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument('-c', '--check',
-                       const=Mode.CHECK, dest='mode', action='store_const',
-                       help='Check DFU suffix of <file>')
-    group.add_argument('-a', '--add',
-                       const=Mode.ADD, dest='mode', action='store_const',
-                       help='Add DFU suffix to <file>')
-    group.add_argument('-D', '--delete',
-                       const=Mode.DEL, dest='mode', action='store_const',
-                       help='Delete DFU suffix from <file>')
+    group.add_argument(
+        "-c",
+        "--check",
+        const=Mode.CHECK,
+        dest="mode",
+        action="store_const",
+        help="Check DFU suffix of <file>",
+    )
+    group.add_argument(
+        "-a",
+        "--add",
+        const=Mode.ADD,
+        dest="mode",
+        action="store_const",
+        help="Add DFU suffix to <file>",
+    )
+    group.add_argument(
+        "-D",
+        "--delete",
+        const=Mode.DEL,
+        dest="mode",
+        action="store_const",
+        help="Delete DFU suffix from <file>",
+    )
 
-    parser.add_argument('file', action='store', metavar='<file>',
-                        type=pathlib.Path, default=None,
-                        help="Target filename")
+    parser.add_argument(
+        "file",
+        action="store",
+        metavar="<file>",
+        type=Path,
+        default=None,
+        help="Target filename",
+    )
 
-    parser.add_argument('-p', '--pid', action='store', metavar="<productID>",
-                        required=False,
-                        type=hex2int, help='Add product ID into DFU suffix in <file>')
-    parser.add_argument('-v', '--vid', action='store', metavar="<vendorID>",
-                        required=False,
-                        type=hex2int, help='Add vendor ID into DFU suffix in <file>')
-    parser.add_argument('-d', '--did', action='store', metavar="<deviceID>",
-                        required=False,
-                        type=hex2int, help='Add device ID into DFU suffix in <file>')
-    parser.add_argument('-S', '--spec', dest='spec', action='store',
-                        metavar="<specID>", choices=("0x0100", "0x011a"), default="0x0100",
-                        help='Add DFU specification ID into DFU suffix in <file>')
+    parser.add_argument(
+        "-p",
+        "--pid",
+        action="store",
+        metavar="<productID>",
+        required=False,
+        type=hex2int,
+        help="Add product ID into DFU suffix in <file>",
+    )
+    parser.add_argument(
+        "-v",
+        "--vid",
+        action="store",
+        metavar="<vendorID>",
+        required=False,
+        type=hex2int,
+        help="Add vendor ID into DFU suffix in <file>",
+    )
+    parser.add_argument(
+        "-d",
+        "--did",
+        action="store",
+        metavar="<deviceID>",
+        required=False,
+        type=hex2int,
+        help="Add device ID into DFU suffix in <file>",
+    )
+    parser.add_argument(
+        "-S",
+        "--spec",
+        dest="spec",
+        action="store",
+        metavar="<specID>",
+        choices=("0x0100", "0x011a"),
+        default="0x0100",
+        help="Add DFU specification ID into DFU suffix in <file>",
+    )
 
 
 @except_and_safe_exit(_logger)
 def main() -> None:
     """cli entry point for suffix"""
     parser = argparse.ArgumentParser(
-        prog='pydfuutil-suffix',
+        prog="pydfuutil-suffix",
         exit_on_error=False,
     )
     add_cli_options(parser)
@@ -111,9 +164,9 @@ def main() -> None:
     file = DfuFile(name=str(args.file))
     mode = args.mode
 
-    pid = args.pid if args.pid else 0xffff
-    vid = args.vid if args.vid else 0xffff
-    did = args.did if args.did else 0xffff
+    pid = args.pid if args.pid is not None else 0xFFFF
+    vid = args.vid if args.vid is not None else 0xFFFF
+    did = args.did if args.did is not None else 0xFFFF
 
     spec = int(args.spec, 16)
 
@@ -144,5 +197,5 @@ def main() -> None:
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

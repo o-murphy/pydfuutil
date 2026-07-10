@@ -182,7 +182,7 @@ def parse_memory_layout(intf_desc: Union[str, bytes], verbose: bool = False) -> 
     intf_desc = intf_desc[match.end():]
 
     # while per segment
-    while (match := re.match(r'/0x(\d+)/', intf_desc)) is not None:
+    while (match := re.match(r'/0x([0-9A-Fa-f]+)/', intf_desc)) is not None:
         address = int(match.group(1), 16)
 
         intf_desc = intf_desc[match.end():]
@@ -197,6 +197,10 @@ def parse_memory_layout(intf_desc: Union[str, bytes], verbose: bool = False) -> 
             intf_desc = intf_desc[match.end():]
             count += 1
             mem_type = ord(type_string)
+
+            # Quirk for STM32F4 devices
+            if name == "Device Feature":
+                mem_type = ord('e')
 
             if multiplier == 'B':
                 pass

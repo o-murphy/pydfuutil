@@ -392,44 +392,62 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### `dfuse.py` / `dfuse_mem.py`
 
-33. **`dfuse.py:130`** — `parse_options()` matches underscored tokens (`"mass_erase"`,
-    `"will_reset"`) but the documented CLI syntax and all real user input use **hyphens**
-    (`mass-erase`, `will-reset`, per the tool's own `--help` text, `dfuse.py:99-101`). `"fast"`
-    isn't matched at all. `-s :force:mass-erase`, `-s :will-reset`, `-s :fast` all fail with
-    `UsageError("Wrong dfuse length: ...")` — these three wire-protocol-relevant flags are
-    currently unusable.
+33. ✅ **DONE** — **`dfuse.py:130`** — `parse_options()` matched underscored tokens
+    (`"mass_erase"`, `"will_reset"`) but the documented CLI syntax and all real user input use
+    **hyphens** (`mass-erase`, `will-reset`, per the tool's own `--help` text, `dfuse.py:99-101`).
+    `"fast"` wasn't matched at all. `-s :force:mass-erase`, `-s :will-reset`, `-s :fast` all failed
+    with `UsageError("Wrong dfuse length: ...")` — these three wire-protocol-relevant flags were
+    unusable.
     C ref: `dfuse.c:97-121`.
-    Fix: match hyphenated tokens; add `"fast"` to the recognized set.
+    Fix: iterate over hyphenated tokens `("force", "leave", "mass-erase", "unprotect",
+    "will-reset", "fast")` and map to the enum via `RuntimeOptions.Flags[opt.replace('-', '_')]`
+    (the `Flags` enum members themselves keep underscored Python identifiers; only the
+    user-facing token matching changed).
 
-34. **`dfuse.py:122`** — `if address := atoi(opts[0]):` — `atoi("0")` returns `0`, which is falsy,
-    so address `0` is rejected as `"Invalid dfuse address: 0"` even though it's a valid address.
+34. ✅ **DONE** — **`dfuse.py:122`** — `if address := atoi(opts[0]):` — `atoi("0")` returns `0`,
+    which is falsy, so address `0` was rejected as `"Invalid dfuse address: 0"` even though it's a
+    valid address.
     C ref: `dfuse.c:73-79`.
     Fix: `address = atoi(opts[0]); if address is not None: ...`.
 
-35. **`dfuse.py:121-127`** — an empty address prefix (e.g. `-s :force`, where `opts[0] == ''`) is
-    unconditionally passed to `atoi()`, which returns `None`, raising `UsageError` instead of
-    silently skipping address parsing as C does for a leading `:`.
+35. ✅ **DONE** — **`dfuse.py:121-127`** — an empty address prefix (e.g. `-s :force`, where
+    `opts[0] == ''`) was unconditionally passed to `atoi()`, which returns `None`, raising
+    `UsageError` instead of silently skipping address parsing as C does for a leading `:`.
     C ref: `dfuse.c:68`.
-    Fix: special-case `opts[0] == ''` (pop and skip) before calling `atoi`.
+    Fix: special-cased `opts[0] == ''` (pop and skip) before calling `atoi`. Verified live:
+    `:force:mass-erase`, `:will-reset`, `:fast`, and a bare `0x0` address all now parse correctly
+    (previously all four failed).
 
-36. **`pydfuutil/dfuse_mem.py:185`** — `re.match(r'/0x(\d+)/', intf_desc)` only matches decimal
-    digits; real memory-map address fields are hex and can contain `A-F` (e.g. STM32 "Option
-    Bytes" region at `0x1FFFC800`). Any such address fails to match, silently terminating the
-    parse loop with **zero segments produced**, no error.
-    Verified live: `re.match(r'/0x(\d+)/', '/0x1FFFC800/01*016 e')` → `None`.
+36. ✅ **DONE** — **`pydfuutil/dfuse_mem.py:185`** — `re.match(r'/0x(\d+)/', intf_desc)` only
+    matched decimal digits; real memory-map address fields are hex and can contain `A-F` (e.g.
+    STM32 "Option Bytes" region at `0x1FFFC800`). Any such address failed to match, silently
+    terminating the parse loop with **zero segments produced**, no error.
+    Verified live (before fix): `re.match(r'/0x(\d+)/', '/0x1FFFC800/01*016 e')` → `None`.
     C ref: `dfuse_mem.c:112` (`sscanf(..., "/0x%x/%n", ...)`).
-    Fix: `r'/0x([0-9A-Fa-f]+)/'`, parse with base 16 (already done downstream).
+    Fix: `r'/0x([0-9A-Fa-f]+)/'` (parsing with base 16 downstream was already correct). Verified
+    live: the same string now matches, group `1FFFC800`, and `parse_memory_layout()` produces a
+    real segment instead of `None`.
 
-37. **`dfuse_mem.py` `parse_memory_layout()`** — missing the "Device Feature" quirk override: C
-    forces `memtype = 'e'` for any segment named `"Device Feature"` (STM32F4 read-protection
-    pseudo-segment), regardless of what was parsed. No equivalent exists in the Python port.
+37. ✅ **DONE** — **`dfuse_mem.py` `parse_memory_layout()`** — missing the "Device Feature" quirk
+    override: C forces `memtype = 'e'` for any segment named `"Device Feature"` (STM32F4
+    read-protection pseudo-segment), regardless of what was parsed. No equivalent existed in the
+    Python port.
     C ref: `dfuse_mem.c:136-137`.
+    Fix: added `if name == "Device Feature": mem_type = ord('e')` right after `mem_type` is
+    determined from `type_string`, matching C's placement (before the multiplier switch, before
+    the `& 7` mask applied at `MemSegment` construction). Verified live: a synthetic
+    `"Device Feature"` segment now comes back `readable=True, writeable=True, erasable=False`
+    (`'e' & 7 == 5`), matching C exactly regardless of the descriptor's own type character.
 
-38. **`dfuse.py:627-628`** (`do_dfuse_download`) — minimum file-size check only requires
-    `rem >= len(dfu_prefix)` (11 bytes) instead of C's
+38. ✅ **DONE** — **`dfuse.py:627-628`** (`do_dfuse_download`) — minimum file-size check only
+    required `rem >= len(dfu_prefix)` (11 bytes) instead of C's
     `rem >= sizeof(dfuprefix) + sizeof(targetprefix) + sizeof(elementheader)` (293 bytes). Not
-    unsafe (a later bounds check in `dfuse_memcpy` still catches undersized files), but produces
+    unsafe (a later bounds check in `dfuse_memcpy` still catches undersized files), but produced
     a different/wrong error message path for files between 11 and 292 bytes.
+    C ref: `dfuse.c:643-645`.
+    Fix: `if rem < len(dfu_prefix) + len(target_prefix) + len(element_header): raise DataError(...)`.
+    Verified live: a 50-byte file now correctly raises `"File too small for a DfuSe file"`
+    (exit code 65) instead of passing the 11-byte check and failing later with a different message.
 
 ### `dfu_file.py` / `suffix.py` / `prefix.py`
 

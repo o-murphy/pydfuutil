@@ -16,9 +16,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
+
 import argparse
 import importlib.metadata
-import pathlib
+from pathlib import Path
 import sys
 from enum import IntEnum
 
@@ -30,12 +31,14 @@ from pydfuutil.logger import logger
 try:
     __version__ = importlib.metadata.version("pydfuutil")
 except importlib.metadata.PackageNotFoundError:
-    __version__ = 'UNKNOWN'
+    __version__ = "UNKNOWN"
 
-_logger = logger.getChild('prefix')
+_logger = logger.getChild("prefix")
 
-VERSION = (f'pydfuutil-prefix " v{__version__} "\n {__copyright__[0]}\n'
-           f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
+VERSION = (
+    f'pydfuutil-prefix " v{__version__} "\n {__copyright__[0]}\n'
+    f"This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n"
+)
 
 
 def hex2int(string: str) -> int:
@@ -45,47 +48,85 @@ def hex2int(string: str) -> int:
 
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
     """Add cli options"""
-    parser.add_argument('-V', '--version', action='version',
-                        version=VERSION,
-                        help='Print the version number')
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=VERSION,
+        help="Print the version number",
+    )
 
-    parser.add_argument('file', action='store', metavar='<file>',
-                        type=pathlib.Path, default=None,
-                        help="Target filename")
+    parser.add_argument(
+        "file",
+        action="store",
+        metavar="<file>",
+        type=Path,
+        default=None,
+        help="Target filename",
+    )
 
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument('-c', '--check',
-                       const=Mode.CHECK, dest='mode', action='store_const',
-                       help='Check DFU suffix of <file>')
-    group.add_argument('-D', '--delete',
-                       const=Mode.DEL, dest='mode', action='store_const',
-                       help='Delete DFU suffix from <file>')
-    group.add_argument('-a', '--add',
-                       const=Mode.ADD, dest='mode', action='store_const',
-                       help='Add DFU suffix to <file>')
+    group.add_argument(
+        "-c",
+        "--check",
+        const=Mode.CHECK,
+        dest="mode",
+        action="store_const",
+        help="Check DFU suffix of <file>",
+    )
+    group.add_argument(
+        "-D",
+        "--delete",
+        const=Mode.DEL,
+        dest="mode",
+        action="store_const",
+        help="Delete DFU suffix from <file>",
+    )
+    group.add_argument(
+        "-a",
+        "--add",
+        const=Mode.ADD,
+        dest="mode",
+        action="store_const",
+        help="Add DFU suffix to <file>",
+    )
 
     add_group = parser.add_argument_group("In combination with -a")
 
-    add_group.add_argument('-s', '--stellaris-address',
-                           action='store', metavar="<address>", dest='s',
-                           help='Add TI Stellaris address prefix to <file>')
+    add_group.add_argument(
+        "-s",
+        "--stellaris-address",
+        action="store",
+        metavar="<address>",
+        dest="s",
+        help="Add TI Stellaris address prefix to <file>",
+    )
 
     del_check_group = parser.add_argument_group("In combination with -a or -D or -c")
-    del_check_group.add_argument('-T', '--stellaris',
-                                 action='store_const', dest='type',
-                                 const=PrefixType.LMDFU_PREFIX,
-                                 help='Act on TI Stellaris address prefix of <file>')
+    del_check_group.add_argument(
+        "-T",
+        "--stellaris",
+        action="store_const",
+        dest="type",
+        const=PrefixType.LMDFU_PREFIX,
+        help="Act on TI Stellaris address prefix of <file>",
+    )
 
     all_group = parser.add_argument_group("In combination with -a or -D or -c")
-    all_group.add_argument('-L', '--lpc-prefix',
-                           action='store_const', dest='type',
-                           const=PrefixType.LPCDFU_UNENCRYPTED_PREFIX,
-                           help='Use NXP LPC DFU prefix format')
+    all_group.add_argument(
+        "-L",
+        "--lpc-prefix",
+        action="store_const",
+        dest="type",
+        const=PrefixType.LPCDFU_UNENCRYPTED_PREFIX,
+        help="Use NXP LPC DFU prefix format",
+    )
 
 
 class Mode(IntEnum):
     """DFU prefix operate mode"""
+
     NONE = 0x1
     ADD = 0x2
     DEL = 0x3
@@ -96,7 +137,7 @@ class Mode(IntEnum):
 def main():
     """cli entry point for prefix"""
     parser = argparse.ArgumentParser(
-        prog='pydfuutil-prefix',
+        prog="pydfuutil-prefix",
         exit_on_error=False,
     )
     add_cli_options(parser)
@@ -115,8 +156,9 @@ def main():
     try:
         lmdfu_flash_address = hex2int(args.s) if args.s else 0
     except ValueError as e:
-        raise UsageError("--stellaris-address must be a 2-byte hex "
-                           "in 0xFFFF format") from e
+        raise UsageError(
+            "--stellaris-address must be a 2-byte hex in 0xFFFF format"
+        ) from e
 
     if not file.name:
         _logger.error("You need to specify a filename")
@@ -135,14 +177,12 @@ def main():
     elif mode is Mode.CHECK:
         file.load(SuffixReq.MAYBE_SUFFIX, PrefixReq.MAYBE_PREFIX)
         file.show_suffix_and_prefix()
-        if (prefix_type > PrefixType.ZERO_PREFIX
-                and not file.prefix_type is prefix_type):
+        if prefix_type > PrefixType.ZERO_PREFIX and not file.prefix_type is prefix_type:
             raise DataError("No prefix of requested type")
 
     elif mode is Mode.DEL:
         file.load(SuffixReq.MAYBE_SUFFIX, PrefixReq.NEEDS_PREFIX)
-        if (prefix_type > PrefixType.ZERO_PREFIX
-                and not file.prefix_type is prefix_type):
+        if prefix_type > PrefixType.ZERO_PREFIX and not file.prefix_type is prefix_type:
             raise DataError("No prefix of requested type")
         _logger.info("Removing prefix from file")
         # if there was a suffix, rewrite it

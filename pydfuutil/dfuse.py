@@ -117,17 +117,21 @@ def parse_options(dfuse_opts: list[str]) -> RuntimeOptions:
             return None
 
     if opts is not None and len(opts) > 0:
-        if address := atoi(opts[0]):
-            rt_opts.address = address
-            rt_opts.flags |= RuntimeOptions.Flags.address_present
+        if opts[0] == '':
             opts.pop(0)
         else:
-            raise UsageError(f"Invalid dfuse address: {opts[0]}")
+            address = atoi(opts[0])
+            if address is not None:
+                rt_opts.address = address
+                rt_opts.flags |= RuntimeOptions.Flags.address_present
+                opts.pop(0)
+            else:
+                raise UsageError(f"Invalid dfuse address: {opts[0]}")
 
     # Parse other options if any
-    for opt in ("force", "leave", "mass_erase", "unprotect", 'will_reset'):
+    for opt in ("force", "leave", "mass-erase", "unprotect", "will-reset", "fast"):
         if opt in opts:
-            rt_opts.flags |= RuntimeOptions.Flags[opt]
+            rt_opts.flags |= RuntimeOptions.Flags[opt.replace('-', '_')]
             opts.pop(opts.index(opt))
 
     if len(opts) > 1:
@@ -624,7 +628,7 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
 
     rem = file.size.total - file.size.prefix - file.size.suffix
 
-    if rem < len(dfu_prefix):
+    if rem < len(dfu_prefix) + len(target_prefix) + len(element_header):
         raise DataError("File too small for a DfuSe file")
 
     rem = dfuse_memcpy(dfu_prefix, file.firmware, rem, len(dfu_prefix))
