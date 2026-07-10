@@ -54,16 +54,10 @@ __all__ = [
     "show_devices",
 ]
 
-import usb.util as util
-import copy
-import operator
-import usb._interop as _interop
 import usb._objfinalizer as _objfinalizer
-import usb._lookup as _lu
 import logging
 import array
 import threading
-import functools
 from typing import Union, Any, Literal, Optional, Tuple, Generator, Callable, overload
 
 from usb.backend import IBackend

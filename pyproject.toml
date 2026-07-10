@@ -69,7 +69,14 @@ exclude = ["setup.py"]
 
 # uncomment to configure ruff linter/formatter
 [tool.ruff]
-include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
+include = [
+    "pyproject.toml",
+    "src/**/*.py",
+    "tests/**/*.py",
+    "src/**/*.pyi",
+    "tests/**/*.pyi",
+    "usb-stubs/**/*.pyi",
+]
 exclude = [
     ".git",
     "__pypackages__",

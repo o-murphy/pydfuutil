@@ -47,7 +47,6 @@ get_string - retrieve a string descriptor from the device.
 
 __author__ = "Wander Lairson Costa"
 
-import operator
 import array
 from typing import Optional, Union, Generator, Any, Callable, Tuple
 
