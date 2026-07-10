@@ -698,7 +698,7 @@ def main():
                     f"status({status.bStatus}) = {status.bStatus.to_string()})"
                 )
             except USBError as e:
-                if e.backend_error_code != LIBUSB_ERROR_PIPE:
+                if e.backend_error_code == LIBUSB_ERROR_PIPE:
                     logger.warning(
                         "Device does not implement get_status, assuming appIDLE"
                     )

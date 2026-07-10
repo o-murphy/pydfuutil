@@ -76,7 +76,8 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    C ref: `main.c:504` (`DFU_IFF_ALT`).
    Fix: `dfu.IFF.ALT` instead of `dfu.IFF.DFU`.
 
-5. **`__main__.py:696-703`** — inverted pipe-error check in the runtime `get_status` fallback:
+5. ✅ **DONE** — **`__main__.py:700-707`** — inverted pipe-error check in the runtime `get_status`
+   fallback:
    ```python
    if e.backend_error_code != LIBUSB_ERROR_PIPE:
        # assumes appIDLE
@@ -84,10 +85,10 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
        raise _IOError(...)
    ```
    Backwards: a genuine `LIBUSB_ERROR_PIPE` (device doesn't implement get_status — the case this
-   is *supposed* to tolerate) now raises and aborts; every *other* USB error is silently treated
+   is *supposed* to tolerate) raised and aborted; every *other* USB error was silently treated
    as "assume appIDLE" instead of being reported.
    C ref: `main.c:514` (`if (err == LIBUSB_ERROR_PIPE) {...} else if (err < 0) errx(...)`).
-   Fix: swap the branches.
+   Fix: swapped to `if e.backend_error_code == LIBUSB_ERROR_PIPE: ... else: raise ...`.
 
 6. **`__main__.py:541`** — `if dfuse_device and dfuse_options and file.bcdDFU == 0x11A:` — C uses
    `||`, not `&&`, between all three conditions. Requiring all three simultaneously means DfuSe
