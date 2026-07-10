@@ -68,10 +68,10 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    C ref: `main.c:483`.
    Fix: `if not (dfu_root.flags & dfu.IFF.DFU): ... else: ...`.
 
-4. **`__main__.py:680`** — `dfu.IFF.DFU` used where `dfu.IFF.ALT` is meant
-   (`if interface > 0 or dfu_root.flags & dfu.IFF.DFU:`). Contrast with the *correct* usage two
-   lines earlier at `__main__.py:454` (`dfu_root.flags & dfu.IFF.ALT`). Combined with #3, this
-   makes "Setting Alternate Interface zero" fire unconditionally. Another plausible contributor
+4. ✅ **DONE** — **`__main__.py:684`** — `dfu.IFF.DFU` used where `dfu.IFF.ALT` is meant
+   (`if interface > 0 or dfu_root.flags & dfu.IFF.DFU:`). Contrast with the *correct* usage
+   elsewhere at `__main__.py:454` (`dfu_root.flags & dfu.IFF.ALT`). Combined with #3, this made
+   "Setting Alternate Interface zero" fire unconditionally. Another plausible contributor
    to **issue #15** ("No such Alternate Setting: 0").
    C ref: `main.c:504` (`DFU_IFF_ALT`).
    Fix: `dfu.IFF.ALT` instead of `dfu.IFF.DFU`.

@@ -681,7 +681,7 @@ def main():
             # and should also be safe if there are multiple alt settings.
             # Otherwise, skip the request since it might not be supported
             # by the device and the USB stack may or may not recover
-            if interface > 0 or dfu_root.flags & dfu.IFF.DFU:
+            if interface > 0 or dfu_root.flags & dfu.IFF.ALT:
                 logger.info("Setting Alternate Interface zero...")
                 try:
                     dev.set_interface_altsetting(interface, 0)
