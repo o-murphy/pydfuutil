@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-11
+
+No changes since [0.11.0b2], stable release
+
 ## [0.11.0b2] - 2026-07-10
 ### Added
 - CLI long-option aliases matching the C reference: `--configuration`, `--interface`,
@@ -183,7 +187,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transfers), `dfu_load.py` upload/download routines with parallel-read support, USB device
   reconnection by port number, and PyPI packaging.
 
-[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b2...HEAD
+[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b2...v0.11.0
 [0.11.0b2]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b1...v0.11.0b2
 [0.11.0b1]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b0...v0.11.0b1
 [0.11.0b0]: https://github.com/o-murphy/pydfuutil/compare/v0.0.5...v0.11.0b0
