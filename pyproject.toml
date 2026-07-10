@@ -61,7 +61,6 @@ python_files = ["test_*.py"]
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
 exclude = [
-    "tests",
     ".git",
     "__pypackages__",
     "*.egg-info",

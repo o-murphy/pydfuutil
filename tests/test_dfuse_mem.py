@@ -3,7 +3,6 @@ from pydfuutil.dfuse_mem import MemSegment, add_segment, parse_memory_layout
 
 
 class TestDfuSeMem(unittest.TestCase):
-
     def test_parse_build(self):
         mem_seq = MemSegment.from_bytes(bytes(12))
         buf = bytes(mem_seq)
@@ -22,17 +21,19 @@ class TestDfuSeMem(unittest.TestCase):
         self.assertEqual(len(tuple(mem_seq)), len(mem_seq))
 
     def test_find(self):
-        mem_seq = MemSegment.from_bytes(bytes([1, 2, 0, 0, 10, 20, 0, 0, 100, 200, 0, 0]))
-        self.assertEqual(mem_seq.find(10),
-                         mem_seq.from_bytes(bytes([10, 20, 0, 0, 100, 200, 0, 0])))
-        self.assertEqual(mem_seq.find(150),
-                         mem_seq.from_bytes(bytes([100, 200, 0, 0])))
+        mem_seq = MemSegment.from_bytes(
+            bytes([1, 2, 0, 0, 10, 20, 0, 0, 100, 200, 0, 0])
+        )
+        self.assertEqual(
+            mem_seq.find(10), mem_seq.from_bytes(bytes([10, 20, 0, 0, 100, 200, 0, 0]))
+        )
+        self.assertEqual(mem_seq.find(150), mem_seq.from_bytes(bytes([100, 200, 0, 0])))
         self.assertEqual(mem_seq.find(300), None)
 
     def test_free(self):
         mem_seq = MemSegment.from_bytes(bytes(10))
         del mem_seq
-        self.assertNotIn('mem_seq', locals())
+        self.assertNotIn("mem_seq", locals())
 
     def test_add_segment_empty_list(self):
         # Test adding a segment to an empty list
@@ -93,5 +94,5 @@ class TestDfuSeMem(unittest.TestCase):
             self.assertIsNone(result)  # Should return None, as it's invalid
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

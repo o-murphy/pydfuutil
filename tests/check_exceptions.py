@@ -9,6 +9,7 @@ import usb.core
 def func2():
     raise ValueError
 
+
 def func1():
     func2()
 
@@ -25,7 +26,7 @@ def get_exceptions_raised(func, seen=None):
 
     # Inspect the function's docstring
     if func.__doc__:
-        doc_lines = func.__doc__.split('\n')
+        doc_lines = func.__doc__.split("\n")
         for line in doc_lines:
             if "Raises" in line:
                 exceptions.update(line.split(":")[1].strip().split(","))
@@ -40,7 +41,11 @@ def get_exceptions_raised(func, seen=None):
     # Inspect inner calls
     frame = inspect.currentframe()
     try:
-        inner_funcs = [frame.f_globals.get(name) for name in func.__code__.co_names if frame.f_globals.get(name) is not None]
+        inner_funcs = [
+            frame.f_globals.get(name)
+            for name in func.__code__.co_names
+            if frame.f_globals.get(name) is not None
+        ]
         for inner_func in inner_funcs:
             if inspect.isfunction(inner_func):
                 exceptions.update(get_exceptions_raised(inner_func, seen))
@@ -55,13 +60,24 @@ def calls_c_functions(func, seen=None):
     if seen is None:
         seen = set()
     print(func.__name__)
-    c_modules = ['_ctypes', 'builtins', 'sys', 'os', 'posix', 'nt', 'marshal', 'zipimport', 'select', 'itertools',
-                 'math']
+    c_modules = [
+        "_ctypes",
+        "builtins",
+        "sys",
+        "os",
+        "posix",
+        "nt",
+        "marshal",
+        "zipimport",
+        "select",
+        "itertools",
+        "math",
+    ]
 
     for name, module in func.__globals__.items():
-        if hasattr(module, '__file__') and module.__file__.endswith('.pyd'):
+        if hasattr(module, "__file__") and module.__file__.endswith(".pyd"):
             return True  # Функція викликає функції з модуля C
-        if hasattr(module, '__name__') and module.__name__ in c_modules:
+        if hasattr(module, "__name__") and module.__name__ in c_modules:
             return True  # Функція викликає вбудовані функції
 
     seen.add(func)
@@ -96,7 +112,7 @@ def get_exceptions(func, ids=set()):
             c, ob = n.value.func, None
             if isinstance(c, ast.Attribute):
                 parts = []
-                while getattr(c, 'value', None):
+                while getattr(c, "value", None):
                     parts.append(c.attr)
                     c = c.value
                 if c.id in vars:
@@ -132,4 +148,3 @@ def get_exceptions(func, ids=set()):
 
 
 get_exceptions_raised(usb.core.Device.set_interface_altsetting)
-

@@ -1,7 +1,16 @@
 import unittest
 from time import sleep
 
-from pydfuutil.progress import *
+from pydfuutil.progress import (
+    TQDM_PROGRESS,
+    RICH_PROGRESS,
+    AbstractProgressBackend,
+    AsciiBackend,
+    NoProgressBarBackend,
+    Progress,
+    RichBackend,
+    TqdmBackend,
+)
 
 unittest.TestLoader.sortTestMethodsUsing = None
 
