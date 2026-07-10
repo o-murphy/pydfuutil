@@ -347,6 +347,10 @@ def main():
 
     DfuUtil.match_dev_num = optargs.devnum
 
+    # vendor:product filter
+    DfuUtil.match_vendor = optargs.vid if optargs.vid is not None else -1
+    DfuUtil.match_product = optargs.pid if optargs.pid is not None else -1
+
     parse_serial(optargs.serial)
 
     detach_delay = optargs.detach_delay

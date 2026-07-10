@@ -48,15 +48,15 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    direct cause of [issue #16](https://github.com/o-murphy/pydfuutil/issues/16).
    C ref: `main.c:716,738` (separate `switch` cases).
 
-2. **`-d`/`--device` (vendor:product filter) is parsed but never applied.** `ActionVidPid`
-   (`__main__.py:138-157`) stores into `namespace.vid`/`namespace.pid`, but no code in `main()`
-   ever reads `optargs.vid`/`optargs.pid` — `DfuUtil.match_vendor`/`match_product` stay at their
-   default `-1` ("match anything") regardless of `-d`. Also doesn't support the documented
-   `vendor:product,vendor_dfu:product_dfu` dual-spec or `*`/`-` wildcards.
+2. ✅ **DONE** (base fix) — **`-d`/`--device` (vendor:product filter) is parsed but never applied.**
+   `ActionVidPid` (`__main__.py:138-157`) stores into `namespace.vid`/`namespace.pid`, but no code
+   in `main()` ever read `optargs.vid`/`optargs.pid` — `DfuUtil.match_vendor`/`match_product` stayed
+   at their default `-1` ("match anything") regardless of `-d`. Fixed by adding
+   `DfuUtil.match_vendor, DfuUtil.match_product = (optargs.vid if optargs.vid is not None else -1),
+   (optargs.pid if optargs.pid is not None else -1)` in `main()` (`__main__.py:351-352`). Still
+   doesn't support the documented `vendor:product,vendor_dfu:product_dfu` dual-spec or `*`/`-`
+   wildcards — tracked separately as P2 item #45.
    C ref: `main.c:292-294`, `parse_vendprod`/`parse_match_value` (`main.c:65-128`).
-   Fix: after arg parsing, `DfuUtil.match_vendor, DfuUtil.match_product = optargs.vid if optargs.vid is not None else -1, optargs.pid if optargs.pid is not None else -1`;
-   extend `ActionVidPid` for the comma/dual-spec syntax if full parity is wanted. Second very
-   plausible contributor to **issue #16**.
 
 3. **`__main__.py:661`** (`if dfu_root.flags & dfu.IFF.DFU: ... else: ...`) — the C condition is
    negated (`if (!(dfu_root->flags & DFU_IFF_DFU))`); the `not` was dropped here, so the two
