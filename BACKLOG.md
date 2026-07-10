@@ -495,20 +495,35 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ## P2 — Missing features
 
-43. **`dfu_load.py`** — `DFU_MANIFEST_WAIT_RESET` auto-reset (see item #15 above; listed there
-    under P0 since it silently produces an incomplete update, but it is also a clean
-    missing-feature gap).
+43. ✅ **DONE** — **`dfu_load.py`** — `DFU_MANIFEST_WAIT_RESET` auto-reset (see item #15 above;
+    fixed there — listed here too since it's also a clean missing-feature gap, not just a P0 bug).
 
-44. **`dfuse_mem.py`** — "Device Feature" memtype override (item #37).
+44. ✅ **DONE** — **`dfuse_mem.py`** — "Device Feature" memtype override (fixed as item #37).
 
-45. **`__main__.py`** — `-d` dual vendor:product spec + `*`/`-` wildcard matching (part of item
-    #2) — the base fix (wiring `optargs.vid`/`pid` through) is P0; full parity with C's
-    `parse_vendprod`/`parse_match_value` wildcard syntax is a larger, separate follow-up.
+45. ✅ **DONE** — **`__main__.py`** — `-d` dual vendor:product spec + `*`/`-` wildcard matching
+    (part of item #2) — the base fix (wiring `optargs.vid`/`pid` through) was P0; full parity with
+    C's `parse_vendprod`/`parse_match_value` wildcard syntax was this larger, separate follow-up.
+    Fix: replaced the old `ActionVidPid` argparse action (which only handled a single
+    `<vid>:<pid>` pair and outright rejected the comma syntax) with `parse_vendprod()` /
+    `parse_match_value()` module-level functions in `__main__.py`, ported directly from
+    `main.c:65-128`, mirroring the existing `parse_serial()` pattern (plain `store` option +
+    explicit parse call in `main()` that sets the `DfuUtil.match_*` class attributes directly).
+    Now supports the full `<vid>:<pid>[,<vid_dfu>:<pid_dfu>]` syntax plus `*` (match anything) and
+    `-` (impossible ID, i.e. "match no runtime device") wildcards for each of the four fields.
+    Verified live against 9 representative inputs (`None`, `1234:5678`, `1234:5678,9abc:def0`,
+    `,9abc:def0`, `*:5678`, `-:5678`, `1234`, `1234:`, `:5678`) — all four resulting
+    `match_vendor`/`match_product`/`match_vendor_dfu`/`match_product_dfu` values match C's
+    `parse_vendprod`/`parse_match_value` semantics exactly.
 
-46. **CLI long-option aliases** — C's `main.c:222-228` provides `--configuration`, `--interface`,
-    `--altsetting` as long-form aliases (in addition to `--cfg`, `--intf`, `--alt`); Python's
-    `options` tuple (`__main__.py:160-265`) only has the short aliases. Cosmetic/compat gap, not
-    a behavioral bug — scripts using the longer names will fail to parse.
+46. ✅ **DONE** — **CLI long-option aliases** — C's `main.c:222-228` provides `--configuration`,
+    `--interface`, `--altsetting` as long-form aliases (in addition to `--cfg`, `--intf`, `--alt`);
+    Python's `options` tuple only had the short aliases. Cosmetic/compat gap, not a behavioral bug
+    — scripts using the longer names would fail to parse.
+    Fix: added `--configuration`/`--interface`/`--altsetting` to the `-c`/`-i`/`-a` option
+    definitions (with explicit `dest="cfg"`/`"intf"`/`"alt"` so the longer aliases don't shift
+    argparse's inferred destination away from the existing `optargs.cfg`/`.intf`/`.alt`
+    references). Verified live: both `--configuration 2` and `--cfg 2` (and the `-i`/`-a`
+    equivalents) now parse to the same `dest`.
 
 ---
 

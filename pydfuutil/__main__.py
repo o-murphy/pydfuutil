@@ -114,6 +114,65 @@ def parse_serial(string: Optional[str]) -> None:
         DfuUtil.match_serial_dfu = None
 
 
+def parse_match_value(string: Optional[str], default_value: int) -> int:
+    """Parse a single vendor/product match token (hex, `*` = any, `-` = impossible)"""
+    if string is None:
+        return default_value
+    if string.startswith("*"):
+        return -1  # Match anything
+    if string.startswith("-"):
+        return 0x10000  # Impossible vendor/product ID
+    try:
+        return int(string, 16)
+    except ValueError:
+        return default_value
+
+
+def parse_vendprod(string: Optional[str]) -> None:
+    """parse -d/--device <vid>:<pid>[,<vid_dfu>:<pid_dfu>]"""
+    DfuUtil.match_vendor = -1
+    DfuUtil.match_product = -1
+    DfuUtil.match_vendor_dfu = -1
+    DfuUtil.match_product_dfu = -1
+
+    if string in (None, ""):
+        return
+
+    comma_index = string.find(",")
+    if comma_index == 0:
+        # DFU mode vendor/product being specified without any runtime
+        # vendor/product specification, so don't match any runtime device
+        DfuUtil.match_vendor = DfuUtil.match_product = 0x10000
+        runtime_part, dfu_part = None, string[1:]
+    else:
+        if comma_index == -1:
+            runtime_part, dfu_part = string, None
+        else:
+            runtime_part, dfu_part = string[:comma_index], string[comma_index + 1:]
+
+        colon_index = runtime_part.find(":")
+        vendor_str = runtime_part if colon_index == -1 else runtime_part[:colon_index]
+        product_str = None if colon_index == -1 else runtime_part[colon_index + 1:]
+
+        DfuUtil.match_vendor = parse_match_value(vendor_str, DfuUtil.match_vendor)
+        DfuUtil.match_product = parse_match_value(product_str, DfuUtil.match_product)
+
+        if dfu_part is not None:
+            # Both runtime and DFU mode vendor/product specifications are
+            # available, so default DFU mode match components to the given
+            # runtime match components
+            DfuUtil.match_vendor_dfu = DfuUtil.match_vendor
+            DfuUtil.match_product_dfu = DfuUtil.match_product
+
+    if dfu_part is not None:
+        colon_index = dfu_part.find(":")
+        vendor_dfu_str = dfu_part if colon_index == -1 else dfu_part[:colon_index]
+        product_dfu_str = None if colon_index == -1 else dfu_part[colon_index + 1:]
+
+        DfuUtil.match_vendor_dfu = parse_match_value(vendor_dfu_str, DfuUtil.match_vendor_dfu)
+        DfuUtil.match_product_dfu = parse_match_value(product_dfu_str, DfuUtil.match_product_dfu)
+
+
 def int_(
     value: Union[int, bytes, bytearray], order: Literal["little", "big"] = "little"
 ) -> int:
@@ -134,28 +193,6 @@ class ActionFile(argparse.Action):
         elif option_string == "-D":
             setattr(namespace, "mode", Mode.DOWNLOAD)
         setattr(namespace, "file", values)
-
-
-class ActionVidPid(argparse.Action):
-    """Action to parse idVendor and idParser"""
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        try:
-            if ":" in values:
-                if len(values.split(":")) > 2:
-                    raise ValueError("wrong -d argument")
-                _vid, _pid = values.split(":")
-                vid = int(_vid, 16) if _vid else None
-                pid = int(_pid, 16) if _pid else None
-            else:
-                vid, pid = int(values, 16), None
-            setattr(namespace, "vid", vid)
-            setattr(namespace, "pid", pid)
-        except ValueError:
-            parser.error(
-                f"-d have to be in <vid>:<pid>[,<vid_dfu>:<pid_dfu>] format,"
-                f" wrong argument value -d '{values}'"
-            )
 
 
 options: tuple[dict[str, Any], ...] = (
@@ -192,7 +229,7 @@ options: tuple[dict[str, Any], ...] = (
     },
     {
         "args": ("-d", "--device"),
-        "action": ActionVidPid,
+        "dest": "device",
         "help": "Specify Vendor/Product ID(s) of DFU device",
         "metavar": "<vid>:<pid>[,<vid_dfu>:<pid_dfu>]",
     },
@@ -208,13 +245,15 @@ options: tuple[dict[str, Any], ...] = (
         "metavar": "<bus-port. ... .port>",
     },
     {
-        "args": ("-c", "--cfg"),
+        "args": ("-c", "--configuration", "--cfg"),
+        "dest": "cfg",
         "help": "Specify the Configuration of DFU device",
         "metavar": "<config_nr>",
         "type": int,
     },
     {
-        "args": ("-i", "--intf"),
+        "args": ("-i", "--interface", "--intf"),
+        "dest": "intf",
         "help": "Specify the DFU Interface number",
         "metavar": "<intf_nr>",
         "type": int,
@@ -225,7 +264,8 @@ options: tuple[dict[str, Any], ...] = (
         "metavar": "<serial_str>[,<serial_str_dfu>]",
     },
     {
-        "args": ("-a", "--alt"),
+        "args": ("-a", "--altsetting", "--alt"),
+        "dest": "alt",
         "help": "Specify the Altsetting of the DFU Interface",
         "metavar": "<alt>",
     },
@@ -290,8 +330,7 @@ def main():
         verbose=False,
         mode=Mode.NONE,
         detach_delay=5,
-        vid=None,
-        pid=None,
+        device=None,
         devnum=-1,
         path=None,
         cfg=-1,
@@ -348,9 +387,7 @@ def main():
 
     DfuUtil.match_dev_num = optargs.devnum
 
-    # vendor:product filter
-    DfuUtil.match_vendor = optargs.vid if optargs.vid is not None else -1
-    DfuUtil.match_product = optargs.pid if optargs.pid is not None else -1
+    parse_vendprod(optargs.device)
 
     parse_serial(optargs.serial)
 
@@ -636,7 +673,7 @@ def main():
         if ret is None:
             raise _IOError("Cannot open device")
 
-        logger.info(f"Device ID {vendor:04x}:{vendor:04x}")
+        logger.info(f"Device ID {vendor:04x}:{product:04x}")
         # If first interface is DFU it is likely not proper run-time
         _bcd_dfu_ver = func_dfu.bcdDFUVersion
         if interface > 0:
