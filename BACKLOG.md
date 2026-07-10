@@ -41,7 +41,7 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ### CLI entry point (`__main__.py`)
 
-1. **`__main__.py:525`** — `elif mode is Mode.UPLOAD:` — should be `elif mode is Mode.DOWNLOAD:`.
+1. ✅ **DONE** — **`__main__.py:525`** — `elif mode is Mode.UPLOAD:` — should be `elif mode is Mode.DOWNLOAD:`.
    Since line 507 already handles `Mode.UPLOAD`, this second `elif` on the same condition can
    **never fire**. `pydfuutil -D file.bin` falls through to `else: Unsupported mode` and exits
    with `EX_SOFTWARE`. **Download is completely non-functional via the CLI.** Very likely the

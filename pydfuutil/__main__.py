@@ -522,7 +522,7 @@ def main():
                 logger.warning(f"Cannot open file {file.name} for writing")
                 ret = SysExit.EX_CANTCREAT
 
-        elif mode is Mode.UPLOAD:
+        elif mode is Mode.DOWNLOAD:
             # line 739
             if (
                 file.idVendor not in (0xFFFF, runtime_vendor)
