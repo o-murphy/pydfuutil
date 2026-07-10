@@ -28,7 +28,6 @@ system for Python 3.
 and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[PyUsb](https://github.com/pyusb/pyusb)** library as a backend)_.
 
 > [!WARNING]
-> The current status of the project is BETA version.
 > Use it for your own risk
 
 > [!IMPORTANT]
