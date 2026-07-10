@@ -721,6 +721,12 @@ Given real-world impact, tackle in roughly this order:
    2. Update CHANGELOG.md
    3. Fill CHANGELOG.md to match project tags list
    4. Update README.md - should display as cli tools as an entire API can be use directly
+   5. Document known workaround and bugs in README.md, e.g.:
+      - `main.c:592` (`if (!(dfu_root->flags | DFU_IFF_DFU))`) — pre-existing upstream C bug,
+        should be `&` not `|`; makes the "Check for DFU mode device" guard a permanent no-op
+        (`flags | 0x0001` is always truthy, so `not (...)` is always `False`, never raises).
+        `__main__.py:815` (`if not DfuUtil.dfu_root.flags | dfu.IFF.DFU:`) faithfully reproduces
+        this. See "Needs human judgment" section above for full analysis.
 
 Given the number and severity of P0 findings, recommend re-running the full `tests/` suite plus a
 real-hardware smoke test (`-l`, `-U`, `-D` against an actual DFU device) after each group, not
