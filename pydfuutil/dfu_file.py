@@ -215,7 +215,7 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
         assert file.name is not None
         try:
             with open(file.name, "rb") as f:
-                file.firmware = f.read()
+                file.firmware = bytearray(f.read())
                 file.size.total = len(file.firmware)
         except IOError as e:
             if e.errno == errno.ENOENT:

@@ -138,7 +138,8 @@ def parse_options(dfuse_opts: list[str]) -> RuntimeOptions:
         raise UsageError(f"Too many unexpected dfuse arguments {opts}")
 
     if len(opts) == 1:
-        if length := atoi(opts[0]):
+        length = atoi(opts[0])
+        if length is not None:
             rt_opts.length = length
         else:
             raise UsageError(f"Wrong dfuse length: {opts[0]}")
@@ -402,7 +403,7 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
         except USBError as e:
             _logger.debug(f"err on get status: {e}")
     else:
-        download_chunk(dif, None, 0, 2)
+        download_chunk(dif, None, 0, 2, rt_opts)
 
 
 @except_and_safe_exit(_logger)
@@ -524,7 +525,7 @@ def download_element(dif: dfu.DfuIf,
 
         segment = find_segment(dif.mem_layout, address)
         if not rt_opts.flags & RuntimeOptions.Flags.force and (not segment or not segment.mem_type & DFUSE.WRITEABLE):
-            raise UsageError("Page at 0x{address:08x} is not writeable")
+            raise UsageError(f"Page at 0x{address:08x} is not writeable")
 
         # If the location is not in the memory map we skip erasing
         # since we wouldn't know the correct page size for flash erase
