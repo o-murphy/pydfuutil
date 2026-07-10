@@ -115,16 +115,17 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    C ref: `portable.h:23-27` (splits into whole seconds + nanoseconds correctly).
    Fix: `sleep(msec / 1000.0)` (true float division, no truncation).
 
-9. **`pydfuutil/dfu.py:561,563`** — `TIMEOUT: int = INVALID_DFU_TIMEOUT` (`-1`), and `init()`
-   (which sets a real value) is **never called** anywhere in `__main__.py`/`dfu_util.py` (only
-   `tests/test_dfu.py` calls it, in a test fixture). Every real `ctrl_transfer(..., timeout=TIMEOUT)`
-   call therefore runs with `timeout=-1`. Since libusb's timeout parameter is unsigned, this most
-   likely wraps to a huge value, meaning transfers **block essentially forever** on an
-   unresponsive device instead of failing after the intended 5-second default.
+9. ✅ **DONE** — **`pydfuutil/dfu.py:561,563`** — `TIMEOUT: int = INVALID_DFU_TIMEOUT` (`-1`), and
+   `init()` (which sets a real value) was **never called** anywhere in `__main__.py`/`dfu_util.py`
+   (only `tests/test_dfu.py` called it, in a test fixture). Every real
+   `ctrl_transfer(..., timeout=TIMEOUT)` call therefore ran with `timeout=-1`. Since libusb's
+   timeout parameter is unsigned, this most likely wrapped to a huge value, meaning transfers
+   **blocked essentially forever** on an unresponsive device instead of failing after the intended
+   5-second default.
    C ref: `dfu.c:36` (`static int dfu_timeout = 5000;`, no separate init call needed since it's a
    plain static with a real default).
-   Fix: change the default to `TIMEOUT: int = 5000`, or call `dfu.init(5000)` at startup in
-   `__main__.py`.
+   Fix: changed the default to `TIMEOUT: int = 5000` (no CLI option threads through `dfu.init()`,
+   so matching C's plain-static default directly is the faithful fix).
 
 10. **`pydfuutil/dfu.py:138`** — `StatusRetVal.from_bytes()`:
     ```python
