@@ -230,6 +230,7 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
         missing_suffix = True
     else:
         dfu_suffix = file.firmware[-DFU_SUFFIX_LENGTH:]
+        file.dwCRC = struct.unpack('<I', dfu_suffix[12:])[0]
 
         crc = 0xffffffff
         for byte in file.firmware[:-4]:
@@ -353,7 +354,7 @@ def _store_file(file: DfuFile, write_suffix: bool, write_prefix: bool) -> None:
 def _show_suffix_and_prefix(file: DfuFile) -> None:
     """Prints suffix and prefix of dfu file"""
 
-    if file.size.prefix == LPCDFU_PREFIX_LENGTH:
+    if file.size.prefix == LMDFU_PREFIX_LENGTH:
         print(f"The file {file.name} contains a TI Stellaris "
               f"DFU prefix with the following properties:")
         print(f"Address:\t0x{file.lmdfu_address:08x}")

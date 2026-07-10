@@ -274,28 +274,28 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
     erase-page-at-address-0 request. Likewise READ_UNPROTECT got 4 extra trailing zero bytes.
     C ref: `dfuse.c:236` (`dfuse_download(dif, length, buf, 0)` — libusb only sends `length` bytes).
     Fix: `ret = download(dif, buf[:length], 0)`.
-    Fix: `ret = download(dif, buf[:length], 0)`.
 
 ### File format (`dfu_file.py`)
 
-23. **`pydfuutil/dfu_file.py:356`** — `_show_suffix_and_prefix()`: both the `if` and `elif` test
-    `file.size.prefix == LPCDFU_PREFIX_LENGTH` (16); the first should test
-    `LMDFU_PREFIX_LENGTH` (8). A real TI Stellaris (LMDFU, size 8) prefix falls through to
-    "contains an unknown prefix"; a real NXP LPC (size 16) prefix is misreported as "TI Stellaris"
-    and prints the wrong field (`lmdfu_address`, always stale/0 for LPC files). The `elif` is
+23. ✅ **DONE** — **`pydfuutil/dfu_file.py:356`** — `_show_suffix_and_prefix()`: both the `if` and
+    `elif` tested `file.size.prefix == LPCDFU_PREFIX_LENGTH` (16); the first should test
+    `LMDFU_PREFIX_LENGTH` (8). A real TI Stellaris (LMDFU, size 8) prefix fell through to
+    "contains an unknown prefix"; a real NXP LPC (size 16) prefix was misreported as "TI Stellaris"
+    and printed the wrong field (`lmdfu_address`, always stale/0 for LPC files). The `elif` was
     unreachable dead code. Silently wrong output on every normal `dfu-suffix -c`/`dfu-prefix -c`
     against a prefixed file.
-    C ref: `dfu_file.c:454-463`.
-    Fix: first condition should be `file.size.prefix == LMDFU_PREFIX_LENGTH`.
+    C ref: `dfu_file.c:454-463` (verified: `if (file->size.prefix == LMDFU_PREFIX_LENGTH) ... else if (... == LPCDFU_PREFIX_LENGTH) ...`).
+    Fix: first condition changed to `file.size.prefix == LMDFU_PREFIX_LENGTH`.
 
-24. **`pydfuutil/dfu_file.py:241`** (`_load_file`) — computes the suffix CRC
+24. ✅ **DONE** — **`pydfuutil/dfu_file.py:241`** (`_load_file`) — computed the suffix CRC
     (`struct.unpack('<I', dfu_suffix[12:])[0]`) only for the inline mismatch comparison; never
-    assigns it to `file.dwCRC` anywhere. `file.dwCRC` stays at its dataclass default `0` forever,
-    so `_show_suffix_and_prefix` always prints `CRC:\t\t0x00000000` for every valid file.
+    assigned it to `file.dwCRC` anywhere. `file.dwCRC` stayed at its dataclass default `0` forever,
+    so `_show_suffix_and_prefix` always printed `CRC:\t\t0x00000000` for every valid file.
     C ref: `dfu_file.c:296-305` (`file->dwCRC` assigned from the suffix bytes, retained
     regardless of match result, used later for display).
-    Fix: `file.dwCRC = struct.unpack('<I', dfu_suffix[12:])[0]` right after extracting
-    `dfu_suffix`.
+    Fix: `file.dwCRC = struct.unpack('<I', dfu_suffix[12:])[0]` added right after extracting
+    `dfu_suffix`. Verified live with a real suffixed file (`pydfuutil-suffix -a`): CRC now shows
+    the real computed value (e.g. `0x811E4B98`) instead of `0x00000000`.
 
 ---
 
