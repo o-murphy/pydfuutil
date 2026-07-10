@@ -542,7 +542,7 @@ def main():
                     f"or {dfu_root.vendor:04x}:{dfu_root.product:04x})"
                 )
 
-            if dfuse_device and dfuse_options and file.bcdDFU == 0x11A:
+            if dfuse_device or dfuse_options or file.bcdDFU == 0x11A:
                 ret = dfuse.do_download(dfu_root, transfer_size, file, dfuse_options)
             else:
                 ret = dfu_load.do_download(dfu_root, transfer_size, file)

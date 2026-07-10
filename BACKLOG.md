@@ -90,9 +90,9 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    C ref: `main.c:514` (`if (err == LIBUSB_ERROR_PIPE) {...} else if (err < 0) errx(...)`).
    Fix: swapped to `if e.backend_error_code == LIBUSB_ERROR_PIPE: ... else: raise ...`.
 
-6. **`__main__.py:541`** — `if dfuse_device and dfuse_options and file.bcdDFU == 0x11A:` — C uses
-   `||`, not `&&`, between all three conditions. Requiring all three simultaneously means DfuSe
-   downloads almost never route to `dfuse.do_download`, incorrectly falling back to plain
+6. ✅ **DONE** — **`__main__.py:545`** — `if dfuse_device and dfuse_options and file.bcdDFU == 0x11A:`
+   — C uses `||`, not `&&`, between all three conditions. Requiring all three simultaneously meant
+   DfuSe downloads almost never routed to `dfuse.do_download`, incorrectly falling back to plain
    `dfu_load.do_download`. Compounds #1.
    C ref: `main.c:749` (`if (dfuse_device || dfuse_options || file.bcdDFU == 0x11a)`).
    Fix: `if dfuse_device or dfuse_options or file.bcdDFU == 0x11A:`.
