@@ -58,11 +58,11 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    wildcards — tracked separately as P2 item #45.
    C ref: `main.c:292-294`, `parse_vendprod`/`parse_match_value` (`main.c:65-128`).
 
-3. **`__main__.py:661`** (`if dfu_root.flags & dfu.IFF.DFU: ... else: ...`) — the C condition is
-   negated (`if (!(dfu_root->flags & DFU_IFF_DFU))`); the `not` was dropped here, so the two
-   branches are swapped. Devices actually **in DFU mode** take the "detach a runtime device" path
-   (wrong, unnecessary claim/detach/reset); devices actually **in runtime mode** take the
-   "already in DFU mode" path (skip detach entirely). Fundamental control-flow inversion hit on
+3. ✅ **DONE** — **`__main__.py:665`** (`if dfu_root.flags & dfu.IFF.DFU: ... else: ...`) — the C
+   condition is negated (`if (!(dfu_root->flags & DFU_IFF_DFU))`); the `not` was dropped here, so
+   the two branches were swapped. Devices actually **in DFU mode** took the "detach a runtime
+   device" path (wrong, unnecessary claim/detach/reset); devices actually **in runtime mode** took
+   the "already in DFU mode" path (skip detach entirely). Fundamental control-flow inversion hit on
    every single probe. Strong root-cause candidate for
    [issue #15](https://github.com/o-murphy/pydfuutil/issues/15) as well as #16.
    C ref: `main.c:483`.

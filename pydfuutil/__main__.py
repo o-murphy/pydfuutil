@@ -662,7 +662,7 @@ def main():
             logger.debug(f"Detach timeout {func_dfu.wDetachTimeOut} ms")
 
         # Transition from run-Time mode to DFU mode
-        if dfu_root.flags & dfu.IFF.DFU:
+        if not (dfu_root.flags & dfu.IFF.DFU):
             # In the 'first round' during runtime mode, there can only be one
             # DFU Interface descriptor according to the DFU Spec.
 
