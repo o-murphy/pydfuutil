@@ -649,13 +649,20 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
   purely internal renumbering. Verified live: `IFF.DFU | IFF.ALT == 0b11`, matching
   `DFU_IFF_DFU | DFU_IFF_ALT` in current C.
 
-- **`dfuse.py`**: on a `LIBUSB_ERROR_PIPE` stall-recovery, both `special_command()` and
-  `download_chunk()` construct a fresh `StatusRetVal(bState=DFU_DOWNLOAD_BUSY)` whose
-  `bwPollTimeout` defaults to `0`. C leaves the existing `dst` struct untouched across a failed
-  poll, so `bwPollTimeout` retains its last known value. This changes the "Black Magic Probe
-  stuck" zero-timeout counter's behavior across a stall — Python always counts it as a
-  zero-timeout event where C may not. Affects an already-rare double-workaround interaction;
-  unclear if this rises to "bug" vs. acceptable simplification.
+- ✅ **DONE** — **`dfuse.py`**: on a `LIBUSB_ERROR_PIPE` stall-recovery, both `special_command()`
+  and `download_chunk()` constructed a fresh `StatusRetVal(bState=DFU_DOWNLOAD_BUSY)` whose
+  `bwPollTimeout` defaulted to `0`. C leaves the existing `dst` struct untouched across a failed
+  poll, so `bwPollTimeout` retains its last known value. This changed the "Black Magic Probe
+  stuck" zero-timeout counter's behavior (`special_command()` only — `download_chunk()` has no
+  such counter and immediately `continue`s past the stall without reading `dst.bwPollTimeout`, so
+  it was inert there): Python always counted a stall as a zero-timeout event, prematurely
+  reaching the 100-stall "Device stuck" error on devices with a genuinely nonzero last-known
+  timeout, where C would not.
+  Fix: pre-initialize `dst = dfu.StatusRetVal()` before each loop, and on a pipe-stall mutate
+  `dst.bState = dfu.State.DFU_DOWNLOAD_BUSY` in place instead of constructing a new object —
+  preserving `bwPollTimeout`/`bStatus`/`iString` from the last successful poll, matching C.
+  Verified live: simulated a real poll (`bwPollTimeout=5`) followed by two pipe-stalls — with the
+  old code the stalled `dst.bwPollTimeout` reads back `0`; with the fix it correctly reads `5`.
 
 - **`dfuse.py:197-204`** (`download()`'s `if status < 0:` branch, including the nested
   `QUIRK_DFUSE_LEAVE` early-return) — likely dead code, since pyusb raises `USBError` rather than
@@ -704,10 +711,10 @@ Given real-world impact, tackle in roughly this order:
 7. **P2/P3** — opportunistic, low-risk, no urgency.
 
 8. Make final audit comparing to the C original codebase
-   1. Update CHANGELOG.md
-   2. FIll CHANGELOG.md to match project tags list
-   3. Update README.md - should display as cli tools as an entire API can be use directly
-   4. 
+   1. Audit comparison with the C upstream
+   2. Update CHANGELOG.md
+   3. Fill CHANGELOG.md to match project tags list
+   4. Update README.md - should display as cli tools as an entire API can be use directly
 
 Given the number and severity of P0 findings, recommend re-running the full `tests/` suite plus a
 real-hardware smoke test (`-l`, `-U`, `-D` against an actual DFU device) after each group, not

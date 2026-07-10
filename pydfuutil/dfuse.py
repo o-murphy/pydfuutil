@@ -222,7 +222,7 @@ def special_command(dif: dfu.DfuIf, address: int,
     buf = bytearray(5)
 
     ret: int
-    dst: dfu.StatusRetVal
+    dst: dfu.StatusRetVal = dfu.StatusRetVal()
     first_poll = 1
     zero_timeouts = 0
     poll_timeout = 0
@@ -269,9 +269,10 @@ def special_command(dif: dfu.DfuIf, address: int,
             poll_timeout = dst.bwPollTimeout
         except USBError as e:
             if e.backend_error_code == LIBUSB_ERROR_PIPE  and poll_timeout != 0 and stalls < 3:
-                dst = dfu.StatusRetVal(
-                    bState = dfu.State.DFU_DOWNLOAD_BUSY
-                )
+                # Keep the existing dst (bwPollTimeout etc. from the last successful
+                # poll) untouched, only mark it busy - matching C, which leaves the
+                # dfu_status struct as-is across a stalled poll.
+                dst.bState = dfu.State.DFU_DOWNLOAD_BUSY
                 stalls += 1
                 _logger.debug("* Device stalled USB pipe, reusing last poll timeout")
             elif e.backend_error_code is not None and e.backend_error_code < 0:
@@ -333,6 +334,7 @@ def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
     """
 
     stalls = 0
+    dst = dfu.StatusRetVal()
 
     try:
         ret = download(dif, data if size else None, transaction)
@@ -346,9 +348,10 @@ def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
             dst = dif.get_status()
         except USBError as e:
             if e.backend_error_code == LIBUSB_ERROR_PIPE and stalls < 3:
-                dst = dfu.StatusRetVal(
-                    bState=dfu.State.DFU_DOWNLOAD_BUSY
-                )
+                # Keep the existing dst (bwPollTimeout etc. from the last successful
+                # poll) untouched, only mark it busy - matching C, which leaves the
+                # dfu_status struct as-is across a stalled poll.
+                dst.bState = dfu.State.DFU_DOWNLOAD_BUSY
                 stalls += 1
                 _logger.debug("Err: * Pipe error, retrying get_status")
                 continue
