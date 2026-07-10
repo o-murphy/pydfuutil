@@ -100,15 +100,7 @@ class Request(IntEnum):
 class IFF(IntFlag):
     """Dfu modes"""
     DFU = 0x0001  # /* DFU Mode, (not Runtime) */
-    VENDOR = 0x0100
-    PRODUCT = 0x0200
-    CONFIG = 0x0400
-    IFACE = 0x0800
-    ALT = 0x1000
-    DEVNUM = 0x2000
-    PATH = 0x4000
-    # DFU_IFF_DFU = 0x0001  /* DFU Mode, (not Runtime) */
-    # DFU_IFF_ALT = 0x0002  /* Multiple alternate settings */
+    ALT = 0x0002  # /* Multiple alternate settings */
 
     def __repr__(self):
         return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:04x}>"

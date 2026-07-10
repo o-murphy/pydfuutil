@@ -631,11 +631,23 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
 
 ## Needs human judgment (not confidently bugs — flagging for a second look)
 
-- **`dfu.py`**: `IFF` flag numeric values (`dfu.py:99-110`) don't match `DFU_IFF_*` in `dfu.h`
-  (e.g. `ALT = 0x1000` vs. C's `0x0002`), and Python has several extra flags (VENDOR/PRODUCT/
-  CONFIG/IFACE/DEVNUM/PATH) not in the C header at all. Appears intentional — these are purely
-  internal, never serialized to the wire, and used self-consistently — but flagging the numeric
-  divergence in case something elsewhere assumes parity with the C header's literal values.
+- ✅ **DONE (resolved, was a real stale-port artifact)** — **`dfu.py`**: `IFF` flag numeric
+  values (`dfu.py:100-109`) didn't match `DFU_IFF_*` in `dfu.h` (`ALT = 0x1000` vs. C's `0x0002`),
+  and Python had 6 extra flags (`VENDOR`/`PRODUCT`/`CONFIG`/`IFACE`/`DEVNUM`/`PATH`) not in the
+  current C header at all. Traced to root cause via `git log --all -- src/dfu.h`: this entire
+  extra flag set (plus `VENDOR_DFU`/`PRODUCT_DFU`) existed in `dfu.h` **before 2013** and was
+  removed by upstream commit `6fc8689` ("Replace the old USB enumeration logic"), which replaced
+  the old flag-based match-tracking design with the linked-list-of-`dfu_if` architecture that
+  `DfuIf.next` in this port *already* correctly mirrors. `DFU_IFF_ALT` was later reintroduced at
+  `0x0002`. So `dfu.py::IFF` had been copied from a `dfu.h` more than a decade stale relative to
+  the architecture the rest of this port follows — not an intentional design choice, and not an
+  upstream-inherited duplication (unlike item #56) — a genuine leftover.
+  Fix: removed the 6 dead, never-referenced flags (verified via repo-wide `grep`: none of
+  `IFF.VENDOR`/`.PRODUCT`/`.CONFIG`/`.IFACE`/`.DEVNUM`/`.PATH` were used anywhere) and changed
+  `ALT` to `0x0002` to match current `dfu.h`. All real usages (`__main__.py`, `dfu_util.py`) are
+  pure self-contained bitwise checks/sets with no literal-value dependency, so this was a safe,
+  purely internal renumbering. Verified live: `IFF.DFU | IFF.ALT == 0b11`, matching
+  `DFU_IFF_DFU | DFU_IFF_ALT` in current C.
 
 - **`dfuse.py`**: on a `LIBUSB_ERROR_PIPE` stall-recovery, both `special_command()` and
   `download_chunk()` construct a fresh `StatusRetVal(bState=DFU_DOWNLOAD_BUSY)` whose
