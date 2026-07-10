@@ -56,6 +56,7 @@ except ImportError:
 def _get_extended_version_info(version):
     import re
     m = re.match(r'(\d+)\.(\d+)\.(\d+)[.-]?(.*)', version)
+    assert m is not None
     major, minor, patch, suffix = m.groups()
     return int(major), int(minor), int(patch), suffix
 
@@ -71,7 +72,7 @@ def _setup_log():
 
     if debug_level is not None:
         _debug.enable_tracing(True)
-        filename = os.getenv('PYUSB_LOG_FILENAME')
+        filename = os.getenv('PYUSB_LOG_FILENAME') or ""
 
         LEVELS = {'debug': logging.DEBUG,
                   'info': logging.INFO,

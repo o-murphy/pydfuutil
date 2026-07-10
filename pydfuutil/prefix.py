@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 import argparse
 import importlib.metadata
+import pathlib
 import sys
 from enum import IntEnum
 
@@ -37,7 +38,7 @@ VERSION = (f'pydfuutil-prefix " v{__version__} "\n {__copyright__[0]}\n'
            f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
 
 
-def hex2int(string: str) -> float:
+def hex2int(string: str) -> int:
     """Convert a hexadecimal string to an int"""
     return int(string, 16)
 
@@ -49,7 +50,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                         help='Print the version number')
 
     parser.add_argument('file', action='store', metavar='<file>',
-                        type=argparse.FileType('r+b'), default=None,
+                        type=pathlib.Path, default=None,
                         help="Target filename")
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -107,7 +108,7 @@ def main():
         parser.print_help()
         raise Errx(e) from e
 
-    file = DfuFile(name=args.file.name, file_p=args.file)
+    file = DfuFile(name=str(args.file))
     mode = args.mode
     prefix_type = args.type if args.type else PrefixType.ZERO_PREFIX
 

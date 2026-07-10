@@ -40,6 +40,7 @@ def get_exceptions_raised(func, seen=None):
 
     # Inspect inner calls
     frame = inspect.currentframe()
+    assert frame is not None
     try:
         inner_funcs = [
             frame.f_globals.get(name)
@@ -93,7 +94,7 @@ def calls_c_functions(func, seen=None):
 
 def get_exceptions(func, ids=set()):
     try:
-        vars = ChainMap(*inspect.getclosurevars(func)[:3])
+        vars = ChainMap(*(dict(m) for m in inspect.getclosurevars(func)[:3]))
         source = dedent(inspect.getsource(func))
     except TypeError:
         return
@@ -103,13 +104,13 @@ def get_exceptions(func, ids=set()):
             self.nodes = []
             self.other = []
 
-        def visit_Raise(self, n):
-            self.nodes.append(n.exc)
+        def visit_Raise(self, node):
+            self.nodes.append(node.exc)
 
-        def visit_Expr(self, n):
-            if not isinstance(n.value, ast.Call):
+        def visit_Expr(self, node):
+            if not isinstance(node.value, ast.Call):
                 return
-            c, ob = n.value.func, None
+            c, ob = node.value.func, None
             if isinstance(c, ast.Attribute):
                 parts = []
                 while getattr(c, "value", None):

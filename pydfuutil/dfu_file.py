@@ -24,6 +24,7 @@ import sys
 import warnings
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import Optional, Union
 
 from pydfuutil.exceptions import NoInputError, _IOError, DataError, except_and_safe_exit, UsageError
 from pydfuutil.logger import logger
@@ -114,9 +115,9 @@ class PrefixType(IntEnum):
 @dataclass
 class DfuFile:  # pylint: disable=too-many-instance-attributes, invalid-name
     """Class to store DFU file data"""
-    name: [str, None]
-    firmware: [bytearray, bytes] = field(default_factory=bytearray)
-    file_p: io.FileIO = None
+    name: Optional[str]
+    firmware: Union[bytearray, bytes] = field(default_factory=bytearray)
+    file_p: Optional[io.BufferedIOBase] = None
     size: DFUFileSize = field(default_factory=DFUFileSize)
     lmdfu_address: int = 0
     prefix_type: PrefixType = PrefixType.ZERO_PREFIX
@@ -134,8 +135,9 @@ class DfuFile:  # pylint: disable=too-many-instance-attributes, invalid-name
         """loads suffix and/or prefix from dfu file"""
         return _load_file(self, check_suffix, check_prefix)
 
-    def write_crc(self, crc: int, buf: [bytes, bytearray]) -> int:
+    def write_crc(self, crc: int, buf: Union[bytes, bytearray]) -> int:
         """writes desired data to dfu file"""
+        assert self.file_p is not None
         return _write_crc(self.file_p, crc, buf)
 
     def show_suffix_and_prefix(self) -> None:
@@ -171,7 +173,7 @@ def _probe_prefix(file: DfuFile):
     return 0
 
 
-def _write_crc(f: [io.FileIO, io.BytesIO], crc: int, buf: [bytes, bytearray]) -> int:
+def _write_crc(f: io.BufferedIOBase, crc: int, buf: Union[bytes, bytearray]) -> int:
     """writes desired data to dfu file"""
 
     # compute CRC
@@ -208,8 +210,9 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
         file.size.total = len(file.firmware)
         _logger.debug(f"Read {file.size.total} bytes from stdin")
 
-        check_suffix = PrefixReq.MAYBE_PREFIX
+        check_suffix = SuffixReq.MAYBE_SUFFIX
     else:
+        assert file.name is not None
         try:
             with open(file.name, "rb") as f:
                 file.firmware = f.read()
@@ -253,16 +256,17 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
             file.bcdDevice = struct.unpack('<H', dfu_suffix[0:2])[0]
 
     if missing_suffix:
-        if check_suffix == PrefixReq.NEEDS_PREFIX:
+        assert reason is not None
+        if check_suffix == SuffixReq.NEEDS_SUFFIX:
             raise DataError(reason + " Valid DFU suffix needed")
-        if check_suffix == PrefixReq.MAYBE_PREFIX:
+        if check_suffix == SuffixReq.MAYBE_SUFFIX:
             _logger.warning(f"{reason}")
             warnings.warn(
                 "A valid DFU suffix will be required in a future dfu-util release",
                 FutureWarning
             )
     else:
-        if check_suffix == PrefixReq.NO_PREFIX:
+        if check_suffix == SuffixReq.NO_SUFFIX:
             raise DataError("Please remove existing DFU suffix before adding a new one.")
 
     res = _probe_prefix(file)
@@ -289,6 +293,7 @@ def _store_file(file: DfuFile, write_suffix: bool, write_prefix: bool) -> None:
 
     crc = 0xffffffff
 
+    assert file.name is not None
     try:
         with open(file.name, 'wb') as file.file_p:
 

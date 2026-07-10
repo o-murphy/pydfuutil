@@ -21,7 +21,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import IntFlag
-from typing import Iterator
+from typing import Iterator, Optional, Union
 
 from pydfuutil.logger import logger
 
@@ -50,7 +50,7 @@ class MemSegment:
     end: int = 0
     pagesize: int = 0
     mem_type: int = 0
-    next: 'MemSegment' = field(default=None)
+    next: Optional['MemSegment'] = field(default=None)
 
     @classmethod
     def from_bytes(cls, data: bytes) -> 'MemSegment':
@@ -109,7 +109,7 @@ class MemSegment:
         else:
             self.next.append(new_segment)
 
-    def find(self, address: int) -> ['MemSegment', None]:
+    def find(self, address: int) -> Optional['MemSegment']:
         """
         Find a memory segment in the stack containing the given element.
         :param address: MemSegment address for in the stack.
@@ -121,7 +121,7 @@ class MemSegment:
         return None
 
 
-def add_segment(segment_stack: [MemSegment, None], segment: MemSegment) -> MemSegment:
+def add_segment(segment_stack: Optional[MemSegment], segment: MemSegment) -> MemSegment:
     """
     :param segment_stack:
     :param segment:
@@ -138,7 +138,7 @@ def add_segment(segment_stack: [MemSegment, None], segment: MemSegment) -> MemSe
     return segment_stack
 
 
-def find_segment(segment_stack: [MemSegment, None], address: int) -> [MemSegment, None]:
+def find_segment(segment_stack: Optional[MemSegment], address: int) -> Optional[MemSegment]:
     """
     Find a memory segment in the stack containing the given element.
 
@@ -154,7 +154,7 @@ def find_segment(segment_stack: [MemSegment, None], address: int) -> [MemSegment
 # Parse memory map from interface descriptor string
 # encoded as per ST document UM0424 section 4.3.2.
 
-def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemSegment, None]:
+def parse_memory_layout(intf_desc: Union[str, bytes], verbose: bool = False) -> Optional[MemSegment]:
     """
     Parse memory map from interface descriptor string
     encoded as per ST document UM0424 section 4.3.2.
@@ -169,8 +169,8 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
         intf_desc = intf_desc.decode('ascii')
 
     count: int = 0
-    segment_stack: [MemSegment, None] = None
-    address: [int, None] = None
+    segment_stack: Optional[MemSegment] = None
+    address: Optional[int] = None
 
     match = re.match(r'@([^/]+)', intf_desc)
     if match is None:
@@ -208,7 +208,7 @@ def parse_memory_layout(intf_desc: [str, bytes], verbose: bool = False) -> [MemS
                 if not mem_type:
                     _logger.warning(f"Non-valid multiplier {multiplier}, "
                                    "interpreted as type identifier instead")
-                    mem_type = multiplier
+                    mem_type = ord(multiplier)
 
             # fallthrough if mem_type was already set
             else:

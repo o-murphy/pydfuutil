@@ -52,6 +52,7 @@ class TestDfuSeMem(unittest.TestCase):
 
         self.assertNotEqual(seqment_sequence, None)
         self.assertNotEqual(seqment_sequence.next, None)
+        assert seqment_sequence.next is not None
         self.assertEqual(seqment_sequence.next.start, 12)
         self.assertEqual(seqment_sequence.next.end, 20)
 
@@ -62,7 +63,9 @@ class TestDfuSeMem(unittest.TestCase):
         segment = MemSegment(12, 20, 4, 0)
         seqment_sequence = add_segment(seqment_sequence, segment)
         self.assertNotEqual(seqment_sequence.next, None)
+        assert seqment_sequence.next is not None
         self.assertNotEqual(seqment_sequence.next.next, None)
+        assert seqment_sequence.next.next is not None
         self.assertEqual(seqment_sequence.next.end, 30)
         self.assertEqual(seqment_sequence.next.next.end, 20)
 
@@ -72,6 +75,7 @@ class TestDfuSeMem(unittest.TestCase):
             result = parse_memory_layout(intf_desc)
             self.assertIsNotNone(result)
             self.assertIsInstance(result, MemSegment)
+            assert result is not None
             self.assertEqual(len(result), 3)
 
         with self.subTest("Test case 2: Empty input"):

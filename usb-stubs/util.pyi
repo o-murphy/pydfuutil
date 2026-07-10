@@ -45,11 +45,11 @@ get_langids - retrieve the list of supported string languages from the device.
 get_string - retrieve a string descriptor from the device.
 """
 
-__author__ = 'Wander Lairson Costa'
+__author__ = "Wander Lairson Costa"
 
 import operator
 import array
-from typing import Union, Generator, Any, Callable, Tuple
+from typing import Optional, Union, Generator, Any, Callable, Tuple
 
 import usb.core
 
@@ -71,10 +71,10 @@ ENDPOINT_TYPE_BULK = 0x02
 ENDPOINT_TYPE_INTR = 0x03
 
 # control request type
-CTRL_TYPE_STANDARD = (0 << 5)
-CTRL_TYPE_CLASS = (1 << 5)
-CTRL_TYPE_VENDOR = (2 << 5)
-CTRL_TYPE_RESERVED = (3 << 5)
+CTRL_TYPE_STANDARD = 0 << 5
+CTRL_TYPE_CLASS = 1 << 5
+CTRL_TYPE_VENDOR = 2 << 5
+CTRL_TYPE_RESERVED = 3 << 5
 
 # control request recipient
 CTRL_RECIPIENT_DEVICE = 0
@@ -86,7 +86,7 @@ CTRL_RECIPIENT_OTHER = 3
 CTRL_OUT = 0x00
 CTRL_IN = 0x80
 
-_ENDPOINT_ADDR_MASK = 0x0f
+_ENDPOINT_ADDR_MASK = 0x0F
 _ENDPOINT_DIR_MASK = 0x80
 _ENDPOINT_TRANSFER_TYPE_MASK = 0x03
 _CTRL_DIR_MASK = 0x80
@@ -98,14 +98,12 @@ SPEED_HIGH = 3
 SPEED_SUPER = 4
 SPEED_UNKNOWN = 0
 
-
 def endpoint_address(address: int) -> int:
     r"""Return the endpoint absolute address.
 
     The address parameter is the bEndpointAddress field
     of the endpoint descriptor.
     """
-
 
 def endpoint_direction(address: int) -> int:
     r"""Return the endpoint direction.
@@ -114,7 +112,6 @@ def endpoint_direction(address: int) -> int:
     of the endpoint descriptor.
     The possible return values are ENDPOINT_OUT or ENDPOINT_IN.
     """
-
 
 def endpoint_type(bmAttributes: int) -> int:
     r"""Return the transfer type of the endpoint.
@@ -125,7 +122,6 @@ def endpoint_type(bmAttributes: int) -> int:
     ENDPOINT_TYPE_ISO, ENDPOINT_TYPE_BULK or ENDPOINT_TYPE_INTR.
     """
 
-
 def ctrl_direction(bmRequestType: int) -> int:
     r"""Return the direction of a control request.
 
@@ -133,7 +129,6 @@ def ctrl_direction(bmRequestType: int) -> int:
     bmRequestType field of a control transfer.
     The possible return values are CTRL_OUT or CTRL_IN.
     """
-
 
 def build_request_type(direction: int, type: int, recipient: int):
     r"""Build a bmRequestType field for control requests.
@@ -150,7 +145,6 @@ def build_request_type(direction: int, type: int, recipient: int):
     Return the bmRequestType value.
     """
 
-
 def create_buffer(length: Union[bytes, bytearray]) -> array.array:
     r"""Create a buffer to be passed to a read function.
 
@@ -161,16 +155,17 @@ def create_buffer(length: Union[bytes, bytearray]) -> array.array:
     of the given length.
     """
 
-
-def find_descriptor(desc: Union[
-    usb.core.Device,
-    usb.core.Interface,
-    usb.core.Configuration,
-    usb.core.Endpoint,
-], find_all: bool = False,
-                    custom_match: Callable[[Any], bool] = None,
-                    **args
-                    ) -> Generator[Any, None, None]:
+def find_descriptor(
+    desc: Union[
+        usb.core.Device,
+        usb.core.Interface,
+        usb.core.Configuration,
+        usb.core.Endpoint,
+    ],
+    find_all: bool = False,
+    custom_match: Optional[Callable[[Any], bool]] = None,
+    **args,
+) -> Generator[Any, None, None]:
     r"""Find an inner descriptor.
 
     find_descriptor works in the same way as the core.find() function does,
@@ -187,8 +182,9 @@ def find_descriptor(desc: Union[
     an iterator instead of just one descriptor.
     """
 
-
-def claim_interface(device: usb.core.Device, interface: Union[usb.core.Interface, int]) -> None:
+def claim_interface(
+    device: usb.core.Device, interface: Union[usb.core.Interface, int]
+) -> None:
     r"""Explicitly claim an interface.
 
     PyUSB users normally do not have to worry about interface claiming,
@@ -200,8 +196,9 @@ def claim_interface(device: usb.core.Device, interface: Union[usb.core.Interface
     to claim_interface or internally by the device object, nothing happens.
     """
 
-
-def release_interface(device: usb.core.Device, interface: Union[usb.core.Interface, int]) -> None:
+def release_interface(
+    device: usb.core.Device, interface: Union[usb.core.Interface, int]
+) -> None:
     r"""Explicitly release an interface.
 
     This function is used to release an interface previously claimed,
@@ -211,7 +208,6 @@ def release_interface(device: usb.core.Device, interface: Union[usb.core.Interfa
     Normally, you do not need to worry about claiming policies, as
     the device object takes care of it automatically.
     """
-
 
 def dispose_resources(device: usb.core.Device) -> None:
     r"""Release internal resources allocated by the object.
@@ -227,7 +223,6 @@ def dispose_resources(device: usb.core.Device) -> None:
     object normally. If the resources will be necessary again, it
     will be allocated automatically.
     """
-
 
 def get_langids(dev: usb.core.Device) -> Tuple[int]:
     r"""Retrieve the list of supported Language IDs from the device.
@@ -258,8 +253,7 @@ def get_langids(dev: usb.core.Device) -> Tuple[int]:
     of directly calling this function.
     """
 
-
-def get_string(dev: usb.core.Device, index: int, langid: int = None) -> str:
+def get_string(dev: usb.core.Device, index: int, langid: Optional[int] = None) -> str:
     r"""Retrieve a string descriptor from the device.
 
     dev is the Device object which the string will be read from.

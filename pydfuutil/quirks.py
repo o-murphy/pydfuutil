@@ -17,6 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 from enum import IntEnum, IntFlag
+from typing import Union
 
 from pydfuutil.dfuse_mem import MemSegment, find_segment
 from pydfuutil.logger import logger
@@ -63,7 +64,7 @@ class QUIRK(IntFlag):
 
 
 # pylint: disable=invalid-name
-def get_quirks(vendor: int, product: int, bcdDevice: int) -> [int, QUIRK]:
+def get_quirks(vendor: int, product: int, bcdDevice: int) -> Union[int, QUIRK]:
     """
     Get device specific quirks
     :param vendor: VID

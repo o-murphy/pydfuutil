@@ -1,7 +1,7 @@
 import errno
 import os.path
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 from pydfuutil.dfu_file import crc32_byte, DfuFile, PrefixReq, PrefixType, SuffixReq
 from pydfuutil.exceptions import Errx, _IOError
@@ -112,7 +112,6 @@ class TestLoadFile(unittest.TestCase):
     @unittest.skip("load_file adjusts firmware and size automatically")
     def test_load_file_invalid_suffix_signature(self):
         self.file.size.total = 20
-        self.file.read = Mock(return_value=b"abcdef" + b"DFUU" + b"12345678")
         self.file.firmware = bytearray(b"abcdef" + b"DFUU" + b"12345678")
         with self.assertRaises(Errx):
             self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)

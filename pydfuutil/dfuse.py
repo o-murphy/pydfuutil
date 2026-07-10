@@ -21,6 +21,7 @@ import argparse
 import logging
 from dataclasses import dataclass
 from enum import Enum, IntFlag
+from typing import Optional, Union
 
 import usb.util
 from usb.core import USBError
@@ -38,7 +39,7 @@ from pydfuutil.quirks import QUIRK, fixup_dfuse_layout
 
 _logger = logger.getChild('dfuse')
 
-MEM_LAYOUT: [MemSegment, None] = None
+MEM_LAYOUT: Optional[MemSegment] = None
 
 TIMEOUT = 5000
 
@@ -56,10 +57,10 @@ class RuntimeOptions:
         force = 32
         fast = 64
 
-    address: int = None
+    address: Optional[int] = None
     flags: Flags = Flags.none
-    length: int = None
-    last_erased_page: bool = 1
+    length: Optional[int] = None
+    last_erased_page: int = 1
 
     def __bool__(self):
         return any((self.flags, self.address, self.length))
@@ -73,7 +74,7 @@ class Command(Enum):
     READ_UNPROTECT = 0x4
 
 
-def quad2uint(p: bytes) -> int:
+def quad2uint(p: Union[bytes, bytearray]) -> int:
     """
     Convert a 4-byte sequence into an unsigned integer (little-endian).
     :param p: 4-byte sequence
@@ -142,32 +143,34 @@ def parse_options(dfuse_opts: list[str]) -> RuntimeOptions:
     return rt_opts
 
 
-def upload(dif: dfu.DfuIf, data: bytes, transaction: int) -> int:
+def upload(dif: dfu.DfuIf, length: int, transaction: int) -> bytes:
     """
     UPLOAD request for DfuSe 1.1a
 
     :param dif: The USB device handle
-    :param data: The data buffer to store the uploaded data
+    :param length: The number of bytes to read from the device
     :param transaction: The transaction ID for the upload
-    :return: The status of the control transfer
+    :return: The uploaded data
     """
-    status = dif.dev.ctrl_transfer(
+    dev = dif.dev
+    assert dev is not None
+    assert dif.interface is not None
+    status = dev.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_IN |
                       usb.util.CTRL_TYPE_CLASS |
                       usb.util.CTRL_RECIPIENT_INTERFACE,
         bRequest=dfu.Request.UPLOAD,
         wValue=transaction,
         wIndex=dif.interface,
-        data_or_wLength=data,
+        data_or_wLength=length,
         timeout=TIMEOUT
     )
-    if status < 0:
-        _logger.warning(f"upload: libusb_control_msg returned {status}")
+    assert not isinstance(status, int)
 
-    return status
+    return status.tobytes()
 
 
-def download(dif: dfu.DfuIf, data: [bytes, None], transaction: int) -> int:
+def download(dif: dfu.DfuIf, data: Optional[Union[bytes, bytearray]], transaction: int) -> int:
     """
     Download request for DfuSe 1.1a
 
@@ -176,7 +179,10 @@ def download(dif: dfu.DfuIf, data: [bytes, None], transaction: int) -> int:
     :param transaction: The transaction ID for the download.
     :return: The status of the control transfer.
     """
-    status = dif.dev.ctrl_transfer(
+    dev = dif.dev
+    assert dev is not None
+    assert dif.interface is not None
+    status = dev.ctrl_transfer(
         bmRequestType=usb.util.ENDPOINT_OUT |
                       usb.util.CTRL_TYPE_CLASS |
                       usb.util.CTRL_RECIPIENT_INTERFACE,
@@ -186,10 +192,11 @@ def download(dif: dfu.DfuIf, data: [bytes, None], transaction: int) -> int:
         data_or_wLength=data,
         timeout=TIMEOUT
     )
+    assert isinstance(status, int)
 
     if status < 0:
         # Silently fail on leave request on some unpredictable devices
-        if dif.quirks & QUIRK.DFUSE_LEAVE and not data and transaction == 2:
+        if dif.quirks and dif.quirks & QUIRK.DFUSE_LEAVE and not data and transaction == 2:
             return status
         _logger.warning(
             f"download: libusb_control_transfer returned {status}"
@@ -265,7 +272,7 @@ def special_command(dif: dfu.DfuIf, address: int,
                 )
                 stalls += 1
                 _logger.debug("* Device stalled USB pipe, reusing last poll timeout")
-            elif e is not None and e.backend_error_code < 0:
+            elif e.backend_error_code is not None and e.backend_error_code < 0:
                 raise _IOError(f"Error during special command {command.name} get_status: {e}")
             else:
                 raise _IOError(f"Error during special command {command.name} get_status: {e}")
@@ -343,7 +350,7 @@ def download_chunk(dif: dfu.DfuIf, data: bytes, size: int,
                 stalls += 1
                 _logger.debug("Err: * Pipe error, retrying get_status")
                 continue
-            elif e is not None and e.backend_error_code < 0:
+            elif e.backend_error_code is not None and e.backend_error_code < 0:
                 raise _IOError(f"Error during download get_status {e}")
             else:
                 raise _IOError(f"Error during download get_status {e}")
@@ -379,7 +386,7 @@ def do_leave(dif: dfu.DfuIf, rt_opts: RuntimeOptions) -> None:
     if rt_opts.flags & RuntimeOptions.Flags.address_present:
         special_command(dif, rt_opts.address, Command.SET_ADDRESS, rt_opts)
     _logger.info("Submitting leave request...")
-    if dif.quirks & QUIRK.DFUSE_LEAVE:
+    if dif.quirks and dif.quirks & QUIRK.DFUSE_LEAVE:
         # The device might leave after this request, with or without a response
         download(dif, None, 2)
         # Or it might leave after this request, with or without a response
@@ -402,14 +409,16 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
     if rt_opts.length:
         upload_limit = rt_opts.length
     if rt_opts.flags & RuntimeOptions.Flags.address_present:
+        assert dif.alt_name is not None
         mem_layout = parse_memory_layout(dif.alt_name)
         if not mem_layout:
             raise _IOError("Failed to parse memory layout")
-        if dif.quirks & QUIRK.DFUSE_LAYOUT:
+        if dif.quirks and dif.quirks & QUIRK.DFUSE_LAYOUT:
             fixup_dfuse_layout(dif, mem_layout)
 
+        assert rt_opts.address is not None
         segment = find_segment(mem_layout, rt_opts.address)
-        if not rt_opts.flags & RuntimeOptions.Flags.force and (not segment or not (segment.memtype & DFUSE.READABLE)):
+        if not rt_opts.flags & RuntimeOptions.Flags.force and (not segment or not (segment.mem_type & DFUSE.READABLE)):
             raise UsageError(f"Page at 0x{rt_opts.address:08x} is not readable")
 
         if not upload_limit:
@@ -443,18 +452,19 @@ def do_upload(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
                 rc = upload(dif, xfer_size, transaction)
             except USBError as e:
                 _logger.error(e)
-                ret = rc
+                ret = -1
                 return ret
 
-            rc = file.write_crc(0, rc)
-            total_bytes += rc
+            file.write_crc(0, rc)
+            total_bytes += len(rc)
+            transaction += 1
 
             if total_bytes < 0:
                 raise SoftwareError("Received too many bytes")
 
-            if rc < xfer_size or total_bytes >= upload_limit:
+            if len(rc) < xfer_size or total_bytes >= upload_limit:
                 # last block, return successfully
-                ret = 0
+                ret = total_bytes
                 break
 
             progress.update(completed=total_bytes)
@@ -646,19 +656,21 @@ def do_dfuse_download(dif: dfu.DfuIf, xfer_size: int,
                      f"(%i elements {dwNbElements}, "
                      f"total size = {target_prefix[266:270]}")
 
-        a_dif: dfu.DfuIf = dif
+        a_dif: Optional[dfu.DfuIf] = dif
         while a_dif:
             if bAlternateSetting == a_dif.altsetting:
                 a_dif.dev = dif.dev
                 _logger.info(f"Setting Alternate Interface {a_dif.altsetting}")
+                dev = a_dif.dev
+                assert dev is not None
                 try:
-                    a_dif.dev.set_interface_altsetting(a_dif.interface,
-                                                       a_dif.altsetting)
+                    dev.set_interface_altsetting(a_dif.interface,
+                                                 a_dif.altsetting)
                 except USBError as e:
-                    raise _IOError(f"Cannot set alternate interface: {ret}") from e
+                    raise _IOError(f"Cannot set alternate interface: {e}") from e
 
                 break
-            a_dif = dif.next
+            a_dif = a_dif.next
 
         if not a_dif:
             _logger.warning(f"No alternate setting {bAlternateSetting} (skipping elements)")
@@ -710,12 +722,13 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile,
     rt_opts = dfuse_opts
     a_dif = dif
     while a_dif:
+        assert a_dif.alt_name is not None
         a_dif.mem_layout = parse_memory_layout(a_dif.alt_name)
         if not a_dif.mem_layout:
             raise _IOError(f"Failed to parse memory layout "
                            f"for alternate interface {a_dif.altsetting}")
 
-        if a_dif.quirks & QUIRK.DFUSE_LAYOUT:
+        if a_dif.quirks and a_dif.quirks & QUIRK.DFUSE_LAYOUT:
             fixup_dfuse_layout(a_dif, a_dif.mem_layout)
         a_dif = a_dif.next
 

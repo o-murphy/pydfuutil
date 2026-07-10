@@ -38,7 +38,14 @@ dynamic = ["version"]
 "Source" = "https://github.com/o-murphy/pydfuutil"
 
 [dependency-groups]
-dev = ["pytest>=8.4.2", "ruff>=0.15.20"]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.15.21",
+    "ty>=0.0.58",
+    "rich",
+    "tqdm",
+    "pre-commit>=4.3.0",
+]
 
 [project.optional-dependencies]
 rich = ["rich"]
@@ -56,6 +63,9 @@ fallback_version = "0.0.0.dev0"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.ty.src]
+exclude = ["setup.py"]
 
 # uncomment to configure ruff linter/formatter
 [tool.ruff]

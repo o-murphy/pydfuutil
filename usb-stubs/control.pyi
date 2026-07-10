@@ -61,7 +61,8 @@ __all__ = ['get_status',
            'U2_ENABLE',
            'LTM_ENABLE']
 
-from typing import Union, Tuple
+import array
+from typing import Union, Tuple, Optional
 
 import usb.core
 import usb.util as util
@@ -69,7 +70,7 @@ import usb.core as core
 
 USBError = core.USBError
 
-def _parse_recipient(recipient: Union[usb.core.Interface, usb.core.Endpoint],
+def _parse_recipient(recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]],
                      direction: int) -> Tuple[int, int]:
     ...
 
@@ -81,7 +82,7 @@ U1_ENABLE = 48
 U2_ENABLE = 49
 LTM_ENABLE = 50
 
-def get_status(dev: usb.core.Device, recipient: Union[usb.core.Interface, usb.core.Endpoint] = None) -> int:
+def get_status(dev: usb.core.Device, recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None) -> int:
     r"""Return the status for the specified recipient.
 
     dev is the Device object to which the request will be
@@ -98,10 +99,11 @@ def get_status(dev: usb.core.Device, recipient: Union[usb.core.Interface, usb.co
                             bRequest = 0x00,
                             wIndex = wIndex,
                             data_or_wLength = 2)
+    assert not isinstance(ret, int)
     return ret[0] | (ret[1] << 8)
 
 def clear_feature(dev: usb.core.Device, feature: int,
-                  recipient: Union[usb.core.Interface, usb.core.Endpoint] = None) -> None:
+                  recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None) -> None:
     r"""Clear/disable a specific feature.
 
     dev is the Device object to which the request will be
@@ -114,7 +116,7 @@ def clear_feature(dev: usb.core.Device, feature: int,
     """
 
 def set_feature(dev: usb.core.Device, feature: int,
-                recipient:Union[usb.core.Interface, usb.core.Endpoint] = None):
+                recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None):
     r"""Set/enable a specific feature.
 
     dev is the Device object to which the request will be
@@ -130,7 +132,7 @@ def get_descriptor(dev: usb.core.Device,
                    desc_size: int,
                    desc_type: int,
                    desc_index: int,
-                   wIndex: int = 0) -> Union[int, bytes, bytearray, None]:
+                   wIndex: int = 0) -> Union[int, array.array]:
     r"""Return the specified descriptor.
 
     dev is the Device object to which the request will be
@@ -156,6 +158,7 @@ def get_descriptor(dev: usb.core.Device,
             wValue = wValue,
             wIndex = wIndex,
             data_or_wLength = desc_size)
+    assert not isinstance(desc, int)
 
     if len(desc) < 2:
         raise USBError('Invalid descriptor')
@@ -163,7 +166,7 @@ def get_descriptor(dev: usb.core.Device,
     return desc
 
 def set_descriptor(dev: usb.core.Device, desc: Union[int, bytes, bytearray],
-                   desc_type: int, desc_index: int, wIndex: int = None) -> None:
+                   desc_type: int, desc_index: int, wIndex: Optional[int] = None) -> None:
     r"""Update an existing descriptor or add a new one.
 
     dev is the Device object to which the request will be

@@ -12,7 +12,7 @@ from pydfuutil.progress import (
     TqdmBackend,
 )
 
-unittest.TestLoader.sortTestMethodsUsing = None
+unittest.TestLoader.sortTestMethodsUsing = None  # ty: ignore[invalid-assignment]
 
 
 class TestDfuProgress(unittest.TestCase):

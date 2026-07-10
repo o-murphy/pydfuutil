@@ -22,6 +22,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
+from typing import Optional, Union
+
 from usb.core import USBError
 from pydfuutil import dfu
 from pydfuutil.dfu_file import DfuFile
@@ -37,13 +39,13 @@ _logger = logger.getChild('dfu_load')
 @except_and_safe_exit(_logger)
 def do_upload(dif: dfu.DfuIf,
               xfer_size: int,
-              file: DfuFile = None,
-              expected_size: int = -1) -> [int, bytes]:
+              file: DfuFile,
+              expected_size: int = -1) -> int:
     """
     Uploads data from DFU device from special page
     :param dif: dfu.dfu_if
     :param xfer_size: chunk size
-    :param file: optional - DfuFile object
+    :param file: DfuFile object
     :param expected_size: optional - total bytes expected to be uploaded
     :return: uploaded bytes or error code
     """
@@ -63,7 +65,7 @@ def do_upload(dif: dfu.DfuIf,
                 rc = dif.upload(transaction, xfer_size)
             except USBError as e:
                 _logger.error(f"Error during upload: {e}")
-                ret = e.backend_error_code
+                ret = e.backend_error_code if e.backend_error_code is not None else -1
                 progress.update(description='Upload failed!')
                 break
 
@@ -115,6 +117,9 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
 
     buf = file.firmware
 
+    file_p = file.file_p
+    assert file_p is not None
+
     expected_size = file.size.total - file.size.suffix
     bytes_sent = 0
 
@@ -131,7 +136,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
             # bytes_left = file.size - file.suffix_len - bytes_sent
             # chunk_size = min(bytes_left, xfer_size)
 
-            if (ret := file.file_p.readinto(buf)) < 0:  # Handle read error
+            if (ret := file_p.readinto(buf)) < 0:  # Handle read error
                 raise _IOError(f"Error reading file: {file.name}")
 
             try:
@@ -150,7 +155,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
                 # Wait while the device executes flashing
                 milli_sleep(
                     DEFAULT_POLLTIMEOUT
-                    if dif.quirks & QUIRK.POLLTIMEOUT
+                    if dif.quirks and dif.quirks & QUIRK.POLLTIMEOUT
                     else status.bwPollTimeout
                 )
 
@@ -180,7 +185,7 @@ def do_download(dif: dfu.DfuIf, xfer_size: int, file: DfuFile) -> int:
         _logger.info(f"state({status.bState}) = {status.bState.to_string()}, "
                      f"status({status.bStatus}) = {status.bStatus.to_string()}")
 
-        if not dif.quirks & QUIRK.POLLTIMEOUT:
+        if not (dif.quirks and dif.quirks & QUIRK.POLLTIMEOUT):
             milli_sleep(status.bwPollTimeout)
 
         # Deal correctly with ManifestationTolerant=0 / WillDetach bits

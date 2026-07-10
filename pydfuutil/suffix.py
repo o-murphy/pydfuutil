@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import argparse
 import importlib.metadata
+import pathlib
 import sys
 from enum import IntEnum
 
@@ -75,7 +76,7 @@ def add_cli_options(parser: argparse.ArgumentParser) -> None:
                        help='Delete DFU suffix from <file>')
 
     parser.add_argument('file', action='store', metavar='<file>',
-                        type=argparse.FileType('r+b'), default=None,
+                        type=pathlib.Path, default=None,
                         help="Target filename")
 
     parser.add_argument('-p', '--pid', action='store', metavar="<productID>",
@@ -107,7 +108,7 @@ def main() -> None:
         parser.print_help()
         raise Errx(e) from e
 
-    file = DfuFile(name=args.file.name, file_p=args.file)
+    file = DfuFile(name=str(args.file))
     mode = args.mode
 
     pid = args.pid if args.pid else 0xffff
