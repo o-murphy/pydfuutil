@@ -41,4 +41,4 @@ include = ["pydfuutil_native*"]
 fallback_version = "0.0.0.dev0"
 
 [dependency-groups]
-dev = ["cython>=3.2.8"]
+dev = []

@@ -1,0 +1,12 @@
+version = 1
+revision = 3
+requires-python = ">=3.9"
+
+[[package]]
+name = "pydfuutil-native"
+source = { editable = "." }
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = []
