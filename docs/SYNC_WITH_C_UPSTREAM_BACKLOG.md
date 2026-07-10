@@ -684,10 +684,14 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
   faithfully reproduces the same upstream bug. Not a new porting discrepancy — no action needed
   unless/until upstream fixes it too.
 
-- **`main.c:237`**: `--wait` is declared as taking a required argument in C's long-option table
-  but the short-opt string has no `:` after `w` and the switch never reads `optarg` — a
-  pre-existing upstream inconsistency. Python's `-w`/`--wait` as a clean `store_true` with no
-  argument is arguably a *correction*, not a regression — no action needed.
+- ⚪ **NOT A BUG — reviewed, keeping as-is.** **`main.c:237,267,344-346`**: `--wait` is declared
+  as taking a required argument in C's long-option table (`{ "wait", 1, 0, 'w' }`, `has_arg=1`),
+  but the short-opt string (`"...Z:wn:"`) has no `:` after `w` (short form takes no argument), and
+  the `case 'w':` handler never reads `optarg` at all regardless. This is an internal upstream
+  inconsistency: `-w` works standalone in C, but `--wait` alone would fail with a getopt "requires
+  an argument" error, forcing `--wait <ignored-junk>` — the value is never used either way.
+  Python's `-w`/`--wait` as a clean `store_true` with no argument for both forms is a *correction*
+  of this oversight, not a regression. Decision: keep as-is, no action needed.
 
 - **32-bit overflow semantics**: C uses `uint32_t` arithmetic (wraps at 2^32) for
   `expected_payload_length`/`file->size.total` in `dfu_file.c`; Python uses arbitrary-precision
