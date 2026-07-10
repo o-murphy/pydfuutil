@@ -721,19 +721,20 @@ Given real-world impact, tackle in roughly this order:
 7. **P2/P3** — opportunistic, low-risk, no urgency.
 
 8. Make final audit comparing to the C original codebase
-   1. Audit comparison with the C upstream
-   2. Update CHANGELOG.md
-   3. Fill CHANGELOG.md to match project tags list
-   4. Update README.md - should display as cli tools as an entire API can be use directly
-   5. Document known workaround and bugs in README.md, e.g.:
-      - `main.c:592` (`if (!(dfu_root->flags | DFU_IFF_DFU))`) — pre-existing upstream C bug,
-        should be `&` not `|`; makes the "Check for DFU mode device" guard a permanent no-op
-        (`flags | 0x0001` is always truthy, so `not (...)` is always `False`, never raises).
-        `__main__.py:815` (`if not DfuUtil.dfu_root.flags | dfu.IFF.DFU:`) faithfully reproduces
-        this. See "Needs human judgment" section above for full analysis.
+   1. ✅ **DONE** — Audit comparison with the C upstream (items #1-56 above, all resolved or
+      documented).
+   2. ✅ **DONE** — Update CHANGELOG.md — `[Unreleased]` now summarizes the full audit/fix pass.
+   3. ✅ **DONE** — Filled CHANGELOG.md with a historical entry for every existing git tag
+      (`v0.0.1b1` through `v0.11.0b1`), reconstructed from `git log`/PR descriptions.
+   4. ✅ **DONE** — Added a "Library usage" section to README.md with tested code examples
+      (file inspection, device listing) showing the package can be used as a Python API, not just
+      via the CLI entry points.
+   5. ✅ **DONE** — Added a "Known bugs and workarounds" section to README.md documenting the two
+      pre-existing upstream C bugs faithfully reproduced here (`main.c:592`'s `|`/`&` no-op guard,
+      `main.c:237`'s `--wait` argument-arity inconsistency), linking back to the "Needs human
+      judgment" section here for full analysis.
 
 Given the number and severity of P0 findings, recommend re-running the full `tests/` suite plus a
 real-hardware smoke test (`-l`, `-U`, `-D` against an actual DFU device) after each group, not
 just at the end — several of these bugs mask or compound each other (e.g. #1 and #6 both gate the
 download path; fixing #1 alone would surface #6 immediately on the next real download attempt).
-</content>
