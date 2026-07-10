@@ -127,17 +127,18 @@ Each entry: `file:line` (Python) — description — suggested fix. C reference 
    Fix: changed the default to `TIMEOUT: int = 5000` (no CLI option threads through `dfu.init()`,
    so matching C's plain-static default directly is the faithful fix).
 
-10. **`pydfuutil/dfu.py:138`** — `StatusRetVal.from_bytes()`:
+10. ✅ **DONE** — **`pydfuutil/dfu.py:138`** — `StatusRetVal.from_bytes()`:
     ```python
     bState = (State(data[4]) if data[0] in State.__members__.values() else State.DFU_ERROR)
     ```
-    validates `bState` (from `data[4]`) against a check on `data[0]` (which is **bStatus**, valid
+    validated `bState` (from `data[4]`) against a check on `data[0]` (which is **bStatus**, valid
     range 0-15) instead of `data[4]` itself (valid range 0-10). Any device reporting a bStatus of
     11-15 (`ERROR_VENDOR`/`ERROR_USBR`/`ERROR_POR`/`ERROR_UNKNOWN`/`ERROR_STALLEDPKT` — all real,
-    not-uncommon error conditions) gets its `bState` silently forced to `DFU_ERROR` regardless of
+    not-uncommon error conditions) got its `bState` silently forced to `DFU_ERROR` regardless of
     what the device actually reported, precisely in the error paths where correct state reporting
     matters most.
-    C ref: `dfu.c:159-163` (straight assignment, no separate validation).
+    C ref: `dfu.c:159-163` (straight assignment `status->bState = buffer[4]`, no separate
+    validation at all — Python's validation only exists because `State` is an enum, not a raw byte).
     Fix: `if data[4] in State.__members__.values()`.
 
 ### File download path (`dfu_load.py`) — `do_download()` is non-functional end to end

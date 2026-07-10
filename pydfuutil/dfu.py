@@ -135,7 +135,7 @@ class StatusRetVal:
                        else Status.ERROR_UNKNOWN)
             bwPollTimeout = int.from_bytes(data[1:4], 'little')
             bState = (State(data[4])
-                      if data[0] in State.__members__.values()
+                      if data[4] in State.__members__.values()
                       else State.DFU_ERROR)
             iString = data[5]
             return cls(
