@@ -32,7 +32,7 @@ class TestPackageImportWithoutLibusbPackage(unittest.TestCase):
                 raise ImportError("simulated: libusb_package not installed")
             return real_import(name, *args, **kwargs)
 
-        builtins.__import__ = fake_import
+        builtins.__import__ = fake_import  # ty: ignore[invalid-assignment]
         try:
             return importlib.import_module("pydfuutil")
         finally:
