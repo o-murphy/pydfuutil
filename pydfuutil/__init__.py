@@ -20,17 +20,34 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from __future__ import annotations
 
+import logging
+
 __author__ = "o-murphy"
 __credits__ = ("Dmytro Yaroshenko",)
 __copyright__ = ('2023 Yaroshenko Dmytro (https://github.com/o-murphy)',)
 
+_logger = logging.getLogger(__name__)
+
+# Resolved libusb1 backend, shared across the package so every
+# usb.core.find() call goes through the SAME loaded libusb instance.
+# None means "let pyusb search for a system libusb itself" — a valid,
+# supported value for the `backend=` kwarg of usb.core.find().
+DEFAULT_BACKEND = None
+
 try:
     import libusb_package
     from usb.backend import libusb1
-    libusb1.get_backend(libusb_package.find_library)
-    # # TODO: test it
-    # # prevent raising USBError to got error codes directly
-    # # on libusb1 backend
-    # usb.backend.libusb1._check = lambda x: x
-finally:
-    pass
+
+    DEFAULT_BACKEND = libusb1.get_backend(find_library=libusb_package.find_library)
+    if DEFAULT_BACKEND is None:
+        _logger.warning(
+            "libusb_package is installed but no bundled libusb library was "
+            "found through it; falling back to pyusb's own system search."
+        )
+except ImportError:
+    _logger.debug(
+        "libusb_package not installed; pyusb will search for a system "
+        "libusb itself. Install the 'libusb' extra "
+        "(pip install pydfuutil[libusb]) for a bundled, "
+        "platform-independent libusb binary."
+    )
