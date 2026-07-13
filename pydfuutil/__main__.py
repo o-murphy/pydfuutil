@@ -35,7 +35,7 @@ import usb.util
 from usb.core import USBError
 from usb.backend.libusb1 import LIBUSB_ERROR_PIPE
 
-from pydfuutil import dfuse, dfu, dfu_load
+from pydfuutil import dfuse, dfu, dfu_load, DEFAULT_BACKEND
 from pydfuutil.dfu_file import DfuFile, SuffixReq, PrefixReq
 from pydfuutil.dfu_util import (
     DfuUtil,
@@ -433,7 +433,7 @@ def main():
         logger.info("Waiting for device, exit with ctrl-C")
 
     try:
-        ctx = list(usb.core.find(find_all=True))
+        ctx = list(usb.core.find(find_all=True, backend=DEFAULT_BACKEND))
     except USBError as e:
         raise _IOError(f"unable to initialize libusb: {e}") from e
 
@@ -677,7 +677,7 @@ def main():
         logger.info("Opening DFU capable USB device...")
         # if dfu_root.dev is not None:
 
-        ret = usb.core.find(custom_match=lambda d: d == dev)
+        ret = usb.core.find(custom_match=lambda d: d == dev, backend=DEFAULT_BACKEND)
         if ret is None:
             raise _IOError("Cannot open device")
 
