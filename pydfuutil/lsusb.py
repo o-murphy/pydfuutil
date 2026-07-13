@@ -17,10 +17,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
+from __future__ import annotations
+
 import argparse
 import importlib.metadata
 import sys
-from typing import Generator, Optional
+from collections.abc import Generator
 
 import usb._lookup as _lu
 import usb.core
@@ -33,12 +35,14 @@ from pydfuutil.exceptions import except_and_safe_exit, Errx
 try:
     __version__ = importlib.metadata.version("pydfuutil")
 except importlib.metadata.PackageNotFoundError:
-    __version__ = 'UNKNOWN'
+    __version__ = "UNKNOWN"
 
-_logger = logger.getChild('lsusb')
+_logger = logger.getChild("lsusb")
 
-VERSION = (f'pydfuutil-lsusb " v{__version__} "\n {__copyright__[0]}\n'
-           f'This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n')
+VERSION = (
+    f'pydfuutil-lsusb " v{__version__} "\n {__copyright__[0]}\n'
+    f"This program is Free Software and has ABSOLUTELY NO WARRANTY\n\n"
+)
 
 
 class VidPidAction(argparse.Action):
@@ -47,11 +51,13 @@ class VidPidAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         def validate_int(val, base: int = 10):
             try:
-                return int(val, base) if val not in (None, '') else None
+                return int(val, base) if val not in (None, "") else None
             except ValueError:
                 parser.print_help()
-                return parser.error("-d format should be vendor:[product] "
-                                    "vendor and product ID numbers (in hexadecimal)")
+                return parser.error(
+                    "-d format should be vendor:[product] "
+                    "vendor and product ID numbers (in hexadecimal)"
+                )
 
         if values.count(":") > 1:
             validate_int(None)
@@ -75,11 +81,13 @@ class BusDevAction(argparse.Action):
 
         def validate_int(val, base: int = 10):
             try:
-                return int(val, base) if val not in (None, '') else None
+                return int(val, base) if val not in (None, "") else None
             except ValueError:
                 parser.print_help()
-                return parser.error("-s format should be [[bus]:][devnum] "
-                                    "device and/or bus numbers (in decimal)")
+                return parser.error(
+                    "-s format should be [[bus]:][devnum] "
+                    "device and/or bus numbers (in decimal)"
+                )
 
         if values.count(":") > 1:
             validate_int(None)
@@ -104,15 +112,17 @@ class SimulateUnixPath(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         def validate_int(val, base: int = 10):
             try:
-                return int(val, base) if val not in (None, '') else None
+                return int(val, base) if val not in (None, "") else None
             except ValueError:
                 parser.print_help()
-                return parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
+                return parser.error(
+                    "-D option have to be in format '/dev/bus/usb/<bus>/<port>"
+                )
 
         setattr(namespace, "D", values)
-        if not values.startswith('/dev/bus/usb/'):
+        if not values.startswith("/dev/bus/usb/"):
             parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
-        bus_devnum = values.split('/')[4:]
+        bus_devnum = values.split("/")[4:]
         if 1 > len(bus_devnum) > 2:
             parser.error("-D option have to be in format '/dev/bus/usb/<bus>/<port>")
         bus, devnum = bus_devnum
@@ -124,43 +134,72 @@ class SimulateUnixPath(argparse.Action):
 def add_cli_options(parser: argparse.ArgumentParser) -> None:
     """Add cli options"""
 
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Increase verbosity (show descriptors)')
-    parser.add_argument('-s', action=BusDevAction,
-                        metavar="[[bus]:][devnum]",
-                        help='Show only devices with specified device '
-                             'and/or bus numbers (in decimal)')
-    parser.add_argument('-d', action=VidPidAction,
-                        metavar='vendor:[product]',
-                        help='Show only devices with the specified vendor '
-                             'and product ID numbers (in hexadecimal)')
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Increase verbosity (show descriptors)",
+    )
+    parser.add_argument(
+        "-s",
+        action=BusDevAction,
+        metavar="[[bus]:][devnum]",
+        help="Show only devices with specified device and/or bus numbers (in decimal)",
+    )
+    parser.add_argument(
+        "-d",
+        action=VidPidAction,
+        metavar="vendor:[product]",
+        help="Show only devices with the specified vendor "
+        "and product ID numbers (in hexadecimal)",
+    )
 
-    if not sys.platform.startswith('win'):
-        parser.add_argument('-D', metavar='device',
-                            action='store',
-                            help='Selects which device lsusb will examine')
-        parser.add_argument('-t', '--tree', action='store_true',
-                            help='Dump the physical USB device hierarchy as a tree')
+    if not sys.platform.startswith("win"):
+        parser.add_argument(
+            "-D",
+            metavar="device",
+            action="store",
+            help="Selects which device lsusb will examine",
+        )
+        parser.add_argument(
+            "-t",
+            "--tree",
+            action="store_true",
+            help="Dump the physical USB device hierarchy as a tree",
+        )
     else:
-        parser.add_argument('-D', metavar='device',
-                            action=SimulateUnixPath,
-                            help='Selects which device lsusb will examine '
-                                 'by UNIX-like path simulate')
-        parser.add_argument('-t', '--tree', action='store_true',
-                            help='Simulate UNIX-like physical USB device hierarchy')
+        parser.add_argument(
+            "-D",
+            metavar="device",
+            action=SimulateUnixPath,
+            help="Selects which device lsusb will examine by UNIX-like path simulate",
+        )
+        parser.add_argument(
+            "-t",
+            "--tree",
+            action="store_true",
+            help="Simulate UNIX-like physical USB device hierarchy",
+        )
 
-    parser.add_argument('-V', '--version', action='version',
-                        version=VERSION,
-                        help='Print the version number')
-    parser.add_argument('-h', '--help', action='store_true',
-                        help='Show this help message and exit')
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=VERSION,
+        help="Print the version number",
+    )
+    parser.add_argument(
+        "-h", "--help", action="store_true", help="Show this help message and exit"
+    )
 
 
-def device_find_filter(dev: usb.core.Device,
-                       vid: Optional[int] = None,
-                       pid: Optional[int] = None,
-                       bus: Optional[int] = None,
-                       address: Optional[int] = None) -> bool:
+def device_find_filter(
+    dev: usb.core.Device,
+    vid: int | None = None,
+    pid: int | None = None,
+    bus: int | None = None,
+    address: int | None = None,
+) -> bool:
     """Custom match callback"""
     # if path is not None and dev.device_address != path:
     #     return False
@@ -175,11 +214,13 @@ def device_find_filter(dev: usb.core.Device,
     return True
 
 
-def list_devices(vid: Optional[int] = None,
-                 pid: Optional[int] = None,
-                 bus: Optional[int] = None,
-                 address: Optional[int] = None,
-                 verbose=False) -> None:
+def list_devices(
+    vid: int | None = None,
+    pid: int | None = None,
+    bus: int | None = None,
+    address: int | None = None,
+    verbose=False,
+) -> None:
     """Prints out founded devices list"""
 
     def custom_match(dev):
@@ -189,10 +230,12 @@ def list_devices(vid: Optional[int] = None,
     sys.exit(0)
 
 
-def iter_devices(vid: Optional[int] = None,
-                 pid: Optional[int] = None,
-                 bus: Optional[int] = None,
-                 address: Optional[int] = None) -> Generator[usb.core.Device, None, None]:
+def iter_devices(
+    vid: int | None = None,
+    pid: int | None = None,
+    bus: int | None = None,
+    address: int | None = None,
+) -> Generator[usb.core.Device, None, None]:
     """Returns a context if fultered devices"""
 
     def custom_match(dev):
@@ -201,11 +244,13 @@ def iter_devices(vid: Optional[int] = None,
     return usb.core.find(find_all=True, custom_match=custom_match)
 
 
-def sym_unix_dev_tree(vid: Optional[int] = None,
-                      pid: Optional[int] = None,
-                      bus: Optional[int] = None,
-                      address: Optional[int] = None,
-                      verbose: bool = False):
+def sym_unix_dev_tree(
+    vid: int | None = None,
+    pid: int | None = None,
+    bus: int | None = None,
+    address: int | None = None,
+    verbose: bool = False,
+):
     """Simulates UNIX device tree"""
     ctx = iter_devices(vid, pid, bus, address)
     for dev in ctx:
@@ -213,23 +258,25 @@ def sym_unix_dev_tree(vid: Optional[int] = None,
         # dev_driver =
         manufacturer = usb.util.get_string(dev, dev.iManufacturer)
         product = usb.util.get_string(dev, dev.iProduct)
-        print(f"/:\tBus {dev.bus:02}.Port {dev.port_number:01}: "
-              f"Dev {dev.address:01}, Class={dev_class}")
+        print(
+            f"/:\tBus {dev.bus:02}.Port {dev.port_number:01}: "
+            f"Dev {dev.address:01}, Class={dev_class}"
+        )
         if verbose:
-            print(f"ID {dev.idVendor:04x}:{dev.idProduct:04x} "
-                  f"{manufacturer}, {product}")
+            print(
+                f"ID {dev.idVendor:04x}:{dev.idProduct:04x} {manufacturer}, {product}"
+            )
 
 
 @except_and_safe_exit(_logger)
 def main():
     """cli entry point for lsusb"""
     parser = argparse.ArgumentParser(
-        prog='pydfuutil-prefix',
-        exit_on_error=False,
-        add_help=False
+        prog="pydfuutil-prefix", exit_on_error=False, add_help=False
     )
-    parser.set_defaults(bus=None, address=None,
-                        vid=None, pid=None, path=None, tree=False)
+    parser.set_defaults(
+        bus=None, address=None, vid=None, pid=None, path=None, tree=False
+    )
     add_cli_options(parser)
     print(f"List USB devices\nv{__version__}")
 
@@ -244,8 +291,7 @@ def main():
 
     verbose = args.verbose
     vid, pid, bus, address = args.vid, args.pid, args.bus, args.address
-    if not sys.platform.startswith('win'):
-
+    if not sys.platform.startswith("win"):
         if args.D:
             parser.print_help()
             parser.error("This version of lsusb does not support -D option")
@@ -262,5 +308,5 @@ def main():
         list_devices(vid, pid, bus, address, verbose)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

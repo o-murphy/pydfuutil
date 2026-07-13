@@ -20,13 +20,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
+from __future__ import annotations
+
 import argparse
 import importlib.metadata
 import logging
 import os
 import sys
 from enum import Enum
-from typing import Any, Optional, Literal, Union
+from typing import Any, Literal
 
 import usb.core
 import usb.util
@@ -94,7 +96,7 @@ class Mode(Enum):
     DOWNLOAD = 5
 
 
-def parse_serial(string: Optional[str]) -> None:
+def parse_serial(string: str | None) -> None:
     """parse serial"""
     if string in (None, ""):
         return
@@ -114,7 +116,7 @@ def parse_serial(string: Optional[str]) -> None:
         DfuUtil.match_serial_dfu = None
 
 
-def parse_match_value(string: Optional[str], default_value: int) -> int:
+def parse_match_value(string: str | None, default_value: int) -> int:
     """Parse a single vendor/product match token (hex, `*` = any, `-` = impossible)"""
     if string is None:
         return default_value
@@ -128,7 +130,7 @@ def parse_match_value(string: Optional[str], default_value: int) -> int:
         return default_value
 
 
-def parse_vendprod(string: Optional[str]) -> None:
+def parse_vendprod(string: str | None) -> None:
     """parse -d/--device <vid>:<pid>[,<vid_dfu>:<pid_dfu>]"""
     DfuUtil.match_vendor = -1
     DfuUtil.match_product = -1
@@ -148,11 +150,11 @@ def parse_vendprod(string: Optional[str]) -> None:
         if comma_index == -1:
             runtime_part, dfu_part = string, None
         else:
-            runtime_part, dfu_part = string[:comma_index], string[comma_index + 1:]
+            runtime_part, dfu_part = string[:comma_index], string[comma_index + 1 :]
 
         colon_index = runtime_part.find(":")
         vendor_str = runtime_part if colon_index == -1 else runtime_part[:colon_index]
-        product_str = None if colon_index == -1 else runtime_part[colon_index + 1:]
+        product_str = None if colon_index == -1 else runtime_part[colon_index + 1 :]
 
         DfuUtil.match_vendor = parse_match_value(vendor_str, DfuUtil.match_vendor)
         DfuUtil.match_product = parse_match_value(product_str, DfuUtil.match_product)
@@ -167,14 +169,18 @@ def parse_vendprod(string: Optional[str]) -> None:
     if dfu_part is not None:
         colon_index = dfu_part.find(":")
         vendor_dfu_str = dfu_part if colon_index == -1 else dfu_part[:colon_index]
-        product_dfu_str = None if colon_index == -1 else dfu_part[colon_index + 1:]
+        product_dfu_str = None if colon_index == -1 else dfu_part[colon_index + 1 :]
 
-        DfuUtil.match_vendor_dfu = parse_match_value(vendor_dfu_str, DfuUtil.match_vendor_dfu)
-        DfuUtil.match_product_dfu = parse_match_value(product_dfu_str, DfuUtil.match_product_dfu)
+        DfuUtil.match_vendor_dfu = parse_match_value(
+            vendor_dfu_str, DfuUtil.match_vendor_dfu
+        )
+        DfuUtil.match_product_dfu = parse_match_value(
+            product_dfu_str, DfuUtil.match_product_dfu
+        )
 
 
 def int_(
-    value: Union[int, bytes, bytearray], order: Literal["little", "big"] = "little"
+    value: int | bytes | bytearray, order: Literal["little", "big"] = "little"
 ) -> int:
     """coerce value to int"""
     if isinstance(value, int):
@@ -548,7 +554,9 @@ def main():
             # open for "exclusive" writing
             assert file.name is not None
             try:
-                fd = os.open(file.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC)
+                fd = os.open(
+                    file.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC
+                )
                 with os.fdopen(fd, "wb") as file.file_p:
                     if dfuse_device or dfuse_options:
                         ret = dfuse.do_upload(

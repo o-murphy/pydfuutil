@@ -58,7 +58,8 @@ import usb._objfinalizer as _objfinalizer
 import logging
 import array
 import threading
-from typing import Union, Any, Literal, Optional, Tuple, Generator, Callable, overload
+from collections.abc import Generator, Callable
+from typing import Any, Literal, overload
 
 from usb.backend import IBackend
 
@@ -67,12 +68,12 @@ _logger = logging.getLogger("usb.core")
 _DEFAULT_TIMEOUT: int = 1000
 _sentinel: object
 
-def _set_attr(input: Any, output: Any, fields: Tuple[str]) -> None: ...
+def _set_attr(input: Any, output: Any, fields: tuple[str]) -> None: ...
 def _try_getattr(object: object, name: str) -> Any: ...
 def _try_get_string(
     dev: Device,
     index: int,
-    langid: Optional[int] = None,
+    langid: int | None = None,
     default_str_i0: str = "",
     default_access_error: str = "Error Accessing String",
 ) -> str:
@@ -113,18 +114,18 @@ class _ResourceManager:
     ) -> None: ...
     @synchronized
     def managed_claim_interface(
-        self, device: Device, intf: Union[Interface, int]
+        self, device: Device, intf: Interface | int
     ) -> None: ...
     @synchronized
     def managed_release_interface(
-        self, device: Device, intf: Union[Interface, int]
+        self, device: Device, intf: Interface | int
     ) -> None: ...
     @synchronized
     def managed_set_interface(
-        self, device: Device, intf: Union[Interface, int], alt: int
+        self, device: Device, intf: Interface | int, alt: int
     ) -> None: ...
     @synchronized
-    def setup_request(self, device: Device, endpoint: Union[Endpoint, int]) -> None:
+    def setup_request(self, device: Device, endpoint: Endpoint | int) -> None:
         # we need the endpoint address, but the "endpoint" parameter
         # can be either the a Endpoint object or the endpoint address itself
         ...
@@ -133,7 +134,7 @@ class _ResourceManager:
     @synchronized
     def get_interface_and_endpoint(
         self, device: Device, endpoint_address: int
-    ) -> Tuple[Interface, Endpoint]: ...
+    ) -> tuple[Interface, Endpoint]: ...
     @synchronized
     def get_active_configuration(self, device: Device) -> Configuration: ...
     @synchronized
@@ -149,7 +150,7 @@ class USBError(IOError):
     member variable.
     """
 
-    backend_error_code: Optional[int]
+    backend_error_code: int | None
     def __init__(
         self, strerror: str, error_code: Any = None, errno: Any = None
     ) -> None:
@@ -223,9 +224,7 @@ class Endpoint:
 
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
-    def write(
-        self, data: Union[int, bytes, bytearray], timeout: Optional[int] = None
-    ) -> int:
+    def write(self, data: int | bytes | bytearray, timeout: int | None = None) -> int:
         r"""Write data to the endpoint.
 
         The parameter data contains the data to be sent to the endpoint and
@@ -239,7 +238,7 @@ class Endpoint:
         assert not isinstance(data, int)
         return self.device.write(self, data, timeout)
 
-    def read(self, size_or_buffer: Union[int, bytearray], timeout=None) -> array.array:
+    def read(self, size_or_buffer: int | bytearray, timeout=None) -> array.array:
         r"""Read data from the endpoint.
 
         The parameter size_or_buffer is either the number of bytes to
@@ -314,7 +313,7 @@ class Interface:
     def __str__(self) -> str:
         """Show all information for the interface."""
 
-    def endpoints(self) -> Tuple[Endpoint]:
+    def endpoints(self) -> tuple[Endpoint]:
         r"""Return a tuple of the interface endpoints."""
 
     def set_altsetting(self) -> None:
@@ -368,7 +367,7 @@ class Configuration:
 
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
-    def interfaces(self) -> Tuple[Interface]:
+    def interfaces(self) -> tuple[Interface]:
         r"""Return a tuple of the configuration interfaces."""
 
     def set(self) -> Any:
@@ -377,7 +376,7 @@ class Configuration:
     def __iter__(self) -> Generator[Interface, Any, None]:
         r"""Iterate over all interfaces of the configuration."""
 
-    def __getitem__(self, index: Tuple[int, int]) -> Interface:
+    def __getitem__(self, index: tuple[int, int]) -> Interface:
         r"""Return the Interface object in the given position.
 
         index is a tuple of two values with interface index and
@@ -431,7 +430,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
     _serial_number: int
     _product: int
     _manufacturer: int
-    _langids: Tuple[int]
+    _langids: tuple[int]
 
     bLength: int
     bDescriptorType: int
@@ -450,17 +449,17 @@ class Device(_objfinalizer.AutoFinalizedObject):
     address: int
     bus: int
     port_number: int
-    port_numbers: Tuple[int]
+    port_numbers: tuple[int]
     speed: int
 
     _has_parent: bool
-    _parent: Union[Device, None]
+    _parent: Device | None
 
     def __eq__(self, other) -> bool: ...
     def __hash__(self) -> int: ...
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
-    def configurations(self) -> Tuple[Configuration]:
+    def configurations(self) -> tuple[Configuration]:
         r"""Return a tuple of the device configurations."""
 
     def __init__(self, dev, backend) -> None:
@@ -474,7 +473,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
         """
 
     @property
-    def langids(self) -> Tuple | Tuple[int, ...]:
+    def langids(self) -> tuple | tuple[int, ...]:
         """Return the USB devices supported language ID codes.
 
         These are 16-bit codes familiar to Windows developers, where for
@@ -503,7 +502,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
         """
 
     @property
-    def parent(self) -> Union[Device, None]:
+    def parent(self) -> Device | None:
         """Return the parent device."""
 
     @property
@@ -518,7 +517,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
     def backend(self) -> IBackend:
         """Return the backend being used by the device."""
 
-    def set_configuration(self, configuration: Optional[Configuration] = None) -> Any:
+    def set_configuration(self, configuration: Configuration | None = None) -> Any:
         r"""Set the active configuration.
 
         The configuration parameter is the bConfigurationValue field of the
@@ -535,8 +534,8 @@ class Device(_objfinalizer.AutoFinalizedObject):
 
     def set_interface_altsetting(
         self,
-        interface: Optional[Union[Interface, int]] = None,
-        alternate_setting: Optional[int] = None,
+        interface: Interface | int | None = None,
+        alternate_setting: int | None = None,
     ) -> None:
         r"""Set the alternate setting for an interface.
 
@@ -572,8 +571,8 @@ class Device(_objfinalizer.AutoFinalizedObject):
     def write(
         self,
         endpoint: Endpoint,
-        data: Union[bytes, bytearray],
-        timeout: Optional[int] = None,
+        data: bytes | bytearray,
+        timeout: int | None = None,
     ) -> int:
         r"""Write data to the endpoint.
 
@@ -592,8 +591,8 @@ class Device(_objfinalizer.AutoFinalizedObject):
     def read(
         self,
         endpoint: Endpoint,
-        size_or_buffer: Union[bytearray, int],
-        timeout: Optional[int] = None,
+        size_or_buffer: bytearray | int,
+        timeout: int | None = None,
     ) -> array.array:
         r"""Read data from the endpoint.
 
@@ -617,9 +616,9 @@ class Device(_objfinalizer.AutoFinalizedObject):
         bRequest: int,
         wValue: int = 0,
         wIndex: int = 0,
-        data_or_wLength: Optional[Union[bytes, bytearray, int]] = None,
-        timeout: Optional[int] = None,
-    ) -> Union[int, array.array]:
+        data_or_wLength: bytes | bytearray | int | None = None,
+        timeout: int | None = None,
+    ) -> int | array.array:
         r"""Do a control transfer on the endpoint 0.
 
         This method is used to issue a control transfer over the endpoint 0
@@ -684,23 +683,23 @@ class Device(_objfinalizer.AutoFinalizedObject):
 @overload
 def find(
     find_all: Literal[True],
-    backend: Optional[IBackend] = None,
-    custom_match: Optional[Callable[[Any], bool]] = None,
+    backend: IBackend | None = None,
+    custom_match: Callable[[Any], bool] | None = None,
     **args,
 ) -> Generator[Device, Any, None]: ...
 @overload
 def find(
     find_all: Literal[False] = False,
-    backend: Optional[IBackend] = None,
-    custom_match: Optional[Callable[[Any], bool]] = None,
+    backend: IBackend | None = None,
+    custom_match: Callable[[Any], bool] | None = None,
     **args,
-) -> Optional[Device]: ...
+) -> Device | None: ...
 def find(
     find_all: bool = False,
-    backend: Optional[IBackend] = None,
-    custom_match: Optional[Callable[[Any], bool]] = None,
+    backend: IBackend | None = None,
+    custom_match: Callable[[Any], bool] | None = None,
     **args,
-) -> Union[Generator[Device, Any, None], Device, None]:
+) -> Generator[Device, Any, None] | Device | None:
     r"""Find an USB device and return it.
 
     find() is the function used to discover USB devices.  You can pass as
@@ -769,7 +768,7 @@ def find(
     Backends are explained in the usb.backend module.
     """
 
-    def device_iter(**kwargs) -> Union[Generator[Device, Any, None], Device, None]: ...
+    def device_iter(**kwargs) -> Generator[Device, Any, None] | Device | None: ...
 
 def show_devices(verbose: bool = False, **kwargs) -> _DescriptorInfo:
     """Show information about connected devices.

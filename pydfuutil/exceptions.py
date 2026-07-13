@@ -16,11 +16,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
+
+from __future__ import annotations
+
 import logging
 import sys
 from enum import IntEnum
 from functools import wraps
-from typing import Optional
 
 from usb.core import USBError
 from usb.backend.libusb1 import _strerror
@@ -58,9 +60,10 @@ class Errx(Exception):
     that prevented it from completing its task successfully.
     It can also be used as a catch-all for unspecified errors.
     """
+
     exit_code = SysExit.OTHER
 
-    def __init__(self, *args, exit_code: Optional[SysExit] = None):
+    def __init__(self, *args, exit_code: SysExit | None = None):
         super().__init__(*args)
         if isinstance(exit_code, SysExit):
             self.exit_code = exit_code
@@ -68,31 +71,37 @@ class Errx(Exception):
 
 class DataError(Errx, ValueError, TypeError):
     """EX_DATAERR"""
+
     exit_code = SysExit.EX_DATAERR
 
 
 class SoftwareError(Errx):
     """EX_SOFTWARE"""
+
     exit_code = SysExit.EX_SOFTWARE
 
 
 class ProtocolError(Errx):
     """EX_PROTOCOL"""
+
     exit_code = SysExit.EX_PROTOCOL
 
 
 class _IOError(Errx, IOError):
     """EX_IOERR"""
+
     exit_code = SysExit.EX_IOERR
 
 
 class NoInputError(Errx, OSError):
     """EX_NOINPUT"""
+
     exit_code = SysExit.EX_NOINPUT
 
 
 class UsbIOError(Errx, IOError):  # FIXME: Deprecated
     """USB IOError"""
+
     exit_code = SysExit.OTHER
 
 
@@ -103,16 +112,19 @@ class UsageError(Errx):
     invalid command-line arguments or options,
     it might exit with code 2 to indicate a syntax error.
     """
+
     exit_code = SysExit.EX_USAGE  # FIXME: maybe SystemExit + EX.EX_USAGE = 1
 
 
 class CompatibilityError(Errx, OSError):
     """DFU incompatible usage error."""
+
     exit_code = 3  # OSError + EX_PROTOCOL = 3
 
 
 def handle_usb_error(func):
     """patch wrapper to catch a libusb error value"""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -121,10 +133,11 @@ def handle_usb_error(func):
             if e.backend_error_code is None:
                 raise e
             return e.backend_error_code
+
     return wrapper
 
 
-def except_and_safe_exit(_logger: Optional[logging.Logger] = None):
+def except_and_safe_exit(_logger: logging.Logger | None = None):
     """decorator to handle exceptions and exit safely"""
 
     def decorator(func):
@@ -154,16 +167,16 @@ def except_and_safe_exit(_logger: Optional[logging.Logger] = None):
 
 
 __all__ = (
-    'Errx',
-    'NoInputError',
-    'UsageError',
-    'SoftwareError',
-    'ProtocolError',
-    'CompatibilityError',
-    'DataError',
-    'UsbIOError',
-    '_IOError',
-    'except_and_safe_exit',
-    'handle_usb_error',
-    'str_usb_err'
+    "Errx",
+    "NoInputError",
+    "UsageError",
+    "SoftwareError",
+    "ProtocolError",
+    "CompatibilityError",
+    "DataError",
+    "UsbIOError",
+    "_IOError",
+    "except_and_safe_exit",
+    "handle_usb_error",
+    "str_usb_err",
 )

@@ -17,9 +17,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
+from __future__ import annotations
+
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 
 RICH_PROGRESS: Any = None
@@ -57,9 +59,7 @@ class AbstractProgressBackend(ABC):
         """
 
     @abstractmethod
-    def start_task(
-        self, *, description: Optional[str] = None, total: Optional[int] = None
-    ):
+    def start_task(self, *, description: str | None = None, total: int | None = None):
         """
         Start progress task
         :param description:
@@ -70,9 +70,9 @@ class AbstractProgressBackend(ABC):
     def update(
         self,
         *,
-        description: Optional[str] = None,
-        advance: Optional[int] = None,
-        completed: Optional[int] = None,
+        description: str | None = None,
+        advance: int | None = None,
+        completed: int | None = None,
     ):
         """
         Update progress task
@@ -96,17 +96,15 @@ class NoProgressBarBackend(AbstractProgressBackend):
     def start(self):
         pass
 
-    def start_task(
-        self, *, description: Optional[str] = None, total: Optional[int] = None
-    ):
+    def start_task(self, *, description: str | None = None, total: int | None = None):
         pass
 
     def update(
         self,
         *,
-        description: Optional[str] = None,
-        advance: Optional[int] = None,
-        completed: Optional[int] = None,
+        description: str | None = None,
+        advance: int | None = None,
+        completed: int | None = None,
     ):
         pass
 
@@ -125,10 +123,10 @@ class AsciiBackend(AbstractProgressBackend):
 
     def __init__(self):
         super().__init__()
-        self._value: Optional[int] = None
-        self._total: Optional[int] = None
-        self._rate: Optional[float] = None
-        self._fail: Optional[bool] = None
+        self._value: int | None = None
+        self._total: int | None = None
+        self._rate: float | None = None
+        self._fail: bool | None = None
 
     def _print(self, symbol: str):
         if self.REDIRECT_STD:
@@ -140,9 +138,7 @@ class AsciiBackend(AbstractProgressBackend):
     def start(self):
         pass
 
-    def start_task(
-        self, *, description: Optional[str] = None, total: Optional[int] = None
-    ):
+    def start_task(self, *, description: str | None = None, total: int | None = None):
         self._value = 0
         self._total = total
         self._fail = False
@@ -153,9 +149,9 @@ class AsciiBackend(AbstractProgressBackend):
     def update(
         self,
         *,
-        description: Optional[str] = None,
-        advance: Optional[int] = None,
-        completed: Optional[int] = None,
+        description: str | None = None,
+        advance: int | None = None,
+        completed: int | None = None,
     ):
         total = self._total
         if total:
@@ -203,15 +199,13 @@ class TqdmBackend(AbstractProgressBackend):
     def __init__(self):
         super().__init__()
         self._progress: Any = None
-        self._value: Optional[int] = None
-        self._spinner_state: Optional[int] = None
+        self._value: int | None = None
+        self._spinner_state: int | None = None
 
     def start(self):
         pass
 
-    def start_task(
-        self, *, description: Optional[str] = None, total: Optional[int] = None
-    ):
+    def start_task(self, *, description: str | None = None, total: int | None = None):
         self._value = 0
         if total:
             self._progress = TQDM_PROGRESS(
@@ -247,9 +241,9 @@ class TqdmBackend(AbstractProgressBackend):
     def update(
         self,
         *,
-        description: Optional[str] = None,
-        advance: Optional[int] = None,
-        completed: Optional[int] = None,
+        description: str | None = None,
+        advance: int | None = None,
+        completed: int | None = None,
     ):
         progress = self._progress
         assert progress is not None
@@ -288,7 +282,7 @@ class RichBackend(AbstractProgressBackend):
         super().__init__()
         self._progress: Any = None
         self._task_id: Any = None
-        self._fail: Optional[bool] = None
+        self._fail: bool | None = None
 
     def start(self):
         pass
@@ -304,9 +298,7 @@ class RichBackend(AbstractProgressBackend):
         )
         self._progress.start()
 
-    def start_task(
-        self, *, description: Optional[str] = None, total: Optional[int] = None
-    ):
+    def start_task(self, *, description: str | None = None, total: int | None = None):
         self._prepare()
         self._fail = False
         kwargs = {}
@@ -318,9 +310,9 @@ class RichBackend(AbstractProgressBackend):
     def update(
         self,
         *,
-        description: Optional[str] = None,
-        advance: Optional[int] = None,
-        completed: Optional[int] = None,
+        description: str | None = None,
+        advance: int | None = None,
+        completed: int | None = None,
     ):
         kwargs = {}
         if description is not None:
@@ -394,9 +386,7 @@ class Progress:
         """
         self._backend.start()
 
-    def start_task(
-        self, *, description: Optional[str] = None, total: Optional[int] = None
-    ):
+    def start_task(self, *, description: str | None = None, total: int | None = None):
         """
         Start progress task
         :param description:
@@ -407,9 +397,9 @@ class Progress:
     def update(
         self,
         *,
-        description: Optional[str] = None,
-        advance: Optional[int] = None,
-        completed: Optional[int] = None,
+        description: str | None = None,
+        advance: int | None = None,
+        completed: int | None = None,
     ):
         """
         Update progress task

@@ -16,9 +16,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
+
+from __future__ import annotations
+
 import array
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass
-from typing import Generator, Iterable, Optional
 
 import usb.control
 import usb.core
@@ -33,7 +36,7 @@ from pydfuutil.logger import logger
 from pydfuutil.quirks import get_quirks, QUIRK
 from pydfuutil.usb_dfu import FuncDescriptor, USB_DT_DFU, USB_DT_DFU_SIZE
 
-_logger = logger.getChild('dfu_util')
+_logger = logger.getChild("dfu_util")
 
 MAX_DESC_STR_LEN = 253
 MAX_PATH_LEN = 20
@@ -41,9 +44,12 @@ MAX_PATH_LEN = 20
 
 class DfuUtilMeta(type):
     """DfuUtil MetaDataclass"""
+
     def __repr__(cls):
-        _fields = ', '.join(f'{field}={getattr(cls, field)!r}'
-                            for field in getattr(cls, '__dataclass_fields__'))
+        _fields = ", ".join(
+            f"{field}={getattr(cls, field)!r}"
+            for field in getattr(cls, "__dataclass_fields__")
+        )
         return f"DfuUtil({_fields})"
 
 
@@ -51,8 +57,9 @@ class DfuUtilMeta(type):
 @dataclass
 class DfuUtil(metaclass=DfuUtilMeta):
     """DfuUtil state handle"""
-    dfu_if: Optional[DfuIf] = None
-    match_path: Optional[str] = None
+
+    dfu_if: DfuIf | None = None
+    match_path: str | None = None
     match_vendor: int = -1
     match_product: int = -1
     match_vendor_dfu: int = -1
@@ -61,31 +68,33 @@ class DfuUtil(metaclass=DfuUtilMeta):
     match_iface_index: int = -1
     match_iface_alt_index: int = -1
     match_dev_num: int = -1
-    match_iface_alt_name: Optional[str] = None
-    match_serial: Optional[str] = None
-    match_serial_dfu: Optional[str] = None
+    match_iface_alt_name: str | None = None
+    match_serial: str | None = None
+    match_serial_dfu: str | None = None
 
-    dfu_root: Optional[DfuIf] = None
+    dfu_root: DfuIf | None = None
 
-    path_buf: Optional[str] = None
+    path_buf: str | None = None
 
 
 def cpu_to_le16(value: int) -> bytes:
     """Convert int to uint16le"""
-    return value.to_bytes(2, byteorder='little')
+    return value.to_bytes(2, byteorder="little")
 
 
 def le16_to_cpu(data: bytes) -> int:
     """Convert uint16le to int"""
-    return int.from_bytes(data, byteorder='little')
+    return int.from_bytes(data, byteorder="little")
 
 
-def find_descriptor(desc_list: list[int], desc_type: int, res_buf: bytearray) -> Optional[bytearray]:
+def find_descriptor(
+    desc_list: list[int], desc_type: int, res_buf: bytearray
+) -> bytearray | None:
     """
     Look for a descriptor in a concatenated descriptor list. Will
     return upon the first match of the given descriptor type. Returns length of
     found descriptor, limited to res_size
-    :return: 
+    :return:
     """
     p = 0
     res_size = len(res_buf)
@@ -104,14 +113,14 @@ def find_descriptor(desc_list: list[int], desc_type: int, res_buf: bytearray) ->
                 desc_len = res_size
             if p + desc_len > list_len:
                 desc_len = list_len - p
-            res_buf[:] = desc_list[p:p + desc_len]
+            res_buf[:] = desc_list[p : p + desc_len]
             return res_buf
         p += desc_list[p]
 
     return None
 
 
-def get_path(dev) -> Optional[str]:
+def get_path(dev) -> str | None:
     """Get device bus/port path"""
     path = None
     try:
@@ -123,10 +132,10 @@ def get_path(dev) -> Optional[str]:
         path = f"{bus_num}-{device_num}"
 
         # If the device supports port numbers, get them
-        if hasattr(dev, 'port_numbers'):
+        if hasattr(dev, "port_numbers"):
             port_nums = dev.port_numbers
             if port_nums is not None:
-                path += '.' + '.'.join(map(str, port_nums))
+                path += "." + ".".join(map(str, port_nums))
 
     except (TypeError, ValueError) as e:
         # Handle any exceptions, like if the device does not support port numbers
@@ -168,13 +177,15 @@ def disconnect_devices() -> None:
 
 def print_dfu_if(dfu_if: DfuIf) -> None:
     """Print dfu interface"""
-    print(f"Found {'DFU' if dfu_if.flags & IFF.DFU else 'Runtime'}: "
-          f'[{dfu_if.vendor:04x}:{dfu_if.product:04x}] '
-          f'ver={dfu_if.bcdDevice:04x}, devnum={dfu_if.devnum}, '
-          f'cfg={dfu_if.configuration}, intf={dfu_if.interface}, '
-          f'path="{get_path(dfu_if.dev)}", '
-          f'alt={dfu_if.altsetting}, name="{dfu_if.alt_name}", '
-          f'serial="{dfu_if.serial_name}"')
+    print(
+        f"Found {'DFU' if dfu_if.flags & IFF.DFU else 'Runtime'}: "
+        f"[{dfu_if.vendor:04x}:{dfu_if.product:04x}] "
+        f"ver={dfu_if.bcdDevice:04x}, devnum={dfu_if.devnum}, "
+        f"cfg={dfu_if.configuration}, intf={dfu_if.interface}, "
+        f'path="{get_path(dfu_if.dev)}", '
+        f'alt={dfu_if.altsetting}, name="{dfu_if.alt_name}", '
+        f'serial="{dfu_if.serial_name}"'
+    )
 
 
 # Walk the device tree and print out DFU devices
@@ -187,13 +198,15 @@ def list_dfu_interfaces() -> None:
 
 
 def get_altsettings(
-        config: usb.core.Configuration,
-        interface: int) -> Generator[usb.core.Interface, None, None]:
+    config: usb.core.Configuration, interface: int
+) -> Generator[usb.core.Interface, None, None]:
     """Get the alternate settings of the interface"""
     return usb.util.find_descriptor(config, find_all=True, bInterfaceNumber=interface)
 
 
-def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: FuncDescriptor) -> None:
+def _found_dfu(
+    dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: FuncDescriptor
+) -> None:
     """Found dfu interface"""
     if func_dfu.bLength == 7:
         _logger.info("Deducing device DFU version from functional descriptor length")
@@ -212,9 +225,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
     except USBError as e:
         raise _IOError(e) from e
     for uif in cfg:
-
-        if (DfuUtil.match_iface_index > -1
-                and DfuUtil.match_iface_index != uif.index):
+        if DfuUtil.match_iface_index > -1 and DfuUtil.match_iface_index != uif.index:
             continue
 
         if not uif:
@@ -225,51 +236,62 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
         multiple_alt = len(altsetting) > 0
 
         for alt in altsetting:
-
             quirks = get_quirks(dev.idVendor, dev.idProduct, dev.bcdDevice)
 
             intf = alt
 
             # DFU subclass
-            if intf.bInterfaceClass != 0xfe or intf.bInterfaceSubClass != 1:
+            if intf.bInterfaceClass != 0xFE or intf.bInterfaceSubClass != 1:
                 continue
 
             dfu_mode = intf.bInterfaceProtocol == 2
 
             # ST DfuSe devices often use bInterfaceProtocol 0 instead of 2
-            if func_dfu.bcdDFUVersion == 0x011a and intf.bInterfaceProtocol == 0:
+            if func_dfu.bcdDFUVersion == 0x011A and intf.bInterfaceProtocol == 0:
                 dfu_mode = True
 
             # LPC DFU bootloader has bInterfaceProtocol 1 (Runtime) instead of 2
-            if (dev.idVendor == 0x1fc9 and dev.idProduct == 0x000c
-                    and intf.bInterfaceProtocol == 1):
+            if (
+                dev.idVendor == 0x1FC9
+                and dev.idProduct == 0x000C
+                and intf.bInterfaceProtocol == 1
+            ):
                 dfu_mode = True
 
             # Old Jabra devices may have bInterfaceProtocol 0 instead of 2.
             # Also, runtime PID and DFU pid are the same.
             # In DFU mode, the configuration descriptor has only 1 interface.
-            if (dev.idVendor == 0x0b0e
-                    and intf.bInterfaceProtocol == 0
-                    and cfg.bNumInterfaces == 1):
+            if (
+                dev.idVendor == 0x0B0E
+                and intf.bInterfaceProtocol == 0
+                and cfg.bNumInterfaces == 1
+            ):
                 dfu_mode = True
 
-            if (dfu_mode
-                    and DfuUtil.match_iface_alt_index > -1
-                    and DfuUtil.match_iface_alt_index != intf.bAlternateSetting):
+            if (
+                dfu_mode
+                and DfuUtil.match_iface_alt_index > -1
+                and DfuUtil.match_iface_alt_index != intf.bAlternateSetting
+            ):
                 continue
 
             if dfu_mode:
-                if ((DfuUtil.match_vendor_dfu >= 0
-                     and DfuUtil.match_vendor_dfu != dev.idVendor) or
-                        (DfuUtil.match_product_dfu >= 0
-                         and DfuUtil.match_product_dfu != dev.idProduct)):
+                if (
+                    DfuUtil.match_vendor_dfu >= 0
+                    and DfuUtil.match_vendor_dfu != dev.idVendor
+                ) or (
+                    DfuUtil.match_product_dfu >= 0
+                    and DfuUtil.match_product_dfu != dev.idProduct
+                ):
                     continue
 
             else:
-                if ((DfuUtil.match_vendor >= 0
-                     and DfuUtil.match_vendor != dev.idVendor) or
-                        (DfuUtil.match_product >= 0
-                         and DfuUtil.match_product != dev.idProduct)):
+                if (
+                    DfuUtil.match_vendor >= 0 and DfuUtil.match_vendor != dev.idVendor
+                ) or (
+                    DfuUtil.match_product >= 0
+                    and DfuUtil.match_product != dev.idProduct
+                ):
                     continue
 
             if DfuUtil.match_dev_num >= 0 and DfuUtil.match_dev_num != dev.address:
@@ -288,7 +310,7 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
                     if quirks & QUIRK.UTF8_SERIAL:
                         serial_name = usb.util.get_string(dev, dev.iSerialNumber)
                         if serial_name:
-                            serial_name += '0'
+                            serial_name += "0"
                     else:
                         serial_name = usb.util.get_string(dev, dev.iSerialNumber)
                 except USBError as e:
@@ -299,17 +321,22 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
             if not serial_name:
                 serial_name = "UNKNOWN"
 
-            if (dfu_mode
-                    and DfuUtil.match_iface_alt_name is not None
-                    and alt_name != DfuUtil.match_iface_alt_name):
+            if (
+                dfu_mode
+                and DfuUtil.match_iface_alt_name is not None
+                and alt_name != DfuUtil.match_iface_alt_name
+            ):
                 continue
 
             if dfu_mode:
-                if (DfuUtil.match_serial_dfu is not None
-                        and DfuUtil.match_serial_dfu != serial_name):
+                if (
+                    DfuUtil.match_serial_dfu is not None
+                    and DfuUtil.match_serial_dfu != serial_name
+                ):
                     continue
-            elif (DfuUtil.match_serial is not None
-                  and DfuUtil.match_serial != serial_name):
+            elif (
+                DfuUtil.match_serial is not None and DfuUtil.match_serial != serial_name
+            ):
                 continue
 
             pdfu = DfuIf(
@@ -331,8 +358,9 @@ def _found_dfu(dev: usb.core.Device, cfg: usb.core.Configuration, func_dfu: Func
 
             pdfu.flags |= dfu.IFF.DFU if dfu_mode else 0
             pdfu.flags |= dfu.IFF.ALT if multiple_alt else 0
-            func_dfu.bcdDFUVersion = (0x0110 if quirks & QUIRK.FORCE_DFU11
-                                      else func_dfu.bcdDFUVersion)
+            func_dfu.bcdDFUVersion = (
+                0x0110 if quirks & QUIRK.FORCE_DFU11 else func_dfu.bcdDFUVersion
+            )
 
             # append to list
             if DfuUtil.dfu_root is None:
@@ -353,13 +381,15 @@ def probe_configuration(dev: usb.core.Device) -> None:
         raise _IOError(e) from e
 
     for cfg in cfgs:
-
-        if (DfuUtil.match_config_index > -1
-                and DfuUtil.match_config_index != cfg.bConfigurationValue):
+        if (
+            DfuUtil.match_config_index > -1
+            and DfuUtil.match_config_index != cfg.bConfigurationValue
+        ):
             continue
 
-        if ret := find_descriptor(cfg.extra_descriptors, USB_DT_DFU,
-                                  bytearray(USB_DT_DFU_SIZE)):
+        if ret := find_descriptor(
+            cfg.extra_descriptors, USB_DT_DFU, bytearray(USB_DT_DFU_SIZE)
+        ):
             func_dfu = FuncDescriptor.from_bytes(ret)
             _found_dfu(dev, cfg, func_dfu)
             continue
@@ -374,12 +404,12 @@ def probe_configuration(dev: usb.core.Device) -> None:
             for alt in get_altsettings(cfg, uif.bInterfaceNumber):
                 intf = alt
 
-                if intf.bInterfaceClass != 0xfe or intf.bInterfaceSubClass != 1:
+                if intf.bInterfaceClass != 0xFE or intf.bInterfaceSubClass != 1:
                     continue
 
-                if ret := find_descriptor(intf.extra_descriptors,
-                                          USB_DT_DFU,
-                                          bytearray(USB_DT_DFU_SIZE)):
+                if ret := find_descriptor(
+                    intf.extra_descriptors, USB_DT_DFU, bytearray(USB_DT_DFU_SIZE)
+                ):
                     func_dfu = FuncDescriptor.from_bytes(ret)
                     # goto found_dfu
                     _found_dfu(dev, cfg, func_dfu)
@@ -408,34 +438,32 @@ def probe_configuration(dev: usb.core.Device) -> None:
                 continue
             except USBError as e:
                 _logger.debug(e)
-            _logger.warning("Device has DFU interface, "
-                            "but has no DFU functional descriptor")
+            _logger.warning(
+                "Device has DFU interface, but has no DFU functional descriptor"
+            )
 
             # fake version 1.0
-            func_dfu = FuncDescriptor(
-                bLength=7,
-                bcdDFUVersion=0x0100
-            )
+            func_dfu = FuncDescriptor(bLength=7, bcdDFUVersion=0x0100)
 
             # goto found_dfu
             _found_dfu(dev, cfg, func_dfu)
 
 
 __all__ = (
-    'IFF',
-    'DfuUtil',
-    'MAX_DESC_STR_LEN',
-    'probe_devices',
-    'disconnect_devices',
-    'print_dfu_if',
-    'list_dfu_interfaces',
+    "IFF",
+    "DfuUtil",
+    "MAX_DESC_STR_LEN",
+    "probe_devices",
+    "disconnect_devices",
+    "print_dfu_if",
+    "list_dfu_interfaces",
 )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import logging
 
     _logger.setLevel(logging.DEBUG)
-    _ctx = usb.core.find(find_all=True, idVendor=0x1fc9)
+    _ctx = usb.core.find(find_all=True, idVendor=0x1FC9)
     probe_devices(_ctx)
     list_dfu_interfaces()
     disconnect_devices()

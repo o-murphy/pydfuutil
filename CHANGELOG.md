@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Removed
+- Dropped support for Python ≤3.9. `requires-python` is now `>=3.10`; trove classifiers and
+  `uv.lock` resolution markers for 3.9 have been removed accordingly.
+
+### Changed
+- Modernized type hints across the codebase, enabled by the Python 3.10 floor:
+  `Optional[X]`/`Union[X, Y]` → `X | None`/`X | Y` (`dfu.py`, `dfu_file.py`, `dfu_util.py`,
+  `dfuse.py`, `dfuse_mem.py`, `exceptions.py`, `lsusb.py`, `progress.py`, `__main__.py`,
+  `usb_dfu.py`, `quirks.py`, `usb-stubs/core.pyi`, `usb-stubs/util.pyi`); `typing.Generator`/
+  `Callable`/`Iterable`/`Iterator` (PEP 585, deprecated aliases of the `collections.abc` ABCs)
+  → `collections.abc` (`dfu_util.py`, `lsusb.py`, `dfuse_mem.py`, `usb-stubs/core.pyi`,
+  `usb-stubs/util.pyi`, `usb-stubs/backend/libusb1.pyi`).
+- Added `from __future__ import annotations` (PEP 563) to every module in `pydfuutil/`, and
+  dropped the now-unnecessary quotes on self-referencing forward-ref annotations
+  (`DfuIf.next` in `dfu.py`; `MemSegment.next`/`from_bytes`/`append`/`find` in `dfuse_mem.py`;
+  `FuncDescriptor.from_bytes` in `usb_dfu.py`, also dropping its `# noqa: F821`).
+- Bumped dev dependencies (`pytest`, `ty`, `pre-commit`) and regenerated `uv.lock`.
+- Reformatted the codebase and `usb-stubs/` with the current `ruff` (double-quote strings,
+  uppercase hex literals, updated line-wrapping).
+
+### Fixed
+- `dfuse_mem.py`/`dfu.py`: `MemSegment`/`DfuIf.next` self-referencing type hints were written as
+  `"ClassName" | None` — a string literal `|`'d with `None`, which is invalid at runtime and broke
+  both `ty` and every test importing `pydfuutil.dfu` under Python 3.14's dataclass annotation
+  evaluation. Fixed by quoting the whole union (`"ClassName | None"`).
 
 ## [0.11.0] - 2026-07-11
 

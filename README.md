@@ -1,6 +1,8 @@
 # PyDfuUtil - Pure python fork of **[dfu-util](https://dfu-util.sourceforge.net/)** wrappers to **[libusb](https://github.com/libusb/libusb)**
 
+![GitHub License](https://img.shields.io/github/license/o-murphy/pydfuutil)
 [![PyPI Version](https://img.shields.io/pypi/v/pydfuutil?label=PyPI&logo=pypi)](https://pypi.org/project/pydfuutil/)
+![PyPI Python Version](https://img.shields.io/pypi/pyversions/pydfuutil)
 
 ## Table of contents
 * **[Introduction](#introduction)**

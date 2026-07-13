@@ -48,7 +48,8 @@ get_string - retrieve a string descriptor from the device.
 __author__ = "Wander Lairson Costa"
 
 import array
-from typing import Optional, Union, Generator, Any, Callable, Tuple
+from collections.abc import Generator, Callable
+from typing import Any
 
 import usb.core
 
@@ -144,7 +145,7 @@ def build_request_type(direction: int, type: int, recipient: int):
     Return the bmRequestType value.
     """
 
-def create_buffer(length: Union[bytes, bytearray]) -> array.array:
+def create_buffer(length: bytes | bytearray) -> array.array:
     r"""Create a buffer to be passed to a read function.
 
     A read function may receive an out buffer so the data
@@ -155,14 +156,12 @@ def create_buffer(length: Union[bytes, bytearray]) -> array.array:
     """
 
 def find_descriptor(
-    desc: Union[
-        usb.core.Device,
-        usb.core.Interface,
-        usb.core.Configuration,
-        usb.core.Endpoint,
-    ],
+    desc: usb.core.Device
+    | usb.core.Interface
+    | usb.core.Configuration
+    | usb.core.Endpoint,
     find_all: bool = False,
-    custom_match: Optional[Callable[[Any], bool]] = None,
+    custom_match: Callable[[Any], bool] | None = None,
     **args,
 ) -> Generator[Any, None, None]:
     r"""Find an inner descriptor.
@@ -182,7 +181,7 @@ def find_descriptor(
     """
 
 def claim_interface(
-    device: usb.core.Device, interface: Union[usb.core.Interface, int]
+    device: usb.core.Device, interface: usb.core.Interface | int
 ) -> None:
     r"""Explicitly claim an interface.
 
@@ -196,7 +195,7 @@ def claim_interface(
     """
 
 def release_interface(
-    device: usb.core.Device, interface: Union[usb.core.Interface, int]
+    device: usb.core.Device, interface: usb.core.Interface | int
 ) -> None:
     r"""Explicitly release an interface.
 
@@ -223,7 +222,7 @@ def dispose_resources(device: usb.core.Device) -> None:
     will be allocated automatically.
     """
 
-def get_langids(dev: usb.core.Device) -> Tuple[int]:
+def get_langids(dev: usb.core.Device) -> tuple[int]:
     r"""Retrieve the list of supported Language IDs from the device.
 
     Most client code should not call this function directly, but instead use
@@ -252,7 +251,7 @@ def get_langids(dev: usb.core.Device) -> Tuple[int]:
     of directly calling this function.
     """
 
-def get_string(dev: usb.core.Device, index: int, langid: Optional[int] = None) -> str:
+def get_string(dev: usb.core.Device, index: int, langid: int | None = None) -> str:
     r"""Retrieve a string descriptor from the device.
 
     dev is the Device object which the string will be read from.
