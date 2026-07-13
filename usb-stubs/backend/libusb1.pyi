@@ -33,7 +33,7 @@ r"""usb.backend.libusb1 - libusb 1.x backend
 Minimal stub covering the symbols used by pydfuutil.
 """
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from usb.backend import IBackend
 
@@ -41,5 +41,5 @@ LIBUSB_ERROR_PIPE: int
 
 def _strerror(errcode: int) -> str: ...
 def get_backend(
-    find_library: Optional[Callable[[str], Optional[str]]] = None,
-) -> Optional[IBackend]: ...
+    find_library: Callable[[str], str | None] | None = None,
+) -> IBackend | None: ...

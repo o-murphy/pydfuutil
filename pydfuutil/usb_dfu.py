@@ -21,10 +21,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
+from __future__ import annotations
+
 import struct
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
-from typing import Union
 
 
 import usb.util
@@ -52,7 +53,7 @@ class FuncDescriptor:
 
     bLength: int = 0
     bDescriptorType: int = 0
-    bmAttributes: Union[BmAttributes, int] = 0
+    bmAttributes: BmAttributes | int = 0
     wDetachTimeOut: int = 0
     wTransferSize: int = 0
     bcdDFUVersion: int = 0
@@ -69,7 +70,7 @@ class FuncDescriptor:
         )
 
     @staticmethod
-    def from_bytes(data: Union[bytes, bytearray]) -> "FuncDescriptor":  # noqa: F821
+    def from_bytes(data: bytes | bytearray) -> FuncDescriptor:
         """parse bytes to a FuncDescriptor"""
         func_dfu = FuncDescriptor()
         (

@@ -7,12 +7,12 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.14"]
 
     steps:
       - uses: actions/checkout@v7
@@ -28,6 +28,7 @@ jobs:
         run: uv sync --dev
 
       - name: Run unittest tests in pure python mode
+        shell: bash
         run: |
           if uv run pytest tests --no-header --no-summary -v; then
             echo "Pytest succeeded."

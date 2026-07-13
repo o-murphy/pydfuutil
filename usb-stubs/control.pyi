@@ -64,7 +64,6 @@ __all__ = [
 ]
 
 import array
-from typing import Union, Tuple, Optional
 
 import usb.core
 import usb.util as util
@@ -73,8 +72,8 @@ import usb.core as core
 USBError = core.USBError
 
 def _parse_recipient(
-    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]], direction: int
-) -> Tuple[int, int]: ...
+    recipient: usb.core.Interface | usb.core.Endpoint | None, direction: int
+) -> tuple[int, int]: ...
 
 # standard feature selectors from USB 2.0/3.0
 ENDPOINT_HALT = 0
@@ -86,7 +85,7 @@ LTM_ENABLE = 50
 
 def get_status(
     dev: usb.core.Device,
-    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None,
+    recipient: usb.core.Interface | usb.core.Endpoint | None = None,
 ) -> int:
     r"""Return the status for the specified recipient.
 
@@ -109,7 +108,7 @@ def get_status(
 def clear_feature(
     dev: usb.core.Device,
     feature: int,
-    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None,
+    recipient: usb.core.Interface | usb.core.Endpoint | None = None,
 ) -> None:
     r"""Clear/disable a specific feature.
 
@@ -125,7 +124,7 @@ def clear_feature(
 def set_feature(
     dev: usb.core.Device,
     feature: int,
-    recipient: Optional[Union[usb.core.Interface, usb.core.Endpoint]] = None,
+    recipient: usb.core.Interface | usb.core.Endpoint | None = None,
 ):
     r"""Set/enable a specific feature.
 
@@ -144,7 +143,7 @@ def get_descriptor(
     desc_type: int,
     desc_index: int,
     wIndex: int = 0,
-) -> Union[int, array.array]:
+) -> int | array.array:
     r"""Return the specified descriptor.
 
     dev is the Device object to which the request will be
@@ -179,10 +178,10 @@ def get_descriptor(
 
 def set_descriptor(
     dev: usb.core.Device,
-    desc: Union[int, bytes, bytearray],
+    desc: int | bytes | bytearray,
     desc_type: int,
     desc_index: int,
-    wIndex: Optional[int] = None,
+    wIndex: int | None = None,
 ) -> None:
     r"""Update an existing descriptor or add a new one.
 
@@ -196,7 +195,7 @@ def set_descriptor(
     it is zero.
     """
 
-def get_configuration(dev: usb.core.Device) -> Union[int, bytes]:
+def get_configuration(dev: usb.core.Device) -> int | bytes:
     r"""Get the current active configuration of the device.
 
     dev is the Device object to which the request will be
@@ -214,7 +213,7 @@ def set_configuration(dev: usb.core.Device, bConfigurationNumber: int) -> None:
     sent to.
     """
 
-def get_interface(dev: usb.core.Device, bInterfaceNumber: int) -> Union[int, bytes]:
+def get_interface(dev: usb.core.Device, bInterfaceNumber: int) -> int | bytes:
     r"""Get the current alternate setting of the interface.
 
     dev is the Device object to which the request will be
