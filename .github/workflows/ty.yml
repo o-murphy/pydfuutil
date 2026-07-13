@@ -21,5 +21,5 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      - name: Run unittest tests in pure python mode
+      - name: Run ty check
         run: uv run ty check
