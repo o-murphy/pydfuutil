@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.11.1] - 2026-07-13
+
 ### Removed
 - Dropped support for Python ≤3.9. `requires-python` is now `>=3.10`; trove classifiers and
   `uv.lock` resolution markers for 3.9 have been removed accordingly.
@@ -212,7 +215,8 @@ No changes since [0.11.0b2], stable release
   transfers), `dfu_load.py` upload/download routines with parallel-read support, USB device
   reconnection by port number, and PyPI packaging.
 
-[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b2...v0.11.0
 [0.11.0b2]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b1...v0.11.0b2
 [0.11.0b1]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b0...v0.11.0b1
