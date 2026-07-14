@@ -28,7 +28,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["libusb-package>=1.0.30.0", "pyusb>=1.3.1"]
+dependencies = ["pyusb>=1.3.1"]
 dynamic = ["version"]
 
 [project.urls]
@@ -41,13 +41,15 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.15.21",
     "ty>=0.0.59",
-    "rich",
-    "tqdm",
     "pre-commit>=4.6.0",
+    "rich>=15.0.0",
+    "tqdm>=4.68.4",
+    "libusb-package>=1.0.30.0",
 ]
 
 [project.optional-dependencies]
-rich = ["rich"]
+rich = ["rich>=15.0.0"]
+libusb = ["libusb-package>=1.0.30.0"]
 
 [tool.setuptools]
 py-modules = ["pydfuutil"]

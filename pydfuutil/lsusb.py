@@ -28,7 +28,7 @@ import usb._lookup as _lu
 import usb.core
 import usb.util
 from usb.core import _try_lookup
-from pydfuutil import __copyright__
+from pydfuutil import __copyright__, DEFAULT_BACKEND
 from pydfuutil.logger import logger
 from pydfuutil.exceptions import except_and_safe_exit, Errx
 
@@ -241,7 +241,7 @@ def iter_devices(
     def custom_match(dev):
         return device_find_filter(dev, vid, pid, bus, address)
 
-    return usb.core.find(find_all=True, custom_match=custom_match)
+    return usb.core.find(find_all=True, custom_match=custom_match, backend=DEFAULT_BACKEND)
 
 
 def sym_unix_dev_tree(

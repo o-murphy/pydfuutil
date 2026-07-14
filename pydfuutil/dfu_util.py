@@ -29,7 +29,7 @@ import usb.util
 from usb.core import USBError
 from usb.legacy import DT_CONFIG, DT_CONFIG_SIZE
 
-from pydfuutil import dfu
+from pydfuutil import dfu, DEFAULT_BACKEND
 from pydfuutil.dfu import DfuIf, IFF
 from pydfuutil.exceptions import _IOError
 from pydfuutil.logger import logger
@@ -463,7 +463,7 @@ if __name__ == "__main__":
     import logging
 
     _logger.setLevel(logging.DEBUG)
-    _ctx = usb.core.find(find_all=True, idVendor=0x1FC9)
+    _ctx = usb.core.find(find_all=True, idVendor=0x1FC9, backend=DEFAULT_BACKEND)
     probe_devices(_ctx)
     list_dfu_interfaces()
     disconnect_devices()
