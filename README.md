@@ -28,6 +28,9 @@
 system for Python 3.
 * **PyDFUUtil** is an open realisation of original **[dfu-util](https://dfu-util.sourceforge.net/)**
 and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[PyUsb](https://github.com/pyusb/pyusb)** library as a backend)_.
+* Tracks the **master** branch of the upstream **[dfu-util](https://git.code.sf.net/p/dfu-util/dfu-util)**
+C sources for feature/behavioral parity — see [docs/SYNC_WITH_C_UPSTREAM_BACKLOG.md](docs/SYNC_WITH_C_UPSTREAM_BACKLOG.md)
+for the itemized audit against it.
 
 > [!WARNING]
 > Use it for your own risk
@@ -43,6 +46,10 @@ and thin wrapper over **[libusb](https://github.com/libusb/libusb)** _(uses **[P
 * Since **PyDFUUtil** uses the **[libusb](https://github.com/libusb/libusb)** library it has similar dependencies for using **[libusb](https://github.com/libusb/libusb)**
 * **PyDFUUtil** primarily tested on Linux and Windows, 
 but also can work on each platform where **[PyUsb](https://github.com/construct/construct)** library are available, including MacOS
+* **[libusb-package](https://github.com/pyocd/libusb-package)** (a bundled, platform-independent
+`libusb` binary) is an *optional* dependency, installed via the `libusb` extra
+(`pip install pydfuutil[libusb]`). Install it on platforms that don't already provide a system
+`libusb`; otherwise **PyDFUUtil** falls back to **PyUsb**'s own system `libusb` search.
 
 
 ## Installing

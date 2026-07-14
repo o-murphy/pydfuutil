@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-07-14
+
+### Changed
+- `libusb-package` is no longer a hard runtime dependency — it moved to the optional `libusb`
+  extra (`pip install pydfuutil[libusb]`). Platforms that already ship a system `libusb` no longer
+  need to pull in the bundled binary; `pydfuutil.DEFAULT_BACKEND` resolves to it when installed and
+  falls back to pyusb's own system search (`DEFAULT_BACKEND = None`) otherwise. `__main__.py`,
+  `dfu_util.py`, and `lsusb.py` now thread this resolved backend through every `usb.core.find()`
+  call so they all go through the same loaded libusb instance instead of letting pyusb re-resolve
+  it independently each time.
+- `dfu_file.py`: CRC32 computation (`_load_file`'s suffix check, `_write_crc`) now delegates to a
+  new `_crc32_buf()` helper backed by `zlib.crc32` instead of looping `crc32_byte()` in pure Python
+  — ~250-500x faster on real firmware-sized buffers, bit-identical output. Accepts
+  `bytes`/`bytearray`/`memoryview` and operates on a `memoryview` slice of the firmware buffer to
+  avoid copying it. `crc32_byte()` is kept as the documented reference implementation.
+
+### Fixed
+- `pydfuutil/__init__.py`: a non-`ImportError` failure while resolving the `libusb_package`
+  backend (e.g. `OSError` from a broken bundled binary) no longer crashes the whole package import;
+  it's now caught and logged, falling back to `DEFAULT_BACKEND = None`.
+- `ty` CI (`ty.yml`) failed on a clean `uv sync --dev` because `libusb_package` (now optional at
+  runtime) wasn't resolvable in the type-checking environment; added it to the `dev` dependency
+  group so `ty` can still resolve the import without making it a runtime requirement.
+
 ## [0.11.1] - 2026-07-13
 
 ### Removed
@@ -215,7 +239,8 @@ No changes since [0.11.0b2], stable release
   transfers), `dfu_load.py` upload/download routines with parallel-read support, USB device
   reconnection by port number, and PyPI packaging.
 
-[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.2...HEAD
+[0.11.2]: https://github.com/o-murphy/pydfuutil/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b2...v0.11.0
 [0.11.0b2]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b1...v0.11.0b2
