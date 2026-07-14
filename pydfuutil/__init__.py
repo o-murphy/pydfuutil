@@ -38,7 +38,13 @@ try:
     import libusb_package
     from usb.backend import libusb1
 
-    DEFAULT_BACKEND = libusb1.get_backend(find_library=libusb_package.find_library)
+    try:
+        DEFAULT_BACKEND = libusb1.get_backend(find_library=libusb_package.find_library)
+    except Exception as e:
+        _logger.warning(
+            f"Failed to load libusb backend via libusb_package: {e}. "
+            "Falling back to pyusb's own system search."
+        )
     if DEFAULT_BACKEND is None:
         _logger.warning(
             "libusb_package is installed but no bundled libusb library was "

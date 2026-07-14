@@ -7,6 +7,7 @@ Reproduces the original bug by simulating `import libusb_package` raising
 ImportError, and asserts the package still imports and falls back to
 DEFAULT_BACKEND = None (pyusb's own system-libusb discovery).
 """
+
 import builtins
 import importlib
 import sys

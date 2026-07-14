@@ -172,17 +172,20 @@ wheels = [
 name = "pydfuutil"
 source = { editable = "." }
 dependencies = [
-    { name = "libusb-package" },
     { name = "pyusb" },
 ]
 
 [package.optional-dependencies]
+libusb = [
+    { name = "libusb-package" },
+]
 rich = [
     { name = "rich" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "libusb-package" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "rich" },
@@ -193,19 +196,20 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "libusb-package", specifier = ">=1.0.30.0" },
+    { name = "libusb-package", marker = "extra == 'libusb'", specifier = ">=1.0.30.0" },
     { name = "pyusb", specifier = ">=1.3.1" },
-    { name = "rich", marker = "extra == 'rich'" },
+    { name = "rich", marker = "extra == 'rich'", specifier = ">=15.0.0" },
 ]
-provides-extras = ["rich"]
+provides-extras = ["rich", "libusb"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "libusb-package", specifier = ">=1.0.30.0" },
     { name = "pre-commit", specifier = ">=4.6.0" },
     { name = "pytest", specifier = ">=9.1.1" },
-    { name = "rich" },
+    { name = "rich", specifier = ">=15.0.0" },
     { name = "ruff", specifier = ">=0.15.21" },
-    { name = "tqdm" },
+    { name = "tqdm", specifier = ">=4.68.4" },
     { name = "ty", specifier = ">=0.0.59" },
 ]
 

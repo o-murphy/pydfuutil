@@ -11,6 +11,7 @@ Guards against two failure modes:
 2. Performance regression: if someone reverts to a Python-level loop in
    the hot path, this test will start failing the speedup assertion.
 """
+
 import random
 import time
 import unittest
@@ -41,8 +42,9 @@ class TestCrc32BufCorrectness(unittest.TestCase):
             expected = _reference_loop(0xFFFFFFFF, buf)
             actual = _crc32_buf(0xFFFFFFFF, buf)
             self.assertEqual(
-                actual, expected,
-                msg=f"mismatch at size={size}: expected=0x{expected:08X} actual=0x{actual:08X}"
+                actual,
+                expected,
+                msg=f"mismatch at size={size}: expected=0x{expected:08X} actual=0x{actual:08X}",
             )
 
     def test_arbitrary_starting_accumulator(self):
@@ -55,8 +57,9 @@ class TestCrc32BufCorrectness(unittest.TestCase):
             expected = _reference_loop(accum, buf)
             actual = _crc32_buf(accum, buf)
             self.assertEqual(
-                actual, expected,
-                msg=f"mismatch at accum=0x{accum:08X}: expected=0x{expected:08X} actual=0x{actual:08X}"
+                actual,
+                expected,
+                msg=f"mismatch at accum=0x{accum:08X}: expected=0x{expected:08X} actual=0x{actual:08X}",
             )
 
     def test_chunked_matches_one_shot(self):
@@ -75,13 +78,15 @@ class TestCrc32BufCorrectness(unittest.TestCase):
         crc_old = 0xFFFFFFFF
         crc_new = 0xFFFFFFFF
         for i in range(0, len(data), chunk_size):
-            piece = data[i:i + chunk_size]
+            piece = data[i : i + chunk_size]
             crc_old = _reference_loop(crc_old, piece)
             crc_new = _crc32_buf(crc_new, piece)
 
         self.assertEqual(crc_old, one_shot_old, "old loop: chunking changed the result")
         self.assertEqual(crc_new, one_shot_new, "new impl: chunking changed the result")
-        self.assertEqual(crc_new, crc_old, "new impl diverges from old loop when chunked")
+        self.assertEqual(
+            crc_new, crc_old, "new impl diverges from old loop when chunked"
+        )
 
     def test_structured_data(self):
         """Repetitive/structured bytes (closer to real firmware than pure
@@ -105,7 +110,9 @@ class TestCrc32BufPerformance(unittest.TestCase):
 
     def test_speedup_on_realistic_firmware_size(self):
         random.seed(7)
-        buf = random.randbytes(1_000_000)  # 1 MB, typical firmware-image order of magnitude
+        buf = random.randbytes(
+            1_000_000
+        )  # 1 MB, typical firmware-image order of magnitude
 
         t0 = time.perf_counter()
         expected = _reference_loop(0xFFFFFFFF, buf)
@@ -120,10 +127,11 @@ class TestCrc32BufPerformance(unittest.TestCase):
         speedup = old_time / new_time if new_time > 0 else float("inf")
 
         self.assertGreater(
-            speedup, self.MIN_EXPECTED_SPEEDUP,
+            speedup,
+            self.MIN_EXPECTED_SPEEDUP,
             msg=f"expected >{self.MIN_EXPECTED_SPEEDUP}x speedup, got {speedup:.1f}x "
-                f"(old={old_time:.4f}s new={new_time:.6f}s) — "
-                f"did the hot path regress to a pure-Python loop?"
+            f"(old={old_time:.4f}s new={new_time:.6f}s) — "
+            f"did the hot path regress to a pure-Python loop?",
         )
 
 

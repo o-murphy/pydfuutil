@@ -385,7 +385,7 @@ def crc32_byte(accum: int, delta: int):
     return crc32_table[(accum ^ delta) & 0xFF] ^ (accum >> 8)
 
 
-def _crc32_buf(accum: int, buf: bytes | bytearray) -> int:
+def _crc32_buf(accum: int, buf: bytes | bytearray | memoryview) -> int:
     """Fast, bit-identical replacement for looping ``crc32_byte`` over ``buf``.
 
     dfu-util's CRC convention keeps the raw LFSR register (no final
@@ -396,7 +396,7 @@ def _crc32_buf(accum: int, buf: bytes | bytearray) -> int:
     buffer or repeatedly over successive chunks starting from the
     previous call's returned value.
     """
-    return zlib.crc32(bytes(buf), accum ^ 0xFFFFFFFF) ^ 0xFFFFFFFF
+    return zlib.crc32(buf, accum ^ 0xFFFFFFFF) ^ 0xFFFFFFFF
 
 
 def _probe_prefix(file: DfuFile):
@@ -483,7 +483,7 @@ def _load_file(file: DfuFile, check_suffix: SuffixReq, check_prefix: PrefixReq) 
         dfu_suffix = file.firmware[-DFU_SUFFIX_LENGTH:]
         file.dwCRC = struct.unpack("<I", dfu_suffix[12:])[0]
 
-        crc = _crc32_buf(0xFFFFFFFF, file.firmware[:-4])
+        crc = _crc32_buf(0xFFFFFFFF, memoryview(file.firmware)[:-4])
 
         if dfu_suffix[8:11] != b"UFD":
             reason = "Invalid DFU suffix signature"
