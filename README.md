@@ -1,8 +1,9 @@
 # PyDfuUtil - Pure python fork of **[dfu-util](https://dfu-util.sourceforge.net/)** wrappers to **[libusb](https://github.com/libusb/libusb)**
 
-![GitHub License](https://img.shields.io/github/license/o-murphy/pydfuutil)
-[![PyPI Version](https://img.shields.io/pypi/v/pydfuutil?label=PyPI&logo=pypi)](https://pypi.org/project/pydfuutil/)
-![PyPI Python Version](https://img.shields.io/pypi/pyversions/pydfuutil)
+![license]
+[![pypi]][PyPiUrl]
+![py-versions]
+[![coverage]][CodecovUrl]
 
 ## Table of contents
 * **[Introduction](#introduction)**
@@ -337,4 +338,25 @@ other devices.
 ## Footnotes
 * On systems that still default to Python 2, replace python with python3
 * Project is in develop, it fulls issues not according to original **[dfu-util](https://github.com/Stefan-Schmidt/dfu-util)**!
+
+
+<!-- REUSABLE LINKS -->
+
+[license]:
+https://img.shields.io/github/license/o-murphy/pydfuutil
+
+[pypi]:
+https://img.shields.io/pypi/v/pydfuutil?label=PyPI&logo=pypi
+
+[PyPiUrl]:
+https://pypi.org/project/pydfuutil/
+
+[py-versions]:
+https://img.shields.io/pypi/pyversions/pydfuutil
+
+[coverage]:
+https://codecov.io/gh/o-murphy/pydfuutil/graph/badge.svg
+
+[CodecovUrl]:
+https://codecov.io/gh/o-murphy/pydfuutil
 

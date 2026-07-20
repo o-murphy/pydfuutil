@@ -37,3 +37,16 @@ jobs:
             # Add your additional commands here
             uv run pytest tests -v
           fi
+
+      - name: Run coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+        run: uv run pytest tests --cov=pydfuutil --cov-report=xml
+        shell: bash
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: true
