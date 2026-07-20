@@ -6,3 +6,9 @@
 **/dist
 **/*.egg-info
 **/.venv
+
+# Coverage
+.coverage*
+coverage.json
+**/coverage.xml
+htmlcov
