@@ -75,7 +75,7 @@ def calls_c_functions(func, seen=None):
         "math",
     ]
 
-    for name, module in func.__globals__.items():
+    for module in func.__globals__.values():
         if hasattr(module, "__file__") and module.__file__.endswith(".pyd"):
             return True  # Функція викликає функції з модуля C
         if hasattr(module, "__name__") and module.__name__ in c_modules:
@@ -84,15 +84,20 @@ def calls_c_functions(func, seen=None):
     seen.add(func)
 
     # Інспектуємо внутрішні функції
-    for name, inner_func in func.__globals__.items():
-        if inspect.isfunction(inner_func) and inner_func not in seen:
-            if calls_c_functions(inner_func, seen):
-                return True
+    for inner_func in func.__globals__.values():
+        if (
+            inspect.isfunction(inner_func)
+            and inner_func not in seen
+            and calls_c_functions(inner_func, seen)
+        ):
+            return True
 
     return False  # Функція не викликає C-функції
 
 
-def get_exceptions(func, ids=set()):
+def get_exceptions(func, ids=None):
+    if ids is None:
+        ids = set()
     try:
         vars = ChainMap(*(dict(m) for m in inspect.getclosurevars(func)[:3]))
         source = dedent(inspect.getsource(func))
@@ -138,7 +143,7 @@ def get_exceptions(func, ids=set()):
                 yield func.__name__, n, vars[name]
 
     for o in v.other:
-        yield from get_exceptions(o)
+        yield from get_exceptions(o, ids)
 
 
 # # Get exceptions raised by the function

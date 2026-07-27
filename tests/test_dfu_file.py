@@ -3,7 +3,7 @@ import os.path
 import unittest
 from unittest.mock import patch
 
-from pydfuutil.dfu_file import crc32_byte, DfuFile, PrefixReq, PrefixType, SuffixReq
+from pydfuutil.dfu_file import DfuFile, PrefixReq, PrefixType, SuffixReq, crc32_byte
 from pydfuutil.exceptions import Errx, _IOError
 
 
@@ -83,31 +83,27 @@ class TestLoadFile(unittest.TestCase):
         self.assertEqual(file.idProduct, 0xFFFF)
         self.assertEqual(file.bcdDevice, 0xFFFF)
 
-    @patch("builtins.open", side_effect=IOError(errno.ENOENT, "File not found"))
+    @patch("builtins.open", side_effect=OSError(errno.ENOENT, "File not found"))
     def test_load_file_file_not_found(self, mock_open):
-        with self.assertRaises(SystemExit):
-            with self.assertRaises(Errx):
-                self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+        with self.assertRaises(SystemExit), self.assertRaises(Errx):
+            self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
-    @patch("builtins.open", side_effect=IOError(errno.EACCES, "Permission denied"))
+    @patch("builtins.open", side_effect=OSError(errno.EACCES, "Permission denied"))
     def test_load_file_permission_denied(self, mock_open):
-        with self.assertRaises(SystemExit):
-            with self.assertRaises(Errx):
-                self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+        with self.assertRaises(SystemExit), self.assertRaises(Errx):
+            self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
-    @patch("builtins.open", side_effect=IOError("Other error"))
+    @patch("builtins.open", side_effect=OSError("Other error"))
     def test_load_file_other_io_error(self, mock_open):
-        with self.assertRaises(SystemExit):
-            with self.assertRaises(Errx):
-                self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
+        with self.assertRaises(SystemExit), self.assertRaises(Errx):
+            self.file.load(SuffixReq.NO_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts size automatically")
     def test_load_file_short_suffix(self):
         self.file.size.total = 5
         self.file.size.suffix = 10
-        with self.assertRaises(SystemExit):
-            with self.assertRaises(Errx):
-                self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
+        with self.assertRaises(SystemExit), self.assertRaises(Errx):
+            self.file.load(SuffixReq.NEEDS_SUFFIX, PrefixReq.NO_PREFIX)
 
     @unittest.skip("load_file adjusts firmware and size automatically")
     def test_load_file_invalid_suffix_signature(self):
@@ -154,13 +150,13 @@ class TestStoreFile(unittest.TestCase):
         self.assertEqual(data[8:11], b"UDF")
 
     @unittest.skip("exits with err code instead of raising exception")
-    @patch("builtins.open", side_effect=IOError(errno.ENOENT, "File not found"))
+    @patch("builtins.open", side_effect=OSError(errno.ENOENT, "File not found"))
     def test_store_file_file_not_found(self, mock_open_file):
         with self.assertRaises(_IOError):
             self.file.dump(write_suffix=True, write_prefix=True)
 
     @unittest.skip("exits with err code instead of raising exception")
-    @patch("builtins.open", side_effect=IOError(errno.EACCES, "Permission denied"))
+    @patch("builtins.open", side_effect=OSError(errno.EACCES, "Permission denied"))
     def test_store_file_permission_denied(self, mock_open_file):
         with self.assertRaises(_IOError):
             self.file.dump(write_suffix=True, write_prefix=True)

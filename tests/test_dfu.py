@@ -1,7 +1,8 @@
-import unittest
-from pydfuutil import dfu
-from unittest.mock import patch, MagicMock
 import array
+import unittest
+from unittest.mock import MagicMock, patch
+
+from pydfuutil import dfu
 
 
 class TestDfu(unittest.TestCase):

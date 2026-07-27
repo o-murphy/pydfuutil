@@ -2,9 +2,8 @@ import unittest
 from time import sleep
 
 from pydfuutil.progress import (
-    TQDM_PROGRESS,
     RICH_PROGRESS,
-    AbstractProgressBackend,
+    TQDM_PROGRESS,
     AsciiBackend,
     NoProgressBarBackend,
     Progress,
@@ -77,15 +76,14 @@ class TestDfuProgress(unittest.TestCase):
 
     def test_exception(self):
         i = 10
-        with self.assertRaises(Exception):
-            with Progress(AbstractProgressBackend) as prog:
-                prog.start_task(description="OnError", total=i)
-                while i >= 1:
-                    sleep(0.1)
-                    prog.update(advance=1)
-                    i -= 1
-                    if i == 5:
-                        raise Exception("Something went wrong")
+        with self.assertRaises(RuntimeError), Progress(AsciiBackend) as prog:
+            prog.start_task(description="OnError", total=i)
+            while i >= 1:
+                sleep(0.1)
+                prog.update(advance=1)
+                i -= 1
+                if i == 5:
+                    raise RuntimeError("Something went wrong")
 
 
 if __name__ == "__main__":

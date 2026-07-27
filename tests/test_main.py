@@ -1,4 +1,5 @@
 import unittest
+
 from pydfuutil.__main__ import main
 
 
@@ -21,7 +22,7 @@ class TestMain(unittest.TestCase):
 
     @unittest.skip("Already implemented")
     def test_main_upload(self):
-        argv = "-U test.bin -t 2048 -y".split(" ")
+        argv = ["-U", "test.bin", "-t", "2048", "-y"]
         main(argv)
 
 

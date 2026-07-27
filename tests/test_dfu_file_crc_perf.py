@@ -16,7 +16,7 @@ import random
 import time
 import unittest
 
-from pydfuutil.dfu_file import crc32_byte, _crc32_buf
+from pydfuutil.dfu_file import _crc32_buf, crc32_byte
 
 
 def _reference_loop(accum: int, buf: bytes) -> int:
