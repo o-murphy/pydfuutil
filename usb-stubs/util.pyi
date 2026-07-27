@@ -45,58 +45,58 @@ get_langids - retrieve the list of supported string languages from the device.
 get_string - retrieve a string descriptor from the device.
 """
 
-__author__ = "Wander Lairson Costa"
+__author__: str
 
 import array
-from collections.abc import Generator, Callable
+from collections.abc import Callable, Generator
 from typing import Any
 
 import usb.core
 
 # descriptor type
-DESC_TYPE_DEVICE = 0x01
-DESC_TYPE_CONFIG = 0x02
-DESC_TYPE_STRING = 0x03
-DESC_TYPE_INTERFACE = 0x04
-DESC_TYPE_ENDPOINT = 0x05
+DESC_TYPE_DEVICE: int = 0x01
+DESC_TYPE_CONFIG: int = 0x02
+DESC_TYPE_STRING: int = 0x03
+DESC_TYPE_INTERFACE: int = 0x04
+DESC_TYPE_ENDPOINT: int = 0x05
 
 # endpoint direction
-ENDPOINT_IN = 0x80
-ENDPOINT_OUT = 0x00
+ENDPOINT_IN: int = 0x80
+ENDPOINT_OUT: int = 0x00
 
 # endpoint type
-ENDPOINT_TYPE_CTRL = 0x00
-ENDPOINT_TYPE_ISO = 0x01
-ENDPOINT_TYPE_BULK = 0x02
-ENDPOINT_TYPE_INTR = 0x03
+ENDPOINT_TYPE_CTRL: int = 0x00
+ENDPOINT_TYPE_ISO: int = 0x01
+ENDPOINT_TYPE_BULK: int = 0x02
+ENDPOINT_TYPE_INTR: int = 0x03
 
 # control request type
-CTRL_TYPE_STANDARD = 0 << 5
-CTRL_TYPE_CLASS = 1 << 5
-CTRL_TYPE_VENDOR = 2 << 5
-CTRL_TYPE_RESERVED = 3 << 5
+CTRL_TYPE_STANDARD = ...
+CTRL_TYPE_CLASS = ...
+CTRL_TYPE_VENDOR = ...
+CTRL_TYPE_RESERVED = ...
 
 # control request recipient
-CTRL_RECIPIENT_DEVICE = 0
-CTRL_RECIPIENT_INTERFACE = 1
-CTRL_RECIPIENT_ENDPOINT = 2
-CTRL_RECIPIENT_OTHER = 3
+CTRL_RECIPIENT_DEVICE: int = 0
+CTRL_RECIPIENT_INTERFACE: int = 1
+CTRL_RECIPIENT_ENDPOINT: int = 2
+CTRL_RECIPIENT_OTHER: int = 3
 
 # control request direction
-CTRL_OUT = 0x00
-CTRL_IN = 0x80
+CTRL_OUT: int = 0x00
+CTRL_IN: int = 0x80
 
-_ENDPOINT_ADDR_MASK = 0x0F
-_ENDPOINT_DIR_MASK = 0x80
-_ENDPOINT_TRANSFER_TYPE_MASK = 0x03
-_CTRL_DIR_MASK = 0x80
+_ENDPOINT_ADDR_MASK: int = 0x0F
+_ENDPOINT_DIR_MASK: int = 0x80
+_ENDPOINT_TRANSFER_TYPE_MASK: int = 0x03
+_CTRL_DIR_MASK: int = 0x80
 
 # speed type
-SPEED_LOW = 1
-SPEED_FULL = 2
-SPEED_HIGH = 3
-SPEED_SUPER = 4
-SPEED_UNKNOWN = 0
+SPEED_LOW: int = 1
+SPEED_FULL: int = 2
+SPEED_HIGH: int = 3
+SPEED_SUPER: int = 4
+SPEED_UNKNOWN: int = 0
 
 def endpoint_address(address: int) -> int:
     r"""Return the endpoint absolute address.
@@ -163,7 +163,7 @@ def find_descriptor(
     find_all: bool = False,
     custom_match: Callable[[Any], bool] | None = None,
     **args,
-) -> Generator[Any, None, None]:
+) -> Generator[Any]:
     r"""Find an inner descriptor.
 
     find_descriptor works in the same way as the core.find() function does,

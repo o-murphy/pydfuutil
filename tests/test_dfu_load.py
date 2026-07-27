@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from pydfuutil import dfu
-from pydfuutil.dfu_load import DfuFile, do_upload, do_download
+from pydfuutil.dfu_load import DfuFile, do_download, do_upload
 
 
 class TestDFULoader(unittest.TestCase):

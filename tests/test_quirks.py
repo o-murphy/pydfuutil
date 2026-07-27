@@ -1,7 +1,8 @@
 import logging
 import unittest
-from pydfuutil.quirks import VENDOR, PRODUCT, QUIRK, get_quirks
+
 from pydfuutil.logger import logger
+from pydfuutil.quirks import PRODUCT, QUIRK, VENDOR, get_quirks
 
 logger.setLevel(logging.DEBUG)
 

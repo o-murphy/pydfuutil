@@ -43,31 +43,30 @@ get_interface - get a device interface
 set_interface - set a device interface
 """
 
-__author__ = "Wander Lairson Costa"
+__author__: str
 
 __all__ = [
-    "get_status",
-    "clear_feature",
-    "set_feature",
-    "get_descriptor",
-    "set_descriptor",
-    "get_configuration",
-    "set_configuration",
-    "get_interface",
-    "set_interface",
+    "DEVICE_REMOTE_WAKEUP",
     "ENDPOINT_HALT",
     "FUNCTION_SUSPEND",
-    "DEVICE_REMOTE_WAKEUP",
+    "LTM_ENABLE",
     "U1_ENABLE",
     "U2_ENABLE",
-    "LTM_ENABLE",
+    "clear_feature",
+    "get_configuration",
+    "get_descriptor",
+    "get_interface",
+    "get_status",
+    "set_configuration",
+    "set_descriptor",
+    "set_feature",
+    "set_interface",
 ]
 
 import array
 
 import usb.core
-import usb.util as util
-import usb.core as core
+from usb import core
 
 USBError = core.USBError
 
@@ -76,12 +75,12 @@ def _parse_recipient(
 ) -> tuple[int, int]: ...
 
 # standard feature selectors from USB 2.0/3.0
-ENDPOINT_HALT = 0
-FUNCTION_SUSPEND = 0
-DEVICE_REMOTE_WAKEUP = 1
-U1_ENABLE = 48
-U2_ENABLE = 49
-LTM_ENABLE = 50
+ENDPOINT_HALT: int
+FUNCTION_SUSPEND: int
+DEVICE_REMOTE_WAKEUP: int
+U1_ENABLE: int
+U2_ENABLE: int
+LTM_ENABLE: int
 
 def get_status(
     dev: usb.core.Device,
@@ -98,12 +97,6 @@ def get_status(
     The status value is returned as an integer with the lower
     word being the two bytes status value.
     """
-    bmRequestType, wIndex = _parse_recipient(recipient, util.CTRL_IN)
-    ret = dev.ctrl_transfer(
-        bmRequestType=bmRequestType, bRequest=0x00, wIndex=wIndex, data_or_wLength=2
-    )
-    assert not isinstance(ret, int)
-    return ret[0] | (ret[1] << 8)
 
 def clear_feature(
     dev: usb.core.Device,
@@ -156,25 +149,6 @@ def get_descriptor(
     and represents the Language ID. For other types of descriptors,
     it is zero.
     """
-    wValue = desc_index | (desc_type << 8)
-
-    bmRequestType = util.build_request_type(
-        util.CTRL_IN, util.CTRL_TYPE_STANDARD, util.CTRL_RECIPIENT_DEVICE
-    )
-
-    desc = dev.ctrl_transfer(
-        bmRequestType=bmRequestType,
-        bRequest=0x06,
-        wValue=wValue,
-        wIndex=wIndex,
-        data_or_wLength=desc_size,
-    )
-    assert not isinstance(desc, int)
-
-    if len(desc) < 2:
-        raise USBError("Invalid descriptor")
-
-    return desc
 
 def set_descriptor(
     dev: usb.core.Device,
@@ -228,4 +202,3 @@ def set_interface(
     dev is the Device object to which the request will be
     sent to.
     """
-    dev.set_interface_altsetting(bInterfaceNumber, bAlternateSetting)

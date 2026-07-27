@@ -1,4 +1,5 @@
 import unittest
+
 from pydfuutil.dfuse_mem import MemSegment, add_segment, parse_memory_layout
 
 

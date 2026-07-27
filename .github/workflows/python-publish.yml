@@ -16,7 +16,6 @@ permissions:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
 
     # Specifying a GitHub environment is optional, but strongly encouraged
@@ -24,54 +23,54 @@ jobs:
     permissions:
       # job-level permissions replace (not merge with) the workflow-level block above,
       # so everything this job needs must be listed here explicitly.
-      contents: write  # required to create the GitHub Release
+      contents: write # required to create the GitHub Release
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
 
     steps:
-    - uses: actions/checkout@v7
-      with:
-        ref: ${{ inputs.tag || github.ref_name }}
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
 
-    - name: Build package
-      run: uv build
+      - name: Build package
+        run: uv build
 
-    - name: Resolve tag and version
-      id: meta
-      run: |
-        TAG="${{ inputs.tag || github.ref_name }}"
-        VERSION="${TAG#v}"
-        if [[ "$VERSION" =~ (alpha|beta|pre|rc) ]]; then
-          PRERELEASE=true
-        else
-          PRERELEASE=false
-        fi
-        echo "tag=$TAG"               >> $GITHUB_OUTPUT
-        echo "version=$VERSION"       >> $GITHUB_OUTPUT
-        echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+      - name: Resolve tag and version
+        id: meta
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" =~ (alpha|beta|pre|rc) ]]; then
+            PRERELEASE=true
+          else
+            PRERELEASE=false
+          fi
+          echo "tag=$TAG"               >> $GITHUB_OUTPUT
+          echo "version=$VERSION"       >> $GITHUB_OUTPUT
+          echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
 
-    - name: Extract changelog section
-      id: changelog
-      run: |
-        VERSION=${{ steps.meta.outputs.version }}
-        BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -50)
-        if [ -z "$BODY" ]; then
-          BODY="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
-        fi
-        echo "body<<EOF" >> $GITHUB_OUTPUT
-        echo "$BODY" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          VERSION=${{ steps.meta.outputs.version }}
+          BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -50)
+          if [ -z "$BODY" ]; then
+            BODY="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v3
-      with:
-        tag_name: ${{ steps.meta.outputs.tag }}
-        name: ${{ steps.meta.outputs.tag }}
-        body: ${{ steps.changelog.outputs.body }}
-        prerelease: ${{ steps.meta.outputs.prerelease }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          body: ${{ steps.changelog.outputs.body }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
 
-    - name: Publish package to PyPI
-      run: uv publish --check-url https://pypi.org/simple/
+      - name: Publish package to PyPI
+        run: uv publish --check-url https://pypi.org/simple/

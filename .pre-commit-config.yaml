@@ -5,6 +5,13 @@ default_language_version:
 repos:
   - repo: local
     hooks:
+      - id: uv-lock
+        name: uv lock
+        entry: uv
+        args: ["lock", "--upgrade"]
+        language: system
+        pass_filenames: false
+
       - id: uv-sync
         name: uv sync before hooks
         entry: uv

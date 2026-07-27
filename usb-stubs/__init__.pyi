@@ -42,73 +42,18 @@ Since version 1.0, main PyUSB implementation lives in the 'usb.core'
 module. New applications are encouraged to use it.
 """
 
-import logging
-import os
-
-__author__ = "Wander Lairson Costa"
+__author__: str
 
 # Use Semantic Versioning, http://semver.org/
-try:
-    from usb._version import version as __version__
-except ImportError:
-    __version__ = "0.0.0"
+__version__: str
+version_info: tuple[int, int, int, str]
 
-def _get_extended_version_info(version):
-    import re
+def _get_extended_version_info(version: str) -> tuple[int, int, int, str]: ...
 
-    m = re.match(r"(\d+)\.(\d+)\.(\d+)[.-]?(.*)", version)
-    assert m is not None
-    major, minor, patch, suffix = m.groups()
-    return int(major), int(minor), int(patch), suffix
+__all__ = ["backend", "control", "core", "legacy", "libloader", "util"]
 
-extended_version_info = _get_extended_version_info(__version__)
-version_info = extended_version_info[:3]
-
-__all__ = ["legacy", "control", "core", "backend", "util", "libloader"]  # noqa: F405
-
-def _setup_log():
-    from usb import _debug
-
-    logger = logging.getLogger("usb")
-    debug_level = os.getenv("PYUSB_DEBUG")
-
-    if debug_level is not None:
-        _debug.enable_tracing(True)
-        filename = os.getenv("PYUSB_LOG_FILENAME") or ""
-
-        LEVELS = {
-            "debug": logging.DEBUG,
-            "info": logging.INFO,
-            "warning": logging.WARNING,
-            "error": logging.ERROR,
-            "critical": logging.CRITICAL,
-        }
-
-        level = LEVELS.get(debug_level, logging.CRITICAL + 10)
-        logger.setLevel(level=level)
-
-        try:
-            handler = logging.FileHandler(filename)
-        except Exception:
-            handler = logging.StreamHandler()
-
-        fmt = logging.Formatter("%(asctime)s %(levelname)s:%(name)s:%(message)s")
-        handler.setFormatter(fmt)
-        logger.addHandler(handler)
-    else:
-        class NullHandler(logging.Handler):
-            def emit(self, record):
-                pass
-
-        # We set the log level to avoid delegation to the
-        # parent log handler (if there is one).
-        # Thanks to Chris Clark to pointing this out.
-        logger.setLevel(logging.CRITICAL + 10)
-
-        logger.addHandler(NullHandler())
-
-_setup_log()
+def _setup_log() -> None: ...
 
 # We import all 'legacy' module symbols to provide compatibility
 # with applications that use 0.x versions.
-from usb.legacy import *  # noqa: E402, F403
+from usb.legacy import *

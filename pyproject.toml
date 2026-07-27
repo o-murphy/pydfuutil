@@ -41,10 +41,10 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.22",
-    "ty>=0.0.59",
-    "pre-commit>=4.6.0",
+    "ty>=0.0.63",
+    "pre-commit>=4.6.1",
     "rich>=15.0.0",
-    "tqdm>=4.69.0",
+    "tqdm>=4.69.1",
     "libusb-package>=1.0.30.0",
 ]
 

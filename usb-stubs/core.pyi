@@ -40,27 +40,27 @@ find() - a function to find USB devices.
 show_devices() - a function to show the devices present.
 """
 
-__author__ = "Wander Lairson Costa"
+__author__: str
 
 __all__ = [
-    "Device",
     "Configuration",
-    "Interface",
+    "Device",
     "Endpoint",
+    "Interface",
+    "NoBackendError",
     "USBError",
     "USBTimeoutError",
-    "NoBackendError",
     "find",
     "show_devices",
 ]
 
-import usb._objfinalizer as _objfinalizer
-import logging
 import array
+import logging
 import threading
-from collections.abc import Generator, Callable
+from collections.abc import Callable, Generator, Iterator
 from typing import Any, Literal, overload
 
+from usb import _objfinalizer
 from usb.backend import IBackend
 
 _logger = logging.getLogger("usb.core")
@@ -87,8 +87,6 @@ def _try_lookup(table: dict, value: Any, default: str = "") -> str:
 class _DescriptorInfo(str):
     """this class is used so that when a descriptor is shown on the
     terminal it is propely formatted"""
-
-    def __repr__(self) -> str: ...
 
 def synchronized(f: Callable) -> Callable:
     """decorator"""
@@ -222,8 +220,6 @@ class Endpoint:
         request.
         """
 
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str: ...
     def write(self, data: int | bytes | bytearray, timeout: int | None = None) -> int:
         r"""Write data to the endpoint.
 
@@ -235,8 +231,6 @@ class Endpoint:
 
         For details, see the Device.write() method.
         """
-        assert not isinstance(data, int)
-        return self.device.write(self, data, timeout)
 
     def read(self, size_or_buffer: int | bytearray, timeout=None) -> array.array:
         r"""Read data from the endpoint.
@@ -309,17 +303,13 @@ class Interface:
         GET_DESCRIPTOR request.
         """
 
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str:
-        """Show all information for the interface."""
-
     def endpoints(self) -> tuple[Endpoint]:
         r"""Return a tuple of the interface endpoints."""
 
     def set_altsetting(self) -> None:
         r"""Set the interface alternate setting."""
 
-    def __iter__(self) -> Generator[Endpoint, Any, None]:
+    def __iter__(self) -> Iterator[Endpoint]:
         r"""Iterate over all endpoints of the interface."""
 
     def __getitem__(self, index: int) -> Endpoint:
@@ -365,15 +355,13 @@ class Configuration:
         peripheral as a result of GET_DESCRIPTOR request.
         """
 
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str: ...
     def interfaces(self) -> tuple[Interface]:
         r"""Return a tuple of the configuration interfaces."""
 
     def set(self) -> Any:
         r"""Set this configuration as the active one."""
 
-    def __iter__(self) -> Generator[Interface, Any, None]:
+    def __iter__(self) -> Iterator[Interface]:
         r"""Iterate over all interfaces of the configuration."""
 
     def __getitem__(self, index: tuple[int, int]) -> Interface:
@@ -457,8 +445,6 @@ class Device(_objfinalizer.AutoFinalizedObject):
 
     def __eq__(self, other) -> bool: ...
     def __hash__(self) -> int: ...
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str: ...
     def configurations(self) -> tuple[Configuration]:
         r"""Return a tuple of the device configurations."""
 
@@ -667,7 +653,7 @@ class Device(_objfinalizer.AutoFinalizedObject):
         driver to.
         """
 
-    def __iter__(self) -> Generator[Configuration, Any, None]:
+    def __iter__(self) -> Iterator[Configuration]:
         r"""Iterate over all configurations of the device."""
 
     def __getitem__(self, index: int) -> Configuration:
@@ -686,7 +672,7 @@ def find(
     backend: IBackend | None = None,
     custom_match: Callable[[Any], bool] | None = None,
     **args,
-) -> Generator[Device, Any, None]: ...
+) -> Generator[Device, Any]: ...
 @overload
 def find(
     find_all: Literal[False] = False,
@@ -699,7 +685,7 @@ def find(
     backend: IBackend | None = None,
     custom_match: Callable[[Any], bool] | None = None,
     **args,
-) -> Generator[Device, Any, None] | Device | None:
+) -> Generator[Device, Any] | Device | None:
     r"""Find an USB device and return it.
 
     find() is the function used to discover USB devices.  You can pass as
@@ -767,8 +753,6 @@ def find(
 
     Backends are explained in the usb.backend module.
     """
-
-    def device_iter(**kwargs) -> Generator[Device, Any, None] | Device | None: ...
 
 def show_devices(verbose: bool = False, **kwargs) -> _DescriptorInfo:
     """Show information about connected devices.
