@@ -8,6 +8,8 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +49,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14' && github.actor != 'dependabot[bot]'
         uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./coverage.xml
           fail_ci_if_error: true
