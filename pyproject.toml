@@ -10,7 +10,7 @@ name = "pydfuutil"
 authors = [{ name = "o-murphy", email = "thehelixpg@gmail.com" }]
 description = "PyDfuUtil - Pure python fork of dfu-util wrappers to libusb"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = ["dfu_util", "dfu-util", "pydfu", "libusb", "python", "python3"]
 license = { file = "LICENSE" }
 classifiers = [
@@ -20,11 +20,11 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
@@ -40,9 +40,9 @@ dynamic = ["version"]
 dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
-    "ruff>=0.15.22",
-    "ty>=0.0.63",
-    "pre-commit>=4.6.1",
+    "ruff>=0.17.0",
+    "ty>=0.0.88",
+    "pre-commit>=4.7.0",
     "rich>=15.0.0",
     "tqdm>=4.69.1",
     "libusb-package>=1.0.30.0",
