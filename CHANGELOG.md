@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-10-15
+
+### Changed
+- **BREAKING**: drop python 3.11 support
+
 ## [0.11.3] - 2026-10-15
 
 ### Changed
@@ -244,7 +249,9 @@ No changes since [0.11.0b2], stable release
   transfers), `dfu_load.py` upload/download routines with parallel-read support, USB device
   reconnection by port number, and PyPI packaging.
 
-[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/o-murphy/pydfuutil/compare/v0.11.4...HEAD
+[0.11.4]: https://github.com/o-murphy/pydfuutil/compare/v0.11.3...v0.11.4
+[0.11.3]: https://github.com/o-murphy/pydfuutil/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/o-murphy/pydfuutil/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/o-murphy/pydfuutil/compare/v0.11.0b2...v0.11.0
