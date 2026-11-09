@@ -126,9 +126,8 @@ def get_exceptions(func, ids=None):
                     for name in reversed(parts):
                         ob = getattr(ob, name)
 
-            elif isinstance(c, ast.Name):
-                if c.id in vars:
-                    ob = vars[c.id]
+            elif isinstance(c, ast.Name) and c.id in vars:
+                ob = vars[c.id]
 
             if ob is not None and id(ob) not in ids:
                 self.other.append(ob)
