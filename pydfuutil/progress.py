@@ -29,7 +29,7 @@ try:
     from rich import progress as RICH_PROGRESS
 except ImportError:
     try:
-        from pip._vendor.rich import progress as RICH_PROGRESS  # ty: ignore[unresolved-import]
+        from pip._vendor.rich import progress as RICH_PROGRESS  # ty: ignore[import-not-found]
     except ImportError:
         pass
 
